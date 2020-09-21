@@ -1,0 +1,9 @@
+results/
+figures/
+case_studies/
+*.pyc
+*.html
+bsg_c++/*
+pycache/
+*.pickle
+.idea
