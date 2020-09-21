@@ -1,79 +1,39 @@
-# ZigZag
-A memory-centric rapid DNN accelerator design space exploration framework.
+# Private ZigZag master
+Some quick notes to owners to keep the code tidy and clean
 
-Paper link: https://arxiv.org/abs/2007.11360
-
-## Functions of ZigZag
-**Mode**|**Function**|**Memory Scheme Search**|**Spatial Unrolling Search**|**Temporal Mapping Search**|**Cost Estimation**|**Comment**
-:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:
-1|Hardware Cost Evaluation|No|No|No|Yes|Publicly released
-2|Find the best Temporal Mapping (minimize energy or maximize throughput) for a single NN layer|No|No|Yes|Yes|Publicly released
-3|Find the best Spatial Unrolling and the best Temporal Mapping  for a single NN layer|No|Yes|Yes|Yes|Publicly released
-4|Find the best Memory Scheme with fixed Spatial Unrolling for a single NN layer|Yes|No|Yes|Yes|Publicly released
-5|Find the best Memory Scheme with the best Spatial Unrolling for a single NN layer|Yes|Yes|Yes|Yes|Publicly released
-6|Find the best Spatial Unrolling for multiple NN layers (could be a complete NN or multiple NNs)|No|Yes|Yes|Yes|Not released yet
-7|Find the best Memory Scheme with fixed Spatial Unrolling for multiple NN layers (could be a complete NN or multiple NNs)|Yes|No|Yes|Yes|Not released yet
-8|Find the best Memory Scheme with the best Spatial Unrolling for multiple NN layers (could be a complete NN or multiple NNs)|Yes|Yes|Yes|Yes|Not released yet
-## Quickstart
-To run the framework
-```
-python3 top_module.py \
---set <path_to_settings_file> \
---map <path_to_mapping_file> \
---mempool <path_to_mempool_file> \
---arch <path_to_arch_file> \
-```
-
-## Examples
-
-A few input setting files are contained in the ``inputs`` folder.
-### Single cost estimation
-In the example provided a single cost estimation is carried out for the inference of CONV4 of AlexNet on Eyeriss.
-
-In the settings file (``inputs/settings.yaml``) the architecture and the mapping of the dataflow are fixed. (``fixed_architecture``, ``fixed_spatial_mapping`` and ``fixed_temporal_mapping`` are all set to ``True``).
-
-The architecture specs are defined in ``inputs/architecture.yaml`` while the mapping specs are define in ``inputs/mapping.yaml``. For more info on how these specifications are set, refer to [Input setting parameters](inputs/README.md).
-
-The cost estimation can be run with:
-```python3 top_module.py --arch ./inputs/architecture.yaml --map ./inputs/mapping.yaml --set ./inputs/settings.yaml --mempool ./inputs/memory_pool.yaml```
-### Temporal mapping exploration
-A temporal mapping exploration can be carried out on the same architecture with the same workload by setting ``fixed_temporal_mapping`` to ``False`` in the settings file.
-
-If the temporal mapping exploration is enabled, a search method must be specified. The search method (``exhaustive``, ``heuristic_v1``, ``heuristic_v2``, or ``iterative``) can be set in the settings file.
-
-The temporal mapping exploration can be then run with:
-```python3 top_module.py --arch ./inputs/architecture.yaml --map ./inputs/mapping.yaml --set ./inputs/settings.yaml --mempool ./inputs/memory_pool.yaml```
-### Spatial unrolling exploration
-
-Beside the temporal mapping exploration, spatial unrolling exploration can be carried out by setting the ``fixed_spatial_mapping`` to ``False`` as well.
-
-If the spatial unrolling exploration is enabled, a search method must be
-specified. The search method (``exhaustive``, ``heuristic_v1``,
-``heuristic_v2``, or ``hint_driven``) can be set in the settings file.
-
-A MAC array utilization threshold of >0.75 is suggested for reducing the exploration space. It can be specified in the settings file (``spatial_utilization_threshold``)
-
-The spatial unrolling exploration can be then run with:
-```python3 top_module.py --arch ./inputs/architecture.yaml --map ./inputs/mapping.yaml --set ./inputs/settings.yaml --mempool ./inputs/memory_pool.yaml```
-### Architecture exploration
-
-A basic architecture exploration run can be started by setting the ``fixed_architecture`` parameter to ``False`` in the settings file.
-
-Ther architecture exploration can be then run with:
-```python3 top_module.py --arch ./inputs/architecture.yaml --map ./inputs/mapping.yaml --set ./inputs/settings.yaml --mempool ./inputs/memory_pool_exploration.yaml```
-
-### Input settings parameters
-
-Please refer to [Input setting parameters](inputs/README.md)
-
-### Output file data format
-Please refer to [Example result files](example_result_file)
-
-### Console information
-While the tool is running, it prints some useful information on the console. Understand this information helps user to to better understand and control the DSE flow.
-
-Please refer to [Console information](example_result_file/console_info/README.md)
+## Developers forks
+As a developer, fork privately this repository on your own account.
 
 
-***
-The research team is continuing building and polishing ZigZag. We welcome any comment, discussion, and contribution from the community.
+In order to pull updates from this repository, you have to add it as a remote upstream. In order to do so:
+
+```git remote add upstream https://github.com/ZigZag-Project/zigzag_private_master```
+
+Whenever updates are ready, pull them from upstream
+
+```git pull origin [branch name]```
+
+Since we will have different branches for each ongoing project/developer you can pull the code from a specific branch (``[branch name]``) or from the master itself (``master`` instead of ``[branch name]``)
+
+### Pull requests from developer forks
+
+Whenever an update is ready (properly debugged, cleaned and commented) it can be pushed to the private master repository. From the developer fork this can be done with a *pull request*. It is good practice to make a pull request to a *separate branch than the master* (created only for the pull request purpose) and then merge the updates with the master.
+
+If you want to make a pull request for a specific branch of the private repository (be it a company one or any other one) you have to be careful to specify it when the pull request is being made (there is an option to do it very easily if the pull request is made with the browser and not via terminal)
+
+## Company forks
+If you are responsible for a company, you have to fork this repository privately on your own account and give it a name related to the company.
+
+__Any user added as *outside collaborator* to the fork will not be able to pull from the private master repository__. It will be the duty of the responsible to pull updates from the private master.
+
+Similarly to the developer fork, in order to pull updates from this repository, you have to add it as a remote upstream. In order to do so:
+
+```git remote add upstream https://github.com/ZigZag-Project/zigzag_private_master```
+
+Whenever updates are ready, pull them from upstream
+
+```git pull origin [branch name]```
+
+Since we will have different branches for each ongoing project/developer you can pull the code from a specific branch (``[branch name]``) or from the master itself (``master`` instead of ``[branch name]``).
+
+
