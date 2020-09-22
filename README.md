@@ -1,5 +1,5 @@
 # ZigZag
-A smemory-centric rapid DNN accelerator design space exploration framework.
+A memory-centric rapid DNN accelerator design space exploration framework.
 
 Paper link: https://arxiv.org/abs/2007.11360
 
