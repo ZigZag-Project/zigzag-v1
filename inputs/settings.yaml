@@ -11,8 +11,8 @@ result_print_mode : concise
 # SEARCH SETTINGS
 # 'False' for searching the corresponding space.
 fixed_architecture : True
-fixed_spatial_unrolling : False
-fixed_temporal_mapping : False
+fixed_spatial_unrolling : True
+fixed_temporal_mapping : True
 
 # RESULT SAVING SETTINGS
 # 'False' for only saving the best result.
