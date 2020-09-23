@@ -11,3 +11,4 @@ pycache/
 mprofile_*
 /Steven/
 env
+.vscode/
