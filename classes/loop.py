@@ -89,11 +89,8 @@ class Loop(object):
                 spatial_loop.Ku['W'][0:level + 1] + spatial_loop.Cu['W'][0:level + 1] +
                 spatial_loop.FYu['W'][0:level + 1] + spatial_loop.FXu['W'][0:level + 1])
                                            ).item())
-            try:
-                req_mem_count['W'][level] = spatial_loop.unit_count['W'][level + 1]
-            except:
-                print('level', level, "spatial_loop.unit_count['W']", spatial_loop.unit_count['W'])
-                raise ValueError('loop')
+
+            req_mem_count['W'][level] = spatial_loop.unit_count['W'][level + 1]
 
 
         for level in range(mem_level['I']):

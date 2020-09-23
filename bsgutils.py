@@ -51,9 +51,9 @@ def check_node(blocking_node, mem_size, operand_irrelevant, mem_share, precision
     # Given a blocking_node (with loops_pf, roof and LPF_scheme) checks whether the LPFs assigned
     # in its LPF_scheme don't exceed the storage parameters per memory level
 
-    for op in blocking_node.LPF_scheme:
+    for op in blocking_node:
 
-        for lev in range(0, len(blocking_node.LPF_scheme[op])):
+        for lev in range(0, len(blocking_node[op])):
             shared_min_roof_levels = [tuple([op, lev])]
             for shared_set in mem_share:
                 if tuple([op, lev]) in mem_share[shared_set]:
@@ -61,15 +61,16 @@ def check_node(blocking_node, mem_size, operand_irrelevant, mem_share, precision
             tot_size = 0
             for i in range(0, len(shared_min_roof_levels)):
                 if shared_min_roof_levels[i][0] == 'I':
-                    rel_loop_size = input_relevant_size_below(blocking_node.LPF_scheme, shared_min_roof_levels[i][1], layer_loop_info) * precision[
-                        shared_min_roof_levels[i][0]]
+                    rel_loop_size = input_relevant_size_below(blocking_node, shared_min_roof_levels[i][1],
+                                                              layer_loop_info) * precision[
+                                        shared_min_roof_levels[i][0]]
                 else:
+                    rel_loop_size = precision[shared_min_roof_levels[i][0]]
                     for lev_below in range(0, shared_min_roof_levels[i][1] + 1):
-                        rel_loop_size = precision[shared_min_roof_levels[i][0]]
                         try:
-                            if blocking_node.LPF_scheme[shared_min_roof_levels[i][0]][lev_below]:
+                            if blocking_node[shared_min_roof_levels[i][0]][lev_below]:
                                 block_types, block_sizes = zip(
-                                    *blocking_node.LPF_scheme[shared_min_roof_levels[i][0]][lev_below])
+                                    *blocking_node[shared_min_roof_levels[i][0]][lev_below])
                                 for bt in range(0, len(block_types)):
                                     if block_types[bt] not in operand_irrelevant[shared_min_roof_levels[i][0]]:
                                         rel_loop_size *= block_sizes[bt]
@@ -77,7 +78,7 @@ def check_node(blocking_node, mem_size, operand_irrelevant, mem_share, precision
                             rel_loop_size = precision[shared_min_roof_levels[i][0]]
                 tot_size += rel_loop_size
             if tot_size > mem_size[op][lev]:
-                # print(blocking_node.LPF_scheme[op])
+                # print(blocking_node[op])
                 # print(op, lev, utilization_rate[op][lev], tot_size)
                 good = False
     return good
