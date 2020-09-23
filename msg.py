@@ -347,10 +347,10 @@ def memory_scheme_generator_cluster(memory_comb, memory_pool, array_dimension, m
             # EG k = 1 -> ('I'), ('O'), ('W') assigned separately to the smallest memory, no shared cases
             # EG k = 2 -> ('I','O'), ('I','W'), ('W','O'), ... shared case with 2 operands
             # Moreover, the k can be defined separately for memory within the PE array and outside
-             
-            if size_bit_list[index_smallest_memory] in L1_size:# PE_RF_size_threshold:
+
+            if size_bit_list[index_smallest_memory] in L1_size:  # PE_RF_size_threshold:
                 k_list = [1]
-            elif size_bit_list[index_smallest_memory] in L2_size:# PE_RF_size_threshold:
+            elif size_bit_list[index_smallest_memory] in L2_size:  # PE_RF_size_threshold:
                 k_list = [3]
             else:
                 k_list = [1]

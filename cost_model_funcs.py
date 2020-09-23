@@ -504,7 +504,7 @@ def get_operand_level_dynamic_mem_cost(operand, level, loop, mem_word_cost, mem_
 
         else:
             if operand == 'O':
-                read_cost = (((loop.mem_access_elem['O_final'][level][0][0] + loop.mem_access_elem['O_final'][level][1][0]) * 
+                read_cost = (((loop.mem_access_elem['O_final'][level][0][0] + loop.mem_access_elem['O_final'][level][1][0]) *
                               (precision['O_final'] / mem_scheme.mem_bw[operand][level][0])) * mem_word_cost['O'][level][0]) + \
                             (((loop.mem_access_elem['O_partial'][level][0][0] +
                                loop.mem_access_elem['O_partial'][level][1][0]) *
@@ -595,3 +595,22 @@ def get_operand_level_dynamic_mem_cost(operand, level, loop, mem_word_cost, mem_
 # TODO need to know memory operating frequency and leakage power. Ignore static memory cost for now.
 def get_static_mem_cost():
     return 0
+
+
+def su_correction(mem_scheme):
+    su_len = {'W': len(mem_scheme.spatial_unrolling[0]['W']),
+              'I': len(mem_scheme.spatial_unrolling[0]['I']),
+              'O': len(mem_scheme.spatial_unrolling[0]['O'])}
+    mem_len = {'W': len(mem_scheme.mem_type['W']),
+               'I': len(mem_scheme.mem_type['I']),
+               'O': len(mem_scheme.mem_type['O'])}
+
+    for operand in ['W','I','O']:
+        if su_len[operand] > mem_len[operand]+1:
+            mem_scheme.spatial_unrolling[0][operand] = mem_scheme.spatial_unrolling[0][operand][:mem_len[operand]+1]
+            mem_scheme.flooring[0][operand] = mem_scheme.flooring[0][operand][:mem_len[operand]+1]
+        elif su_len[operand] < mem_len[operand]+1:
+            append_su = [[]]*(mem_len[operand] + 1 -su_len[operand])
+            mem_scheme.spatial_unrolling[0][operand].extend(append_su)
+            mem_scheme.flooring[0][operand].extend(append_su)
+    return mem_scheme

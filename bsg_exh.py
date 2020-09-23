@@ -164,7 +164,7 @@ def even_uneven(LPF_scheme):
                 if not tmp_LPF_scheme[operand][0]:
                     tmp_LPF_scheme[operand].remove(tmp_LPF_scheme[operand][0])
 
-        # The assignement process of different virtual levels terminates when tmp_LPF_scheme is an empty scheme,
+        # The assignment process of different virtual levels terminates when tmp_LPF_scheme is an empty scheme,
         # having had all its virtual levels removed in previous iterations
         if all(not tmp_LPF_scheme[op] for op in tmp_LPF_scheme):
             finished = True
@@ -172,6 +172,150 @@ def even_uneven(LPF_scheme):
         # print(pf)
 
     return even
+
+
+def st_loop_orders_gen(tmp_virtual_level_aux, O_st, I_st, W_st):
+    vl_order_list = []
+    for st_list in O_st + I_st + W_st:
+        order = []
+        for l in tmp_virtual_level_aux:
+            order.append(st_list[l[0]])
+        vl = [x for _, x in sorted(zip(order, tmp_virtual_level_aux))]
+        if vl not in vl_order_list:
+            vl_order_list.append(vl)
+    return vl_order_list
+
+
+def loop_order_combinations_stationary_v2(LPF_scheme):
+    '''
+        @param LPF_scheme: Single LPF scheme
+        @type LPF_scheme : dict
+        @return: a list of valid permutations of the LPF scheme
+
+        Function steps
+        ==============
+            Iteratively split the LPF scheme in virtual memory level, starting from the innermost set of LPFs
+            1. Find innermost set of common LPFs among different operands
+            2. Generate possible permuations for the found set of LPFs
+            3. For each permutation append it to the partial scheme. For the first iteration the partial scheme is a single empty one
+            4. Each partial scheme is appended to a list of partial schemes. The set of LPFs appended is removed from the original LPF scheme
+            - For the subsequent iterations, each virtual level is appended on top of the previous partial schemes.
+            - Steps 1 to 4 are repeated until all common sets of LPFs (virtual levels) have been appended.
+        '''
+    bs_next = []
+    finished = False
+    tmp_LPF_scheme = copy.deepcopy(LPF_scheme)
+    lo_ok = True
+    operand_irrelevant = {'W': [3, 4, 7], 'I': [6], 'O': [1, 2, 5]}
+    O_st = [
+        [None, 1, 2, 4, 5, 3, 6, 7],
+        [None, 2, 1, 4, 5, 3, 6, 7]
+    ]
+    I_st = [
+        [None, 2, 3, 4, 5, 6, 1, 7],
+        [None, 3, 2, 4, 5, 6, 1, 7],
+        [None, 3, 4, 2, 5, 6, 1, 7],
+        [None, 3, 4, 5, 2, 6, 1, 7]
+    ]
+    W_st = [
+        [None, 4, 5, 1, 2, 6, 7, 3],
+        [None, 4, 5, 2, 1, 6, 7, 3]
+    ]
+    length_bs = {
+        'W': len(LPF_scheme['W']),
+        'I': len(LPF_scheme['I']),
+        'O': len(LPF_scheme['O']),
+    }
+    bsx = {
+        'W': [[]],
+        'I': [[]],
+        'O': [[]]
+    }
+
+    # bs_next is a list of partial schemes that gets updated after each iteration
+    # bsx is an empty scheme
+    bs_next.append(bsx)
+
+    # The while loop is looped through until all virtual levels are assigned and the schemes are complete
+    while not finished:
+        # The first step is the identification of the virtual memory level
+        # Basically corresponds to comparing for each operand what is the number of LPFs in the innermost level of the
+        # *TMP_LPF_SCHEME* (which is different from the LPF scheme which is initially fed to the function and is a copy of the
+        # former that gets updated after each iteration by removing the assigned the virtual level) and setting as
+        # virtual memory level the one which has the lowest number of LPFs
+        if any(tmp_LPF_scheme[op] == [[]] for op in tmp_LPF_scheme):
+            min_virtual_roof = 0
+        else:
+            try:
+                min_virtual_roof = min(
+                    [len(tmp_LPF_scheme['W'][0]), len(tmp_LPF_scheme['I'][0]), len(tmp_LPF_scheme['O'][0])])
+            except IndexError:
+                print('tmp_LPF_scheme', tmp_LPF_scheme)
+                min_virtual_roof = 0
+        min_virtual_roof_list = []
+
+        for operand in ['W', 'I', 'O']:
+            if tmp_LPF_scheme[operand]:
+                if len(tmp_LPF_scheme[operand][0]) == min_virtual_roof:
+                    min_virtual_roof_list.append([operand, len(tmp_LPF_scheme[operand][0])])
+        virtual_level = copy.deepcopy(tmp_LPF_scheme[min_virtual_roof_list[0][0]][0])
+
+        for operand in ['W', 'I', 'O']:
+            for pf in virtual_level:
+                try:
+                    tmp_LPF_scheme[operand][0].remove(pf)
+                except IndexError:
+                    lo_ok = False
+                    return lo_ok, bs_next
+                except ValueError:
+                    lo_ok = False
+                    return lo_ok, bs_next
+
+        # Merge LPFs in the virtual memory level with the same loop type
+        # EG (6, 2), (3, 3), (6, 5) -> (6, 10), (3, 3)
+        tmp_virtual_level = []
+        for pf in virtual_level:
+            if pf[0] not in [x[0] for x in tmp_virtual_level]:
+                c = np.prod([x[1] for x in virtual_level if x[0] == pf[0]])
+                tmp_virtual_level.append(tuple([pf[0], c]))
+
+        bs_old = copy.deepcopy(bs_next)
+        bs_next = []
+        if tmp_virtual_level == []:
+            tmp_bs = copy.deepcopy(bs_old[0])
+            for op in ['W', 'I', 'O']:
+                if op in [opx[0] for opx in min_virtual_roof_list]:
+                    if len(tmp_bs[op]) != length_bs[op]:
+                        tmp_bs[op].append([])
+            bs_next.append(tmp_bs)
+        else:
+            tmp_virtual_level_aux = copy.deepcopy(tmp_virtual_level)
+            for bs in bs_old:
+                tmp_virtual_level_fully_pmt = st_loop_orders_gen(tmp_virtual_level_aux, O_st, I_st, W_st)
+                for vl in tmp_virtual_level_fully_pmt:
+                    tmp_bs = copy.deepcopy(bs)
+                    for op in ['W', 'I', 'O']:
+                        tmp_bs[op][len(bs[op]) - 1] += list(vl)
+                        if op in [opx[0] for opx in min_virtual_roof_list]:
+                            if len(tmp_bs[op]) != length_bs[op]:
+                                tmp_bs[op].append([])
+                    if tmp_bs not in bs_next:
+                        bs_next.append(tmp_bs)
+
+        # Remove the virtual level from tmp_LPF_scheme
+        for operand in tmp_LPF_scheme:
+            if tmp_LPF_scheme[operand]:
+                if not tmp_LPF_scheme[operand][0]:
+                    tmp_LPF_scheme[operand].remove(tmp_LPF_scheme[operand][0])
+
+        # The assignement process of different virtual levels terminates when tmp_LPF_scheme is an empty scheme,
+        # having had all its virtual levels removed in previous iterations
+        if tmp_LPF_scheme['W'] or tmp_LPF_scheme['I'] or tmp_LPF_scheme['O']:
+            finished = False
+        else:
+            finished = True
+
+    return lo_ok, bs_next
 
 
 def loop_order_combinations_stationary(LPF_scheme):
@@ -536,7 +680,7 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
     # print('OCCHIO QUI')
     # print(bs)
     # print(loops_pf)
-    lpf2a = sum([len(x) for x in loops_pf.values()])
+    # lpf2a = sum([len(x) for x in loops_pf.values()])
 
     # Assign relative memory sizes for each operand at each memory level
     for operand in ['W', 'I', 'O']:
@@ -747,14 +891,15 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
                     new_roof = su.update_roof(LPF_scheme, spatial_unrolling, [], new_tmp_roof, mem_share, mem_size,
                                               precision,
                                               operand_irrelevant, new_loops_pf, layer_loop_info)
-
+                    isgood = su.check_node(LPF_scheme, mem_size, operand_irrelevant, mem_share, precision,
+                                            layer_loop_info, utilization_rate)
                     # No need to update LPF scheme
                     new_LPF_scheme = copy.deepcopy(LPF_scheme)
 
                     # Generate new node in the blocking scheme tree, add it to the list
                     blocking_node = su.SchedulerNode(new_LPF_scheme, new_roof, new_loops_pf)
-
-                    next_partial_LPF_schemes_list.append(blocking_node)
+                    if isgood:
+                        next_partial_LPF_schemes_list.append(blocking_node)
                     # print('\r bs',f'{tt:3d}','/',f'{lpf2a:3d}',' ', f'{(z+1)/len(partial_LPF_schemes_list)*100:3.0f}','%, : f ',finished_lpf_scheme,' r ',len(next_partial_LPF_schemes_list), end='')
 
                 # If there list of fitting combinations of LPFs within the roof is NOT empty, proceed in creating new partial schemes
@@ -817,20 +962,7 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
 
                         # print('\r bs',f'{tt:3d}','/',f'{lpf2a:3d}',' ', f'{(z+1)/len(partial_LPF_schemes_list)*100:3.0f}','%, : f ',finished_lpf_scheme,' r ',len(next_partial_LPF_schemes_list), end='')
 
-    list_LPF_schemes = []
-    list_scheme_nodes = []
-    # lpf_file = open("lpf_list.pickle", "rb")
-    # lpf_list = pickle.load(lpf_file)
-    # final_LPF_schemes_list = lpf_list
-    for i, scheme_node in enumerate(final_LPF_schemes_list):
-        # sc = su.SchedulerNode(scheme_node, {},{})
-        # print('\r  |-> b.s. cleaning ', i, '/', len(final_LPF_schemes_list), end='', flush=True)
-        good = su.check_node(scheme_node, mem_size, operand_irrelevant, mem_share, precision, layer_loop_info,
-                             utilization_rate)
-        if good:
-            if scheme_node.LPF_scheme not in list_LPF_schemes:
-                list_LPF_schemes.append(scheme_node.LPF_scheme)
-                list_scheme_nodes.append(scheme_node)
+    list_LPF_schemes= [scheme_node.LPF_scheme for scheme_node in final_LPF_schemes_list]
 
     # Remove the LPFs which correspond to the spatial unrollings that were previously assigned
     # for each LPF scheme in list_LPF_schemes
@@ -845,31 +977,7 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
                                 bs[op][level].remove(tuple([spatial_unrolling[op][level][unroll][0], sp[i]]))
                             except IndexError:
                                 continue
-    i = 0
-    ii = 0
-    iii = 0
-    a = 0
-    # for bs in list_LPF_schemes:
-    #     # print()
-    #     # for op in ['I', 'O', 'W']:
-    #     #     print(op, bs[op])
-    #     if any([all([all([set(x) == set(y[op][ii_x]) for ii_x, x in enumerate(bs[op])]) for op in ['W', 'I', 'O']]) for
-    #             y in lpf_list]):
-    #         i += 1
-    #
-    #     else:
-    #         ii += 1
-    # for bs in lpf_list:
-    #     if any([all([all([set(x) == set(y[op][ii_x]) for ii_x, x in enumerate(bs[op])]) for op in ['W', 'I', 'O']]) for
-    #             y in list_LPF_schemes]):
-    #         a += 1
-    #     else:
-    #         iii += 1
-    # print()
-    # print('BS present in both ', i)
-    # print('BS present only in exh ', ii)
-    # print('BS present in both ', a)
-    # print('BS present only in c++ ', iii)
+
     # Data reuse cleanup for the LPF schemes
     # If you want this cleanup to be disabled, set drc_enabled = 0 in the input file
     if drc_enabled:
@@ -881,6 +989,7 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
         # print('\r  |-> ordering: ', ii_bs, '/', len(list_LPF_schemes), end='', flush=True)
         if stationary_enable is True:
             lo_ok, lo = loop_order_combinations_stationary(bs)
+            # lo_ok, lo = loop_order_combinations_stationary_v2(bs)
         else:
             lo_ok, lo = loop_order_combinations_exhaustive(bs)
         if lo_ok:
