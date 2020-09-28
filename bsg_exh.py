@@ -893,14 +893,16 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
                                               operand_irrelevant, new_loops_pf, layer_loop_info)
                     isgood = su.check_node(LPF_scheme, mem_size, operand_irrelevant, mem_share, precision,
                                             layer_loop_info, utilization_rate)
-                    # No need to update LPF scheme
-                    new_LPF_scheme = copy.deepcopy(LPF_scheme)
 
-                    # Generate new node in the blocking scheme tree, add it to the list
-                    blocking_node = su.SchedulerNode(new_LPF_scheme, new_roof, new_loops_pf)
                     if isgood:
+                        # No need to update LPF scheme
+                        new_LPF_scheme = copy.deepcopy(LPF_scheme)
+
+                        # Generate new node in the blocking scheme tree, add it to the list
+                        blocking_node = su.SchedulerNode(new_LPF_scheme, new_roof, new_loops_pf)
+
                         next_partial_LPF_schemes_list.append(blocking_node)
-                    # print('\r bs',f'{tt:3d}','/',f'{lpf2a:3d}',' ', f'{(z+1)/len(partial_LPF_schemes_list)*100:3.0f}','%, : f ',finished_lpf_scheme,' r ',len(next_partial_LPF_schemes_list), end='')
+                        # print('\r bs',f'{tt:3d}','/',f'{lpf2a:3d}',' ', f'{(z+1)/len(partial_LPF_schemes_list)*100:3.0f}','%, : f ',finished_lpf_scheme,' r ',len(next_partial_LPF_schemes_list), end='')
 
                 # If there list of fitting combinations of LPFs within the roof is NOT empty, proceed in creating new partial schemes
                 # For each fitting combination a new SchedulerNode object is created that contains:
@@ -946,21 +948,24 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
                                                   mem_size,
                                                   precision,
                                                   operand_irrelevant, new_loops_pf, layer_loop_info)
+                        isgood = su.check_node(new_LPF_scheme, mem_size, operand_irrelevant, mem_share, precision,
+                                               layer_loop_info, utilization_rate)
 
-                        # Generate new node in the blocking scheme tree, add it to the list
-                        blocking_node = su.SchedulerNode(new_LPF_scheme, new_roof, new_loops_pf)
+                        if isgood:
+                            # Generate new node in the blocking scheme tree, add it to the list
+                            blocking_node = su.SchedulerNode(new_LPF_scheme, new_roof, new_loops_pf)
 
-                        # The following if condition checks whether all the LPFs have been assigned.
-                        # If so, the partial scheme is considere a complete scheme and the SchedulerNode will have leaf_over == True
-                        over = False
-                        if all(new_loops_pf[loop_types] == [] for loop_types in new_loops_pf):
-                            over = True
-                            finished_lpf_scheme += 1
-                        if over:
-                            blocking_node.set_leaf_over()
-                        next_partial_LPF_schemes_list.append(blocking_node)
+                            # The following if condition checks whether all the LPFs have been assigned.
+                            # If so, the partial scheme is considere a complete scheme and the SchedulerNode will have leaf_over == True
+                            over = False
+                            if all(new_loops_pf[loop_types] == [] for loop_types in new_loops_pf):
+                                over = True
+                                finished_lpf_scheme += 1
+                            if over:
+                                blocking_node.set_leaf_over()
+                            next_partial_LPF_schemes_list.append(blocking_node)
 
-                        # print('\r bs',f'{tt:3d}','/',f'{lpf2a:3d}',' ', f'{(z+1)/len(partial_LPF_schemes_list)*100:3.0f}','%, : f ',finished_lpf_scheme,' r ',len(next_partial_LPF_schemes_list), end='')
+                            # print('\r bs',f'{tt:3d}','/',f'{lpf2a:3d}',' ', f'{(z+1)/len(partial_LPF_schemes_list)*100:3.0f}','%, : f ',finished_lpf_scheme,' r ',len(next_partial_LPF_schemes_list), end='')
 
     list_LPF_schemes= [scheme_node.LPF_scheme for scheme_node in final_LPF_schemes_list]
 
