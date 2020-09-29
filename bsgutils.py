@@ -61,9 +61,8 @@ def check_node(blocking_node, mem_size, operand_irrelevant, mem_share, precision
             tot_size = 0
             for i in range(0, len(shared_min_roof_levels)):
                 if shared_min_roof_levels[i][0] == 'I':
-                    rel_loop_size = input_relevant_size_below(blocking_node, shared_min_roof_levels[i][1],
-                                                              layer_loop_info) * precision[
-                                        shared_min_roof_levels[i][0]]
+                    rel_loop_size = input_relevant_size_below(blocking_node, shared_min_roof_levels[i][1], layer_loop_info) * precision[
+                        shared_min_roof_levels[i][0]]
                 else:
                     rel_loop_size = precision[shared_min_roof_levels[i][0]]
                     for lev_below in range(0, shared_min_roof_levels[i][1] + 1):
@@ -82,7 +81,6 @@ def check_node(blocking_node, mem_size, operand_irrelevant, mem_share, precision
                 # print(op, lev, utilization_rate[op][lev], tot_size)
                 good = False
     return good
-
 
 def cleaner(LPF_schemes_list):
     # Given a list of SchedulerNodes, delete all the duplicate ones

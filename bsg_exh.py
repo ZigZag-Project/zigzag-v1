@@ -994,7 +994,7 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
         # print('\r  |-> ordering: ', ii_bs, '/', len(list_LPF_schemes), end='', flush=True)
         if stationary_enable is True:
             lo_ok, lo = loop_order_combinations_stationary(bs)
-            # lo_ok, lo = loop_order_combinations_stationary_v2(bs)
+            # o_ok, lo = loop_order_combinations_stationary_v2(bs)
         else:
             lo_ok, lo = loop_order_combinations_exhaustive(bs)
         if lo_ok:
