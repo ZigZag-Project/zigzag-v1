@@ -50,6 +50,7 @@ class TemporalLoop(object):
                             temporal_loop_st[operand][level] = temporal_loop_copy[operand][level]
                             break
 
+
         B = {}
         K = {}
         C = {}
