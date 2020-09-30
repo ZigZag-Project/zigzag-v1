@@ -13,9 +13,9 @@ import time
 
 # Standard library
 from typing import Dict, Any    # Used for type hints
+import json # Used to create the output YAML file
 
 # External imports
-import yaml     # Used to save ZigZag output to the YAML format.
 import numpy as np  # Used to get access to numpy types in yaml_compatible
 
 # Internal imports
@@ -1552,7 +1552,17 @@ def print_yaml(
         # We serialize the YAML dictionary directly to the targeted file. We use
         # the default flow style because the output file will not be human
         # readable anyway.
-        yaml.dump(yaml_dictionary, yaml_file, default_flow_style=True)
+        #
+        # NOTE
+        # Because YAML is a superset of json, we can write our output in the
+        # json format, which is simpler to read and sufficient here, and we
+        # still have a valid YAML output.
+        if verbose:
+            json.dump(yaml_dictionary, yaml_file)
+        else:
+            # If the output is meant to be concise, we try to make it human
+            # readable (at least a little) by indenting it correctly.
+            json.dump(yaml_dictionary, yaml_file, indent=4)
 
     if cost_model_output in [None, [], {}]:
         # L means layer index, M means memory scheme count, SU means spatial
