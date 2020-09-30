@@ -1669,10 +1669,13 @@ def print_helper(input_settings, layers, multi_manager):
                         rf_en = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str + rf_ending_en
                         rf_ut = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str + rf_ending_ut
 
-                        print_xml(rf_en, layer, msc, best_output_energy, common_settings, tm_count_en, sim_time,
-                                  input_settings.result_print_mode)
-                        print_xml(rf_ut, layer, msc, best_output_utilization, common_settings, tm_count_ut, sim_time,
-                                  input_settings.result_print_mode)
+                        if print_type == "xml":
+                            print_xml(rf_en, layer, msc, best_output_energy, common_settings, tm_count_en, sim_time, input_settings.result_print_mode)
+                            print_xml(rf_ut, layer, msc, best_output_utilization, common_settings, tm_count_ut, sim_time, input_settings.result_print_mode)
+                        else:
+                            print_yaml(rf_en, layer, msc, best_output_energy, common_settings, tm_count_en, sim_time, input_settings.result_print_mode)
+                            print_yaml(rf_ut, layer, msc, best_output_utilization, common_settings, tm_count_ut, sim_time, input_settings.result_print_mode)
+
 
                 # Save the best SU + TM combination
                 if su_count != 0:
@@ -1707,11 +1710,12 @@ def print_helper(input_settings, layers, multi_manager):
 
                     rf_en = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_en + rf_ending_en
                     rf_ut = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_ut + rf_ending_ut
-
-                    print_xml(rf_en, layer, msc, best_output_energy, common_settings_en, tm_count_en, sim_time_en,
-                            input_settings.result_print_mode)
-                    print_xml(rf_ut, layer, msc, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut,
-                            input_settings.result_print_mode)
+                    if print_type == "xml":
+                        print_xml(rf_en, layer, msc, best_output_energy, common_settings_en, tm_count_en, sim_time_en, input_settings.result_print_mode)
+                        print_xml(rf_ut, layer, msc, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut, input_settings.result_print_mode)
+                    else:
+                        print_yaml(rf_en, layer, msc, best_output_energy, common_settings_en, tm_count_en, sim_time_en, input_settings.result_print_mode)
+                        print_yaml(rf_ut, layer, msc, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut, input_settings.result_print_mode)
 
         else:
             # Only save the best memory + su + tm combination
@@ -1758,11 +1762,13 @@ def print_helper(input_settings, layers, multi_manager):
             rf_en = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_en + rf_ending_en
             rf_ut = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_ut + rf_ending_ut
 
-            print_xml(rf_en, layer, msc_en, best_output_energy, common_settings_en, tm_count_en, sim_time_en,
-                      input_settings.result_print_mode)
-            print_xml(rf_ut, layer, msc_ut, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut,
-                      input_settings.result_print_mode)
-
+            if print_type == "xml":
+                print_xml(rf_en, layer, msc_en, best_output_energy, common_settings_en, tm_count_en, sim_time_en, input_settings.result_print_mode)
+                print_xml(rf_ut, layer, msc_ut, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut, input_settings.result_print_mode)
+            else:
+                print_yaml(rf_en, layer, msc_en, best_output_energy, common_settings_en, tm_count_en, sim_time_en, input_settings.result_print_mode)
+                print_yaml(rf_ut, layer, msc_ut, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut, input_settings.result_print_mode)
+    
         if (len(input_settings.layer_number) > 1) and (multi_manager.mem_scheme_count > 1):
             # Save the best memory hierarchy for all layers in separate folder
 
@@ -1802,8 +1808,12 @@ def print_helper(input_settings, layers, multi_manager):
             rf_en = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_en + rf_ending_en
             rf_ut = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_ut + rf_ending_ut
 
-            print_xml(rf_en, layer, msc_en, best_output_energy, common_settings_en, tm_count_en, sim_time_en, input_settings.result_print_mode)
-            print_xml(rf_ut, layer, msc_ut, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut, input_settings.result_print_mode)
+            if print_type == "xml":
+                print_xml(rf_en, layer, msc_en, best_output_energy, common_settings_en, tm_count_en, sim_time_en, input_settings.result_print_mode)
+                print_xml(rf_ut, layer, msc_ut, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut, input_settings.result_print_mode)
+            else:
+                print_yaml(rf_en, layer, msc_en, best_output_energy, common_settings_en, tm_count_en, sim_time_en, input_settings.result_print_mode)
+                print_yaml(rf_ut, layer, msc_ut, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut, input_settings.result_print_mode)
 
 
 class CostModelOutput:
