@@ -34,21 +34,23 @@ class TemporalLoop(object):
                    'O': [1, 2, 5]}
 
         temporal_loop_copy = copy.deepcopy(temporal_loop)
-
+    
         for operand in ['W', 'I', 'O']:
-            temporal_loop_st[operand] = [[]] * temporal_loop_copy[operand].__len__()
-            for level, li in enumerate(temporal_loop_copy[operand]):
+            #temporal_loop_st[operand] = [[]] * temporal_loop_copy[operand].__len__()
+            for level, li in enumerate(temporal_loop[operand]):
+                temporal_loop_st[operand].append([])
                 if level == 0 or not li:
                     temporal_loop_st[operand][level] = copy.deepcopy(li)
                 else:
                     li_save = copy.deepcopy(li)
                     for lo in li_save:
                         if lo[0] in ir_loop[operand]:
-                            temporal_loop_st[operand][level - 1].append(lo)
+                            temporal_loop_st[operand][level-1].append(lo)
                             temporal_loop_copy[operand][level].remove(lo)
                         else:
-                            temporal_loop_st[operand][level] = temporal_loop_copy[operand][level]
+                            temporal_loop_st[operand][level] = copy.deepcopy(temporal_loop_copy[operand][level])
                             break
+        
 
 
         B = {}
