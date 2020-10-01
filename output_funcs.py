@@ -1594,7 +1594,7 @@ def print_helper(input_settings, layers, multi_manager):
 
     # Use this for other print types (such as yaml) in the future
     # print_type = 'xml'
-    print_type = 'yaml'
+    print_type = input_settings.result_print_type
 
     save_all_arch = input_settings.arch_search_result_saving
     save_all_su = input_settings.su_search_result_saving

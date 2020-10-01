@@ -15,7 +15,7 @@ class InputSettings:
                  memory_hierarchy_ratio, mem_pool, banking, L1_size, L2_size, unrolling_size_list, unrolling_scheme_list,
                  unrolling_scheme_list_text, memory_scheme_hint, spatial_utilization_threshold, spatial_unrolling_mode,
                  stationary_optimization_enable, su_parallel_processing, arch_search_result_saving, su_search_result_saving,
-                 tm_search_result_saving, result_print_mode, im2col_enable, memory_unroll_fully_flexible):
+                 tm_search_result_saving, result_print_mode, im2col_enable, memory_unroll_fully_flexible, result_print_type):
 
         self.results_path = results_path
         self.results_filename = results_filename
@@ -66,6 +66,7 @@ class InputSettings:
         # TODO im2col_top_mem_level
         self.im2col_top_mem_level = 100
         self.memory_unroll_fully_flexible = memory_unroll_fully_flexible
+        self.result_print_type = result_print_type
 
 
 def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure_path):
@@ -77,6 +78,9 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
 
     if fl['result_print_mode'] not in ['concise', 'complete']:
         raise ValueError('result_print_mode is not correctly set. Please check the setting file.')
+
+    if fl['result_print_type'] not in ['xml', 'yaml']:
+        raise ValueError('result_print_type is not correctly set. Please check the setting file.')
 
     tm_fixed_flag = fl['fixed_temporal_mapping']
     sm_fixed_flag = fl['fixed_spatial_unrolling']
@@ -282,7 +286,8 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
                                    fl['spatial_utilization_threshold'], sumx, stationary_optimization_enable,
                                    fl['spatial_unrolling_multiprocessing'], fl['save_all_architecture_result'],
                                    fl['save_all_spatial_unrolling_result'], fl['save_all_temporal_mapping_result'],
-                                   fl['result_print_mode'], im2col_enable, memory_unroll_fully_flexible)
+                                   fl['result_print_mode'], im2col_enable, memory_unroll_fully_flexible,
+                                   fl['result_print_type'])
 
     return input_settings
 
