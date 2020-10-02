@@ -1,5 +1,29 @@
-from reader import Reader
+#!/usr/bin/env python3
+
+#################################### HEADER ####################################
+
+# File creation : Fri Oct  2 17:31:34 2020
+# Language : Python3
+
+################################### IMPORTS ####################################
+
+# External imports
 from matplotlib import pyplot as plt
+
+# Internal imports
+from reader import Reader
+
+##################################### CODE #####################################
+
+
+# TODO
+# Plotter is not really a class and more of a struct, in the sense that the data
+# inside the class is only read and never written to. This makes a lot of sense
+# because it is only used for plottings, but it means that the structure should
+# probably be changed to reflect that. For instance, the Plotter.reader object
+# should probably go away and only be used in the constructor.
+#
+# I am not completely decided yet.
 
 
 class Plotter:
@@ -16,13 +40,15 @@ class Plotter:
          - path: The path of the directory where the output of ZigZag was built.
                  For now, please keep path of form '/best_su_best_tm/'.
         """
-
         self.reader = Reader(path)
 
+        # Shortcut to the Reader.layer_numbers value.
         self.layer_numbers = self.reader.layer_numbers
 
+        # We get coarse energy readings from our Reader.
         self.total_energy, self.coarse_energy = self.reader.coarse_energy()
 
+        # Same for fine_energy.
         self.fine_energy = self.reader.fine_energy()
 
     def bar_plot(
@@ -71,6 +97,10 @@ class Plotter:
 
          - legend: bool, optional, default: True
             If this is set to true, a legend will be added to the axis.
+
+        Side-effects
+        ============
+        This call will prepare a plot for the given axis.
         """
 
         # Check if colors where provided, otherwhise use the default color cycle
@@ -78,18 +108,18 @@ class Plotter:
             colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
 
         # Number of bars per group
-        n_bars = len(data)
+        number_bars = len(data)
 
         # The width of a single bar
-        bar_width = total_width / n_bars
+        bar_width = total_width / number_bars
 
         # List containing handles for the drawn bars, used for the legend
         bars = []
 
         # Iterate over all data
-        for i, (name, values) in enumerate(data.items()):
+        for index_bar, (name, values) in enumerate(data.items()):
             # The offset in x direction of that bar
-            x_offset = (i - n_bars / 2) * bar_width + bar_width / 2
+            x_offset = (index_bar - number_bars / 2) * bar_width + bar_width / 2
 
             # Draw a bar for every value of that type
             for x, y in enumerate(values):
@@ -97,10 +127,11 @@ class Plotter:
                     x + x_offset,
                     y,
                     width=bar_width * single_width,
-                    color=colors[i % len(colors)],
+                    color=colors[index_bar % len(colors)],
                 )
 
-            # Add a handle to the last drawn bar, which we'll need for the legend
+            # Add a handle to the last drawn bar, which we will need for the
+            # legend
             bars.append(bar[0])
 
         # Draw legend if we need
@@ -109,7 +140,7 @@ class Plotter:
 
         # Change xticks so there is one for every layer
         x = range(len(values))
-        x_labels = [("Layer %d" % nb) for nb in layer_numbers]
+        x_labels = ["Layer {}".format(nb) for nb in layer_numbers]
         ax.set_xticks(x)
         ax.set_xticklabels(x_labels)
 
@@ -167,34 +198,38 @@ class Plotter:
 
          - legend: bool, optional, default: True
             If this is set to true, a legend will be added to the axis.
+
+        Side-effects
+        ============
+        This call will prepare a plot for the given axis.
         """
         # Check if colors where provided, otherwhise use the default color cycle
         if colors is None:
             colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
 
         # Number of bars per group
-        n_bars = len(data)
-        n_layers = len(layer_numbers)
+        number_bars = len(data)
+        number_layers = len(layer_numbers)
 
         # The width of a single bar
-        bar_width = total_width / n_bars
+        bar_width = total_width / number_bars
 
         # List containing handles for the drawn bars, used for the legend
         bars = []
 
         # Iterate over all data
-        for i, (name, nested_list) in enumerate(data.items()):
+        for index_bar, (name, nested_list) in enumerate(data.items()):
             # The offset in x direction of that bar
-            x_offset = (i - n_bars / 2) * bar_width + bar_width / 2
+            x_offset = (index_bar - number_bars / 2) * bar_width + bar_width / 2
 
             # Initialize the stack_below lists for correct stacking
-            stack_below = [0 for a in range(n_layers)]
+            stack_below = [0 for _ in range(number_layers)]
 
             # Iterate over the lists in nested_list
             for j, values in enumerate(nested_list):
                 # Draw a bar for every value of that type
                 # for x, y in enumerate(values):
-                x = [i + x_offset for i in range(n_layers)]
+                x = [i + x_offset for i in range(number_layers)]
                 bar = ax.bar(
                     x,
                     values,
@@ -239,6 +274,20 @@ class Plotter:
         ax.set_title(title)
 
     def plot_energy(self, total_width=0.6, single_width=0.9, colors=None):
+        """
+        Draws and displays the plots for the energy with the data from the
+        provided ZigZag output.
+
+        Arguments
+        =========
+         - total_width: The total width available to draw the plots.
+         - single_width: ??
+         - colors: The color scheme to use for the plots.
+
+        Side-effects
+        ============
+        This call will display some plots.
+        """
 
         fig1, ax1 = plt.subplots()
         self.bar_plot(
@@ -266,13 +315,12 @@ class Plotter:
 
         # Construct the legend labels for the stacks in the bar plot
         fine_stack_labels = []
-        mem_hierarchy_labels = self.reader.memory_labels
-        for v in mem_hierarchy_labels["I"]:
-            fine_stack_labels.append("I_" + v)
-        for v in mem_hierarchy_labels["W"]:
-            fine_stack_labels.append("W_" + v)
-        for v in mem_hierarchy_labels["O"]:
-            fine_stack_labels.append("O_" + v)
+        memory_hierarchy_labels = self.reader.memory_labels
+
+        for data_type, memory_elements in memory_hierarchy_labels.items():
+            for memory_name in memory_elements:
+                fine_stack_labels.append("{}_{}".format(data_type, memory_name))
+        # One last label for the energy spent by the mac arrays.
         fine_stack_labels.append("mac_array")
 
         fig3, ax3 = plt.subplots()
@@ -288,3 +336,12 @@ class Plotter:
         )
 
         plt.show()
+
+
+##################################### MAIN #####################################
+
+if __name__ == "__main__":
+    # The actions to perform when this file if called as a script go here
+    pass
+
+##################################### EOF ######################################
