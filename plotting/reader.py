@@ -384,6 +384,129 @@ class Reader:
 
         return fine_energy
 
+    def memory(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
+        """
+        Returns a view of all the layers in this object centered on their memory
+        hierarchy.
+
+        Returns
+        =======
+        <root>  # The dictionary itself
+        |
+        |--(layer_name) # The name associated with the layer
+           |
+           |--(data_type)   # One of "W", "I", "O"
+              |
+              |--(memory_name)  # The name of the memory element in this context
+                 |
+                 |--(key) # Where key is the name of the information you want to
+                                    retrieve for the given memory element.
+
+        Possible keys
+        =============
+         - name: The name of the memory element,
+         - size: *self-explanatory*,
+         - word_length: *self-explanatory*, this yields a list,
+         - energy_per_access: *self-explanatory*, this yields a list,
+         - type: *self-explanatory*
+         - area_module: The area of a single module of this memory,
+         - unrolling: ??, original name is "memory_urolling",
+         - temporal_mapping: The temporal mapping associated with this element,
+         - energy_breakdown: Energy consumed in this memory for the given
+            mapping,
+        """
+        # We build our returned dict iteratively for more readability.
+        returned_view: Dict[str, Dict[str, Dict[str, Any]]] = dict()
+
+        for layer_name, layer_output in self.layers.items():
+            view_layer: Dict[str, Dict[str, Any]] = dict()
+
+            # We have to work on each data type (I for inputs, W for weights, O
+            # for outputs.
+            for data_type in ["W", "I", "O"]:
+                # We create a dictionary for the data type.
+                view_data_type: Dict[str, Any] = dict()
+
+                # We gather the data for all the relevant memory elements.
+                for index, memory_name in enumerate(
+                    layer_output["simulation"]["hardware_specification"][
+                        "memory_hierarchy"
+                    ]["memory_name_in_the_hierarchy"][data_type]
+                ):
+                    # We build a dict of fields for of our memory element.
+                    view_memory: Dict[str, Any] = dict()
+                    # We add the memory name to the list.
+                    view_memory["name"] = memory_name
+                    # We get the size of the memory.
+                    memory_size = layer_output["simulation"][
+                        "hardware_specification"
+                    ]["memory_hierarchy"]["memory_size_bit"][data_type][index]
+                    view_memory["size"] = memory_size
+
+                    # We get the word length of the memory.
+                    memory_word_length = layer_output["simulation"][
+                        "hardware_specification"
+                    ]["memory_hierarchy"]["memory_word_length"][data_type][
+                        index
+                    ]
+                    view_memory["word_length"] = memory_word_length
+
+                    # We get the energy access per word.
+                    memory_energy_per_access = layer_output["simulation"][
+                        "hardware_specification"
+                    ]["memory_hierarchy"]["memory_access_energy_per_word"][
+                        data_type
+                    ][
+                        index
+                    ]
+                    view_memory["energy_per_access"] = memory_energy_per_access
+
+                    # We get the memory type.
+                    memory_type = layer_output["simulation"][
+                        "hardware_specification"
+                    ]["memory_hierarchy"]["memory_type"][data_type][index]
+                    view_memory["type"] = memory_type
+
+                    # We get the area of a module.
+                    memory_area_module = layer_output["simulation"][
+                        "hardware_specification"
+                    ]["memory_hierarchy"]["memory_area_single_module"][
+                        data_type
+                    ][
+                        index
+                    ]
+                    view_memory["area_module"] = memory_area_module
+
+                    # We get the unrolling of the memory.
+                    memory_unrolling = layer_output["simulation"][
+                        "hardware_specification"
+                    ]["memory_hierarchy"]["memory_unrolling"][data_type][index]
+                    view_memory["memory_unrolling"] = memory_area_module
+
+                    # We get the temporal mapping of the memory. This is a big list.
+                    memory_temporal_mapping = layer_output["simulation"][
+                        "results"
+                    ]["basic_information"]["temporal_mapping"][data_type][index]
+                    view_memory["temporal_mapping"] = memory_temporal_mapping
+
+                    # We get the energy breakdown forthis memory.
+                    memory_energy_breakdown = layer_output["simulation"][
+                        "results"
+                    ]["energy"]["energy_breakdown"][data_type][index]
+                    view_memory["energy_breakdown"] = memory_energy_breakdown
+
+                    # We add the values we gathered to the view of the data type.
+                    view_data_type[memory_name] = view_memory
+
+                # We add the built dictionary for this data type to the layer
+                # dictionary.
+                view_layer[data_type] = view_data_type
+
+            # Finally, we add the view of the layer to the global view.
+            returned_view[layer_name] = view_layer
+
+        # We return the built view.
+        return returned_view
 
 ##################################### MAIN #####################################
 

@@ -33,6 +33,21 @@ def main():
     for layer_name, layer_energy in reader.energy().items():
         print(layer_name, layer_energy["total_energy"])
 
+    # Pretty line for the style.
+    print("*" * 80)
+
+    # Example of working with thw memory view.
+    memory_view = reader.memory()
+    print(
+        *[
+            memory
+            for layer_view in memory_view.values()
+            for data_type_view in layer_view.values()
+            for memory in data_type_view.values()
+        ],
+        sep="\n\n"
+    )
+
 
 ##################################### MAIN #####################################
 
