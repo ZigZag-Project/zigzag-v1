@@ -27,7 +27,7 @@ class LayerOutput:
 
         Arguments
         =========
-         - path: The path where the out[ut layer file is stored.
+         - path: The path where the output layer file is stored.
          
         Note
         ====
@@ -45,6 +45,14 @@ class LayerOutput:
             with open(path, "r") as yaml_file:
                 # We only need basic YAML loading here.
                 self.dictionary: Dict[str, Any] = yaml.safe_load(yaml_file)
+
+                # Set some of the layer properties based on path
+                self.layer_number = int(path[path.find('_L')+2])
+                self.layer_name = 'Layer %d' % self.layer_number
+                self.memory_number = int(path[path.find('_M')+2])
+                self.su_number = int(path[path.find('_SU')+3])
+                self.opt_type = 'min_en' if 'min_en' in path else 'max_ut'
+
         else:
             # The extension is not recognized.
             raise ValueError("No known way to read the file {}".format(path))
@@ -63,6 +71,29 @@ class LayerOutput:
         """
         return self.dictionary[key]
 
+    def find(self, key, d=None):
+        """
+        Recursively finds the value of a key in LayerOutput.dictionary
+        Assumes the key you provide is unique in the dictionary.
+
+        Arguments
+        =========
+         - key: The key for which we want to get the value.
+
+        Returns
+        =======
+        The value associated with the key.
+        None if the key doesn't exist in the dictionary.
+        """
+        if d is None:
+            d = self.dictionary
+        if key in d:
+            return d[key]
+        for k, v in d.items():
+            if isinstance(v, dict):
+                found = self.find(key, v)
+                if found is not None:
+                    return found
 
 ##################################### MAIN #####################################
 
