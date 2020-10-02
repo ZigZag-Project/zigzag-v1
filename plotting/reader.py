@@ -8,8 +8,11 @@
 ################################### IMPORTS ####################################
 
 # Standard library
-from typing import Dict, Any  # Used for type hints.
+from typing import Dict, List, Tuple, Any  # Used for type hints.
 import os  # Used for directory exploration.
+from collections import (
+    defaultdict,
+)  # Used to create nested dictionaries easily.
 
 # Internal imports
 from layer_output import (
@@ -35,6 +38,13 @@ class Reader:
         Arguments
         =========
          - path: The path of the directory where the output of ZigZag was built.
+
+        Exceptions
+        ==========
+        If the path of a single file is provided, and that file is not a
+        recognized ZigZag output, a ValueError will be raised.
+        If some output files use a different hardware architecture than others,
+        an AssertionError will be raised.
         """
         # Sanity check, we verify that the provded path exists.
         assert os.path.exists(path)
@@ -42,7 +52,6 @@ class Reader:
         # We simply try to read a Layer from all the files within the given
         # directory.
         self.layers: Dict[str, LayerOutput] = dict()
-        self.layer_numbers = []
 
         # SPECIAL CASE
         # If the provided path is a file, we try to load it directly.
@@ -50,10 +59,6 @@ class Reader:
             # We try to infer the name of the layer from the path of the file.
             layer_name = os.path.basename(path)
             self.layers[layer_name] = LayerOutput(path)
-            # Add layer number to list of seen layer numbers
-            layer_number = self.layers[layer_name].layer_number
-            if layer_number not in self.layer_numbers:
-                self.layer_numbers.append(layer_number)
         else:
             # We try to load any file in the directory.
             for element in os.listdir(path):
@@ -66,20 +71,30 @@ class Reader:
                             os.path.basename(element_path)
                         )
                         self.layers[layer_name] = LayerOutput(element_path)
-                        # Add layer number to list of seen layer numbers
-                        layer_number = self.layers[layer_name].layer_number
-                        if layer_number not in self.layer_numbers:
-                            self.layer_numbers.append(layer_number)
                     except ValueError:
                         # This wasn't an expected file, we just skip it.
                         continue
 
-        # Sort list of layer numbers
-        self.layer_numbers.sort()
+        # We store the sorted list of all our layer numbers, without redundancy.
+        self.layer_numbers = sorted(
+            {layer.number for layer in self.layers.values()}
+        )
 
-        # Save the memory hierarchy names
-        # NOTE This only holds if all layers have the same hierarchy
-        self.mem_hierarchy_labels = self.layers[layer_name].find('memory_name_in_the_hierarchy')
+        # We try to save the labels of the memory elements in the hierarchy. For
+        # this to work, all the provided layers must use the same hardware.
+        #
+        # We grab the labels for one of the layers.
+        self.memory_labels = next(iter(self.layers.values())).find(
+            "memory_name_in_the_hierarchy"
+        )
+        # # We assert that all the layers use the same hardware.
+        # # NOTE
+        # # This is not very efficient, because we use find in a loop which will
+        # # always use the same access path. But it works.
+        # assert all(
+        #     self.memory_labels == layer.find("memory_name_in_the_hierarchy")
+        #     for layer in self.layers
+        # )
 
     def energy(self) -> Any:
         """
@@ -114,191 +129,261 @@ class Reader:
             for layer_name, layer_output in self.layers.items()
         }
 
-    def nested_energy(self) -> Any:
+    def nested_energy(self) -> Dict[str, Dict[int, Dict[str, Any]]]:
         """
-        Returns the energy section of each loaded layer.
-        Returned in a nested dictionary.
+        Returns the energy section of each loaded layer in a nested dictionary.
         
         Returns
         =======
         In concise output, the returned dictionary is structured like as:
 
         nested_energy (the returned dictionary)
-          |
-          |--'min_en','max_ut'
-              |
-              |--'Lx','Ly',...
-                  |
-                  |--total_energy: a float
-                  |
-                  |--mac_energy: a float
-                  |
-                  |--energy_breakdown
-                      |
-                      |--W: A list of floats
-                      |
-                      |--I: A list of floats
-                      |
-                      |--O: A list of floats
-
+        |
+        |--'min_en','max_ut'
+            |
+            |--'Lx','Ly',...  (the layer number, an integer)
+                |
+                |--total_energy: a float
+                |
+                |--mac_energy: a float
+                |
+                |--energy_breakdown
+                   |
+                   |--W: A list of floats
+                   |
+                   |--I: A list of floats
+                   |
+                   |--O: A list of floats
         """
-        
-        # Construct a nested dict
-        nested_energy = {
-        'min_en': {nb:None for nb in self.layer_numbers},
-        'max_ut': {nb:None for nb in self.layer_numbers}
-        }
+        # The dictionaries that we are going to return, we use a defaultdict to
+        # make the construction easier.
+        nested_energy: Dict[str, Dict[int, Dict[str, Any]]] = defaultdict(dict)
 
-        # Add energies to nested dict
-        for layer_name, layer_output in self.layers.items():
-            opt_type = layer_output.opt_type
-            layer_number = layer_output.layer_number
-            nested_energy[opt_type][layer_number] = layer_output.find('energy')
+        # Add energies to nested dict.
+        for layer in self.layers.values():
+            nested_energy[layer.optimum_type][layer.number] = layer.find(
+                "energy"
+            )
 
         return nested_energy
-        
-    def get_coarse_energy(self):
+
+    def coarse_energy(self) -> Tuple[Dict[str, List[float]]]:
         """
-        Returns the total and coarse grain energy of all loaded layer_outputs.
+        Returns the total and coarse grain energy of all loaded ZigZag outputs.
         
         Returns
         =======
-        Two dictionaries:
+        A tuple of two dictionaries:
 
-        total_energy = {'min_en':[list of total energy], 
-                        'max_ut':[list of total energy]
-                        }
+        total_energy = {
+                            'min_en':[list of total energy], 
+                            'max_ut':[list of total energy]
+                       }
+
         coarse_energy = {
-                        'min_en':[[list of mem energy], [list of mac energy]],
-                        'max_ut':[[list of mem energy], [list of mac energy]]
+                            'min_en': [
+                                        [list of mem energy],
+                                        [list of mac energy]
+                                      ]
+                            'max_ut': [
+                                        [list of mem energy],
+                                        [list of mac energy]
+                                      ]
                         }
-
         """
-        # Get all layer numbers present in reader
-        layer_numbers = self.layer_numbers
-
         # Get the nested energies
         nested_energy = self.nested_energy()
 
-         # Get energy divisions 
-        total_energy = {'min_en': [], 'max_ut': []}
-        mac_energy = {'min_en': [], 'max_ut': []}
-        mem_energy = {'min_en': [], 'max_ut': []}
-        for layer_number in layer_numbers:
-            total_energy_min_en = nested_energy['min_en'][layer_number]['total_energy']
-            total_energy_max_ut = nested_energy['max_ut'][layer_number]['total_energy']
-            mac_energy_min_en = nested_energy['min_en'][layer_number]['mac_energy']
-            mac_energy_max_ut = nested_energy['max_ut'][layer_number]['mac_energy']
-            mem_energy_min_en = total_energy_min_en - mac_energy_min_en
-            mem_energy_max_ut = total_energy_max_ut - mac_energy_max_ut
+        # Get energy divisions
+        total_energy: Dict[str, List[float]] = dict()
+        mac_energy: Dict[str, List[float]] = dict()
+        memory_energy: Dict[str, List[float]] = dict()
 
-            total_energy['min_en'].append(total_energy_min_en)
-            total_energy['max_ut'].append(total_energy_max_ut)
-            mac_energy['min_en'].append(mac_energy_min_en)
-            mac_energy['max_ut'].append(mac_energy_max_ut)
-            mem_energy['min_en'].append(mem_energy_min_en)
-            mem_energy['max_ut'].append(mem_energy_max_ut)
+        # We use a list comprehension to build the lists of total energy used,
+        # energy used by macs and by memory for the minimum energy and maximum
+        # utilization. We start by grabbing the values in a list of tuples.
+        #
+        # Total energy
+        total_energy["min_en"] = [
+            layer_energy["total_energy"]
+            for layer_energy in nested_energy["min_en"].values()
+        ]
+        total_energy["max_ut"] = [
+            layer_energy["total_energy"]
+            for layer_energy in nested_energy["max_ut"].values()
+        ]
 
+        # MAC energy
+        mac_energy["min_en"] = [
+            layer_energy["mac_energy"]
+            for layer_energy in nested_energy["min_en"].values()
+        ]
+        mac_energy["max_ut"] = [
+            layer_energy["mac_energy"]
+            for layer_energy in nested_energy["max_ut"].values()
+        ]
+
+        # Memory energy
+        memory_energy["min_en"] = [
+            layer_energy["total_energy"] - layer_energy["mac_energy"]
+            for layer_energy in nested_energy["min_en"].values()
+        ]
+        memory_energy["max_ut"] = [
+            layer_energy["total_energy"] - layer_energy["mac_energy"]
+            for layer_energy in nested_energy["max_ut"].values()
+        ]
+
+        # We also reorganize our values to make the coarse energy dictionary.
         coarse_energy = {
-            'min_en':[mem_energy['min_en'], mac_energy['min_en']],
-            'max_ut':[mem_energy['max_ut'], mac_energy['max_ut']]
-            }
+            "min_en": [memory_energy["min_en"], mac_energy["min_en"]],
+            "max_ut": [memory_energy["max_ut"], mac_energy["max_ut"]],
+        }
 
         return total_energy, coarse_energy
 
-    def get_fine_energy(self):
+    def fine_energy(self) -> Dict[str, List[List[float]]]:
         """
-        Returns the fine grain energy distr of all loaded layer_outputs.
+        Returns the fine grain energy distribution of all loaded ZigZag outputs.
         
         Returns
         =======
         One dictionary:
 
         fine_energy = {
-                        'min_en':[
-                            [list of i level 0 energy], 
-                            [list of i level 1 energy],
-                            ...
-                            [list of w level 0 energy],
-                            [list of w level 1 energy], 
-                            ...
-                            [list of o level 0 energy], 
-                            [list of o level 1 energy],
-                            ...
-                            [list of mac energy]
-                            ],
-                        'max_ut':[
-                            [list of i level 0 energy], 
-                            [list of i level 1 energy],
-                            ...
-                            [list of w level 0 energy],
-                            [list of w level 1 energy], 
-                            ...
-                            [list of o level 0 energy], 
-                            [list of o level 1 energy],
-                            ...
-                            [list of mac energy]
-                            ]
+                        'min_en': [
+                                    [list of inputs level 0 energy], 
+                                    [list of inputs level 1 energy],
+                                    ...
+                                    [list of weights level 0 energy],
+                                    [list of weights level 1 energy], 
+                                    ...
+                                    [list of outputs level 0 energy], 
+                                    [list of outputs level 1 energy],
+                                    ...
+                                    [list of mac energy]
+                                  ],
+                        'max_ut': [
+                                    [list of inputs level 0 energy], 
+                                    [list of inputs level 1 energy],
+                                    ...
+                                    [list of weigths level 0 energy],
+                                    [list of weigths level 1 energy], 
+                                    ...
+                                    [list of outputs level 0 energy], 
+                                    [list of outputs level 1 energy],
+                                    ...
+                                    [list of mac energy]
+                                 ]
                         }
-        If there are less memory levels for an operand, that list is omitted
 
+        Note
+        ====
+        If there are less memory levels for an operand, the corresponding list
+        is omitted.
+        Also, the level 0 of the memory is the DRAM. The higher the memory
+        level, the closer to the processing element it gets.
         """
-        # Get all layer numbers present in reader
-        layer_numbers = self.layer_numbers
-
-        # Get the nested energies
+        # Get the nested energies.
         nested_energy = self.nested_energy()
 
-        # Get the number of memory levels for each operand
-        # This is required to correctly initialize the nested lists inside of fine_energy
-        # First layer present in layer_numbers used, but number of mem levels should stay constant
-        en_breakdown_i = nested_energy['min_en'][layer_numbers[0]]['energy_breakdown']['I']
-        en_breakdown_w = nested_energy['min_en'][layer_numbers[0]]['energy_breakdown']['W']
-        en_breakdown_o = nested_energy['min_en'][layer_numbers[0]]['energy_breakdown']['O']
-        n_mem_lvl_i = len(en_breakdown_i) 
-        n_mem_lvl_w = len(en_breakdown_w)
-        n_mem_lvl_o = len(en_breakdown_o)
+        # We build our fine energy dictionary.
+        fine_energy: Dict[str, List[List[float]]] = dict()
 
-        # Initialize fine_energy with the correct amount of nested lists
-        # +1 for mac energy
-        fine_energy = {
-            'min_en': [[] for _ in range(n_mem_lvl_i + n_mem_lvl_w + n_mem_lvl_o + 1)], 
-            'max_ut': [[] for _ in range(n_mem_lvl_i + n_mem_lvl_w + n_mem_lvl_o + 1)]
-            }
+        ######### MINIMUM ENERGY
 
-        for layer_number in layer_numbers:
+        # We build the list of input level energy.
+        inputs_level_energy_for_minimum_energy_transposed = [
+            layer_energy["energy_breakdown"]["I"]
+            for layer_energy in nested_energy["min_en"].values()
+        ]
+        # This looks like:
+        # [[list of level energies for input 0], [list of level energies for
+        # input 1], ...].
+        # We are now going to transpose this list of list, this can be done
+        # using the zip function and the star operator. We end up with a list
+        # of tuples, but it should be enough for our purposes.
+        inputs_level_energy_for_minimum_energy = list(
+            zip(*inputs_level_energy_for_minimum_energy_transposed)
+        )
+        # We can do the same for the weights, except that we fuse the two steps
+        # into one.
+        weights_level_energy_for_minimum_energy = list(
+            zip(
+                *[
+                    layer_energy["energy_breakdown"]["W"]
+                    for layer_energy in nested_energy["min_en"].values()
+                ]
+            )
+        )
 
-            # Proxy to the energy breakdown for this layer
-            min_en_en_breakdown = nested_energy['min_en'][layer_number]['energy_breakdown']
-            max_ut_en_breakdown = nested_energy['max_ut'][layer_number]['energy_breakdown']
+        outputs_level_energy_for_minimum_energy = list(
+            zip(
+                *[
+                    layer_energy["energy_breakdown"]["O"]
+                    for layer_energy in nested_energy["min_en"].values()
+                ]
+            )
+        )
+        # We also need our mac energy to put it at the end of the list.
+        mac_energy_for_minimum_energy = tuple(
+            layer_energy["mac_energy"]
+            for layer_energy in nested_energy["min_en"].values()
+        )
+        # We can store the concatenation of the four list in out dictionary. We
+        # have to turn our mac energy into a tuple to get an homogeneous data
+        # structure.
+        fine_energy["min_en"] = (
+            inputs_level_energy_for_minimum_energy
+            + weights_level_energy_for_minimum_energy
+            + outputs_level_energy_for_minimum_energy
+            + [tuple(mac_energy_for_minimum_energy)]
+        )
 
-            for i_idx in range(n_mem_lvl_i):
-                min_en_en_i = min_en_en_breakdown['I'][i_idx]
-                max_ut_en_i = max_ut_en_breakdown['I'][i_idx]
-                fine_energy['min_en'][i_idx].append(min_en_en_i)
-                fine_energy['max_ut'][i_idx].append(max_ut_en_i)
-            i_idx += 1
-            for w_idx in range(n_mem_lvl_w):
-                min_en_en_i = min_en_en_breakdown['W'][w_idx]
-                max_ut_en_i = max_ut_en_breakdown['W'][w_idx]
-                fine_energy['min_en'][w_idx + i_idx].append(min_en_en_i)
-                fine_energy['max_ut'][w_idx + i_idx].append(max_ut_en_i)
-            w_idx += 1
-            for o_idx in range(n_mem_lvl_o):
-                min_en_en_i = min_en_en_breakdown['O'][o_idx]
-                max_ut_en_i = max_ut_en_breakdown['O'][o_idx]
-                fine_energy['min_en'][o_idx + w_idx + i_idx].append(min_en_en_i)
-                fine_energy['max_ut'][o_idx + w_idx + i_idx].append(max_ut_en_i)
+        ######### MAXIMUM UTILIZATION
 
-
-            mac_energy_min_en = nested_energy['min_en'][layer_number]['mac_energy']
-            mac_energy_max_ut = nested_energy['max_ut'][layer_number]['mac_energy']
-
-            fine_energy['min_en'][o_idx + w_idx + i_idx + 1].append(mac_energy_min_en)
-            fine_energy['max_ut'][o_idx + w_idx + i_idx + 1].append(mac_energy_max_ut)
-
+        # We repeat the process for the maximum utilization.
+        inputs_level_energy_for_maximum_utilization = list(
+            zip(
+                *[
+                    layer_energy["energy_breakdown"]["I"]
+                    for layer_energy in nested_energy["max_ut"].values()
+                ]
+            )
+        )
+        # We still use zip to transpose our lists of lists.
+        weights_level_energy_for_maximum_utilization = list(
+            zip(
+                *[
+                    layer_energy["energy_breakdown"]["W"]
+                    for layer_energy in nested_energy["max_ut"].values()
+                ]
+            )
+        )
+        outputs_level_energy_for_maximum_utilization = list(
+            zip(
+                *[
+                    layer_energy["energy_breakdown"]["O"]
+                    for layer_energy in nested_energy["max_ut"].values()
+                ]
+            )
+        )
+        # We also need our mac energy to put it at the end of the list.
+        mac_energy_for_maximum_utilization = tuple(
+            layer_energy["mac_energy"]
+            for layer_energy in nested_energy["max_ut"].values()
+        )
+        # We can store the concatenation of the four list in out dictionary. We
+        # have to turn our mac energy into a tuple to get an homogeneous data
+        # structure.
+        fine_energy["max_ut"] = (
+            inputs_level_energy_for_maximum_utilization
+            + weights_level_energy_for_maximum_utilization
+            + outputs_level_energy_for_maximum_utilization
+            + [tuple(mac_energy_for_maximum_utilization)]
+        )
 
         return fine_energy
+
 
 ##################################### MAIN #####################################
 
