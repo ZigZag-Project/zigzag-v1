@@ -167,6 +167,74 @@ class Reader:
 
         return nested_energy
 
+    def nested_latency(self) -> Dict[str, Dict[int, Dict[str, Any]]]:
+        """
+        Returns the latency section of each loaded layer in a nested dictionary.
+        
+        Returns
+        =======
+        In concise output, the returned dictionary is structured like as:
+
+        nested_latency (the returned dictionary)
+        |
+        |--'min_en','max_ut'
+            |
+            |--'Lx','Ly',...  (the layer number, an integer)
+                |
+                |--latency_cycle_with_data_loading: a float
+                |
+                |--latency_cycle_without_data_loading: a float
+                |
+                |--ideal_computing_cycle: a float
+                |
+                |-- ...
+        """
+        # The dictionaries that we are going to return, we use a defaultdict to
+        # make the construction easier.
+        nested_latency: Dict[str, Dict[int, Dict[str, Any]]] = defaultdict(dict)
+
+        # Add latencies to nested dict.
+        for layer in self.layers.values():
+            nested_latency[layer.optimum_type][layer.number] = layer.find(
+                "latency"
+            )
+
+        return nested_latency
+
+    def total_latency(self):
+        """
+        Returns the total latency of all loaded layers in a nested dictionary.
+        Total latency is the total number of latency cyles with data loading.
+
+        Returns
+        =======
+        In concise output, the returned dictionary is structured like as:
+
+        total_latency (the returned dictionary)
+        |
+        |--'min_en','max_ut'
+            |
+            |--total_latency_with_data_loading: a float
+        """
+
+        # Get the nested latency
+        nested_latency = self.nested_latency()
+
+        # Create the dictionary
+        total_latency: Dict[str, float] = dict()
+
+        total_latency["min_en"] = [
+            layer_latency["latency_cycle_with_data_loading"]
+            for layer_latency in nested_latency["min_en"].values()
+        ]
+
+        total_latency["max_ut"] = [
+            layer_latency["latency_cycle_with_data_loading"]
+            for layer_latency in nested_latency["max_ut"].values()
+        ]
+
+        return total_latency
+
     def coarse_energy(self) -> Tuple[Dict[str, List[float]]]:
         """
         Returns the total and coarse grain energy of all loaded ZigZag outputs.
@@ -202,7 +270,7 @@ class Reader:
         # We use a list comprehension to build the lists of total energy used,
         # energy used by macs and by memory for the minimum energy and maximum
         # utilization. We start by grabbing the values in a list of tuples.
-        #
+        # NOTE from Arne: Do we get values in correct order as dict is orderless?
         # Total energy
         total_energy["min_en"] = [
             layer_energy["total_energy"]

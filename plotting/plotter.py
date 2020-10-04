@@ -25,6 +25,9 @@ from reader import Reader
 #
 # I am not completely decided yet.
 
+# NOTE from Arne
+# I don't really care if it's a class or struct, whatever you think is best.
+
 
 class Plotter:
     """
@@ -38,7 +41,7 @@ class Plotter:
         Arguments
         =========
          - path: The path of the directory where the output of ZigZag was built.
-                 For now, please keep path of form '/best_su_best_tm/'.
+                 For now, please keep path of form '.../best_su_best_tm/'.
         """
         self.reader = Reader(path)
 
@@ -280,8 +283,15 @@ class Plotter:
 
         Arguments
         =========
-         - total_width: The total width available to draw the plots.
-         - single_width: ??
+         - total_width : float, optional, default: 0.6
+            The width of a bar group. 0.8 means that 80% of the x-axis is covered
+            by bars and 20% will be spaces between the bars.
+
+        - single_width: float, optional, default: 0.9
+            The relative width of a single bar within a group. 1 means the bars
+            will touch eachother within a group, values less than 1 will make
+            these bars thinner.
+
          - colors: The color scheme to use for the plots.
 
         Side-effects
@@ -337,6 +347,75 @@ class Plotter:
 
         plt.show()
 
+    def plot_design_space(self, paths, legend=True, legend_labels=None):
+        """
+        NOTE from Arne
+        Ideally, we would have another class or struct for this,
+        as we're now using multiple paths for one plot.
+        Or change this one to handle both single and multiple paths in init.
+        For now, I'll just leave it here.
+
+        NOTE from Arne
+        In future: check that every path concerns the same layers
+
+        Plots two design points for each path in paths.
+        Design space is the latency, energy space.
+        TODO Point size represents the area.
+
+        Arguments
+        =========
+         - paths: A list of paths to ZigZag output folders.
+
+        Side-effects
+        ============
+        This call will display some plots.
+
+        """
+
+        fig, ax = plt.subplots()
+        colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+
+        # Get all data for plots by iterating through paths
+        for i, path in enumerate(paths):
+            reader = Reader(path)
+
+            # Shortcut to the Reader.layer_numbers value.
+            layer_numbers = reader.layer_numbers
+
+            # We get total energy readings from our Reader.
+            # total_energy is a list of floats for every layer.
+            total_energy, _ = reader.coarse_energy()
+            total_energy_sum_min_en = sum(total_energy['min_en'])
+            total_energy_sum_max_ut = sum(total_energy['max_ut'])
+
+            # We get total latency readings from our Reader.
+            # total_latency is a list of floats for every layer.
+            total_latency = reader.total_latency()
+            total_latency_sum_min_en = sum(total_latency['min_en'])
+            total_latency_sum_max_ut = sum(total_latency['max_ut'])
+
+            ax.scatter(total_energy_sum_min_en, total_latency_sum_min_en,
+                marker='o', color=colors[i % len(colors)])
+
+            ax.scatter(total_energy_sum_max_ut, total_latency_sum_max_ut,
+                marker='^', color=colors[i % len(colors)])
+
+        if legend is True:
+            if legend_labels is None:
+                # If no labels provided, use paths
+                legend_labels = [opt_type + ' ' + path 
+                    for path in paths for opt_type in ['min_en','max_ut']]
+
+            ax.legend(legend_labels)
+
+        ax.margins(y=0.2)
+        ax.set_xlim(left=0)
+        ax.set_ylim(bottom=0)
+        ax.set_xlabel('energy')
+        ax.set_ylabel('latency')
+
+
+        plt.show()
 
 ##################################### MAIN #####################################
 
