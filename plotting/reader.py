@@ -31,20 +31,20 @@ class Reader:
     values from it.
     """
 
-    def __init__(self, path: str):
+    def __init__(self, *paths: str):
         """
         Constructor of the Reader class.
 
         Arguments
         =========
-         - path: The path of the directory where the output of ZigZag was built.
+         - paths: The paths of the directories or files where the output of
+            ZigZag is located. This is a variadic argument, i.e. several paths
+            can be given at once.
 
         Exceptions
         ==========
         If the path of a single file is provided, and that file is not a
         recognized ZigZag output, a ValueError will be raised.
-        If some output files use a different hardware architecture than others,
-        an AssertionError will be raised.
         """
         # Sanity check, we verify that the provded path exists.
         assert os.path.exists(path)
@@ -53,27 +53,29 @@ class Reader:
         # directory.
         self.layers: Dict[str, LayerOutput] = dict()
 
-        # SPECIAL CASE
-        # If the provided path is a file, we try to load it directly.
-        if os.path.isfile(path):
-            # We try to infer the name of the layer from the path of the file.
-            layer_name = os.path.basename(path)
-            self.layers[layer_name] = LayerOutput(path)
-        else:
-            # We try to load any file in the directory.
-            for element in os.listdir(path):
-                # We get the full path of the element.
-                element_path = os.path.join(path, element)
-                if os.path.isfile(element_path):
-                    # We have found a file, we try to load it.
-                    try:
-                        layer_name, _ = os.path.splitext(
-                            os.path.basename(element_path)
-                        )
-                        self.layers[layer_name] = LayerOutput(element_path)
-                    except ValueError:
-                        # This wasn't an expected file, we just skip it.
-                        continue
+        for path in paths:
+            # SPECIAL CASE
+            # If the provided path is a file, we try to load it directly.
+            if os.path.isfile(path):
+                # We try to infer the name of the layer from the path of the
+                # file.
+                layer_name = os.path.basename(path)
+                self.layers[layer_name] = LayerOutput(path)
+            else:
+                # We try to load any file in the directory.
+                for element in os.listdir(path):
+                    # We get the full path of the element.
+                    element_path = os.path.join(path, element)
+                    if os.path.isfile(element_path):
+                        # We have found a file, we try to load it.
+                        try:
+                            layer_name, _ = os.path.splitext(
+                                os.path.basename(element_path)
+                            )
+                            self.layers[layer_name] = LayerOutput(element_path)
+                        except ValueError:
+                            # This wasn't an expected file, we just skip it.
+                            continue
 
         # We store the sorted list of all our layer numbers, without redundancy.
         self.layer_numbers = sorted(
@@ -551,7 +553,8 @@ class Reader:
                     ]["memory_hierarchy"]["memory_unrolling"][data_type][index]
                     view_memory["memory_unrolling"] = memory_area_module
 
-                    # We get the temporal mapping of the memory. This is a big list.
+                    # We get the temporal mapping of the memory. This is a big
+                    # list.
                     memory_temporal_mapping = layer_output["simulation"][
                         "results"
                     ]["basic_information"]["temporal_mapping"][data_type][index]
@@ -575,6 +578,7 @@ class Reader:
 
         # We return the built view.
         return returned_view
+
 
 ##################################### MAIN #####################################
 
