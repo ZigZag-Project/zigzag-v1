@@ -579,7 +579,7 @@ class Reader:
         # We return the built view.
         return returned_view
 
-    def flatten(self):
+    def flatten(self) -> pd.DataFrame:
         """
         Returns a pandas DataFrame of all the ZigZag outputs.
 
@@ -599,6 +599,7 @@ class Reader:
         # We use list comprehension to gather all the data for pandas.
         pandas_data = [
             [
+                layer_full_name,
                 layer.architecture,
                 layer.neural_network,
                 layer.number,
@@ -620,11 +621,12 @@ class Reader:
                 layer.find("memory_stalling_cycle_count"),
                 layer.find("area"),
             ]
-            for layer in self.layers.values()
+            for layer_full_name, layer in self.layers.items()
         ]
 
         # The labels for the DataFrame.
         pandas_labels = [
+            "full_name",
             "architecture",
             "neural_network",
             "layer_number",
@@ -648,7 +650,9 @@ class Reader:
         ]
 
         # We build and return the DataFrame.
-        return pd.DataFrame(pandas_data, columns=pandas_labels)
+        return pd.DataFrame(pandas_data, columns=pandas_labels).set_index(
+            "full_name"
+        )
 
 
 ##################################### MAIN #####################################
