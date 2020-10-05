@@ -14,6 +14,9 @@ from collections import (
     defaultdict,
 )  # Used to create nested dictionaries easily.
 
+# External imports
+import pandas as pd  # Used for analysis.
+
 # Internal imports
 from layer_output import (
     LayerOutput,
@@ -46,9 +49,6 @@ class Reader:
         If the path of a single file is provided, and that file is not a
         recognized ZigZag output, a ValueError will be raised.
         """
-        # Sanity check, we verify that the provded path exists.
-        assert os.path.exists(path)
-
         # We simply try to read a Layer from all the files within the given
         # directory.
         self.layers: Dict[str, LayerOutput] = dict()
@@ -578,6 +578,77 @@ class Reader:
 
         # We return the built view.
         return returned_view
+
+    def flatten(self):
+        """
+        Returns a pandas DataFrame of all the ZigZag outputs.
+
+        IMPORTANT
+        =========
+        This call will fail on the concise input.
+
+        Returns
+        =======
+        A pandas dataframe with high-level information about the different runs.
+
+        Exceptions
+        ==========
+        When used on a concise output, some values cannot be found, which yields
+        a KeyError (I believe).
+        """
+        # We use list comprehension to gather all the data for pandas.
+        pandas_data = [
+            [
+                layer.architecture,
+                layer.neural_network,
+                layer.number,
+                layer.memory,
+                layer.spatial_unrolling,
+                layer.optimum_type,
+                layer.find("total_MAC_operation"),
+                layer.find("total_energy"),
+                layer.find("mac_energy"),
+                layer.find("utilization_with_data_loading"),
+                layer.find("utilization_without_data_loading"),
+                layer.find("utilization_spatial"),
+                layer.find("utilization_temporal_with_data_loading"),
+                layer.find("utilization_temporal_without_data_loading"),
+                layer.find("latency_cycle_with_data_loading"),
+                layer.find("latency_cycle_without_data_loading"),
+                layer.find("ideal_computing_cycle"),
+                layer.find("load_cycle_total"),
+                layer.find("memory_stalling_cycle_count"),
+                layer.find("area"),
+            ]
+            for layer in self.layers.values()
+        ]
+
+        # The labels for the DataFrame.
+        pandas_labels = [
+            "architecture",
+            "neural_network",
+            "layer_number",
+            "memory_number",
+            "spatial_unrolling",
+            "optimum_type",
+            "total_MAC_operation",
+            "total_energy",
+            "mac_energy",
+            "utilization_with_data_loading",
+            "utilization_without_data_loading",
+            "utilization_spatial",
+            "utilization_temporal_with_data_loading",
+            "utilization_temporal_without_data_loading",
+            "latency_cycle_with_data_loading",
+            "latency_cycle_without_data_loading",
+            "ideal_computing_cycle",
+            "load_cycle_total",
+            "memory_stalling_cycle_count",
+            "area",
+        ]
+
+        # We build and return the DataFrame.
+        return pd.DataFrame(pandas_data, columns=pandas_labels)
 
 
 ##################################### MAIN #####################################

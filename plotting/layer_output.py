@@ -79,8 +79,8 @@ class LayerOutput:
         # discard the name of the architecture and of the neural network. Though
         # it is not visually obvious, we are just unpacking the resulting tuple.
         (
-            _,
-            _,
+            self.architecture,
+            self.neural_network,
             number,
             memory,
             spatial_unrolling,

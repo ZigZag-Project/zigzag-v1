@@ -36,7 +36,7 @@ def main():
     # Pretty line for the style.
     print("*" * 80)
 
-    # Example of working with thw memory view.
+    # Example of working with the memory view.
     memory_view = reader.memory()
     print(
         *[
@@ -47,6 +47,13 @@ def main():
         ],
         sep="\n\n"
     )
+
+    # Pretty line for the style.
+    print("*" * 80)
+
+    # Example of working with the flattened DataFrame.
+    data_frame = reader.flatten()
+    print(data_frame)
 
 
 ##################################### MAIN #####################################
