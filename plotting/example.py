@@ -55,6 +55,13 @@ def main():
     data_frame = reader.flatten()
     print(data_frame)
 
+    # Pretty line for the style.
+    print("*" * 80)
+
+    # Example of working with the memory DataFrame.
+    data_frame = reader.memory_flatten("Eyeriss")
+    print(data_frame)
+
 
 ##################################### MAIN #####################################
 

@@ -8,7 +8,7 @@
 ################################### IMPORTS ####################################
 
 # Standard library
-from typing import Dict, List, Tuple, Any  # Used for type hints.
+from typing import Dict, List, Tuple, Any, Optional  # Used for type hints.
 import os  # Used for directory exploration.
 from collections import (
     defaultdict,
@@ -653,6 +653,290 @@ class Reader:
         return pd.DataFrame(pandas_data, columns=pandas_labels).set_index(
             "full_name"
         )
+
+    def memory_flatten(
+        self, architecture: Optional[str] = None
+    ) -> pd.DataFrame:
+        """
+        Returns a view of all the layers in this object centered on their memory
+        hierarchy.
+
+        Arguments
+        =========
+         - architecture: The architecture for which the analysis should be
+            performed. The different Zigzag run must have the same architecture
+            for the pandas DataFrame to be built, and this parameter enables
+            filtering in case more runs have been loaded. When unspecified, all
+            the layers will be used.
+
+        Returns
+        =======
+        A doubly indexed DatFrame. The first index is the full name of the run,
+        the second name is the name of the memory considered. The columns are:
+         - size
+         - read_length
+         - write_length
+         - read_cost
+         - write_cost
+         - type
+         - unrolling
+         - utilization
+         - effective_size
+         - energy
+         - load_cycle
+         - read_stall
+         - write_stall
+         - required_read_bandwidth
+         - required_write_bandwidth
+        """
+        if architecture is not None:
+            filtered = {
+                layer_name: layer
+                for layer_name, layer in self.layers.items()
+                if layer.architecture == architecture
+            }
+        else:
+            filtered = self.layers
+        return memory_flat(filtered)
+
+
+def memory_flat(layers: Dict[str, LayerOutput]) -> pd.DataFrame:
+    """
+    Returns a view of all the layers in this object centered on their memory
+    hierarchy.
+
+    Returns
+    =======
+    A doubly indexed DatFrame. The first index is the full name of the run, the
+    second name is the name of the memory considered. The columns are:
+     - size
+     - read_length
+     - write_length
+     - read_cost
+     - write_cost
+     - type
+     - unrolling
+     - utilization
+     - effective_size
+     - energy
+     - load_cycle
+     - read_stall
+     - write_stall
+     - required_read_bandwidth
+     - required_write_bandwidth
+    """
+    # We build our returned dict iteratively for more readability.
+    returned_view: Dict[str, Dict[str, Dict[str, Any]]] = dict()
+
+    for layer_name, layer_output in layers.items():
+        view_layer: Dict[str, Dict[str, Any]] = defaultdict(dict)
+
+        # We have to work on each data type (I for inputs, W for weights, O
+        # for outputs.
+        for data_type in ["W", "I", "O"]:
+            # We gather the data for all the relevant memory elements.
+            for index, memory_name in enumerate(
+                layer_output["simulation"]["hardware_specification"][
+                    "memory_hierarchy"
+                ]["memory_name_in_the_hierarchy"][data_type]
+            ):
+                # We build a dict of fields for of our memory element.
+                view_memory = view_layer[memory_name]
+
+                ### SIZE
+                memory_size = layer_output["simulation"][
+                    "hardware_specification"
+                ]["memory_hierarchy"]["memory_size_bit"][data_type][index]
+                if "size" not in view_memory:
+                    view_memory["size"] = memory_size
+                else:
+                    # Cumulating the memory size amoung the operands.
+                    view_memory["size"] += memory_size
+
+                ### WORD LENGTH
+                memory_word_length = layer_output["simulation"][
+                    "hardware_specification"
+                ]["memory_hierarchy"]["memory_word_length"][data_type][index]
+                # There are two values for the word length, one for read and
+                # one for write.
+                if "read_length" not in view_memory:
+                    view_memory["read_length"] = memory_word_length[0]
+                if "write_length" not in view_memory:
+                    view_memory["write_length"] = memory_word_length[1]
+
+                ### ACCESS COST
+                memory_energy_per_access = layer_output["simulation"][
+                    "hardware_specification"
+                ]["memory_hierarchy"]["memory_access_energy_per_word"][
+                    data_type
+                ][
+                    index
+                ]
+                if "read_cost" not in view_memory:
+                    view_memory["read_cost"] = memory_energy_per_access[0]
+                if "write_cost" not in view_memory:
+                    view_memory["write_cost"] = memory_energy_per_access[1]
+
+                ### MEMORY TYPE
+                memory_type = layer_output["simulation"][
+                    "hardware_specification"
+                ]["memory_hierarchy"]["memory_type"][data_type][index]
+                if "type" not in view_memory:
+                    view_memory["type"] = memory_type
+
+                ### UNROLLING
+                memory_unrolling = layer_output["simulation"][
+                    "hardware_specification"
+                ]["memory_hierarchy"]["memory_unrolling"][data_type][index]
+                if "unrolling" not in view_memory:
+                    view_memory["unrolling"] = memory_unrolling
+
+                ### UTILIZATION
+                # NOTE
+                # Only the shared value is interesting for us since we are
+                # grouping the memories by name without taking care of the
+                # operations.
+                memory_utilization = layer_output["simulation"]["results"][
+                    "basic_information"
+                ]["actual_memory_utilization_shared"][data_type][index]
+                if "utilization" not in view_memory:
+                    view_memory["utilization"] = memory_utilization
+
+                ### EFFECTIVE SIZE
+                memory_effective_size = layer_output["simulation"]["results"][
+                    "basic_information"
+                ]["effective_memory_size"][data_type][index]
+                if "effective_size" not in view_memory:
+                    view_memory["effective_size"] = memory_effective_size
+
+                ### ENERGY
+                memory_energy_breakdown = layer_output["simulation"]["results"][
+                    "energy"
+                ]["energy_breakdown"][data_type][index]
+                if "energy" not in view_memory:
+                    view_memory["energy_breakdown"] = memory_energy_breakdown
+                else:
+                    # We accumulate the energy spent for all the operands.
+                    view_memory["energy_breakdown"] += memory_energy_breakdown
+
+                ### LOAD CYCLE
+                if data_type is not "O":
+                    # The output is not loaded from memory but computed.
+                    memory_load_cycle = layer_output["simulation"]["results"][
+                        "performance"
+                    ]["latency"]["data_loading"]["load_cycle_individual"][
+                        data_type
+                    ][
+                        index
+                    ]
+                    if "load_cycle" not in view_memory:
+                        view_memory["load_cycle"] = memory_load_cycle
+                    else:
+                        view_memory["load_cycle"] += memory_load_cycle
+                else:
+                    if "load_cycle" not in view_memory:
+                        # I don't really know which value would make more sense
+                        # here, so I am putting a NaN.
+                        view_memory["load_cycle"] = float("NaN")
+
+                ### STALLING
+                memory_stall = layer_output["simulation"]["results"][
+                    "performance"
+                ]["latency"]["memory_stalling"]["memory_stalling_cycle_shared"][
+                    data_type
+                ][
+                    index
+                ]
+                # Index 0 is treated differently, for some reason it only has a
+                # single value in the YAML output instead of two.
+                if len(memory_stall) == 1:
+                    if "read_stall" not in view_memory:
+                        view_memory["read_stall"] = memory_stall[0]
+                    else:
+                        # We accumulate the stalling cycles, even if doesn't
+                        # completely makes sense.
+                        view_memory["read_stall"] += memory_stall[0]
+                    # Because I don't really know which value to put here I put
+                    # a NaN.
+                    view_memory["write_stall"] = float("NaN")
+                else:
+                    if "read_stall" not in view_memory:
+                        view_memory["read_stall"] = memory_stall[0]
+                    else:
+                        # We accumulate the stalling cycles, even if doesn't
+                        # completely makes sense.
+                        view_memory["read_stall"] += memory_stall[0]
+                    if "write_stall" not in view_memory:
+                        view_memory["write_stall"] = memory_stall[1]
+                    else:
+                        # We accumulate the stalling cycles, even if doesn't
+                        # completely makes sense.
+                        view_memory["write_stall"] += memory_stall[1]
+
+                ### BANDWIDTH
+                memory_required_bandwidth = layer_output["simulation"][
+                    "results"
+                ]["performance"]["latency"]["memory_stalling"][
+                    "required_memory_bandwidth_per_cycle_shared"
+                ][
+                    data_type
+                ][
+                    index
+                ]
+                if "required_read_bandwidth" not in view_memory:
+                    view_memory[
+                        "required_read_bandwidth"
+                    ] = memory_required_bandwidth[0]
+                if "required_write_bandwidth" not in view_memory:
+                    view_memory[
+                        "required_write_bandwidth"
+                    ] = memory_required_bandwidth[1]
+
+        # Finally, we add the view of the layer to the global view.
+        returned_view[layer_name] = view_layer
+
+    # Used to build the multi indexed labels of the DataFrame.
+    labels: List[List[str]] = [
+        [
+            layer_name
+            for layer_name, layer in returned_view.items()
+            for _ in layer
+        ],
+        [
+            memory_name
+            for layer in returned_view.values()
+            for memory_name in layer
+        ],
+    ]
+
+    # The names to use for all the columns of the DataFrame.
+    columns = [
+        "size",
+        "read_length",
+        "write_length",
+        "read_cost",
+        "write_cost",
+        "type",
+        "unrolling",
+        "utilization",
+        "effective_size",
+        "energy",
+        "load_cycle",
+        "read_stall",
+        "write_stall",
+        "required_read_bandwidth",
+        "required_write_bandwidth",
+    ]
+
+    # We gather the data for the panda array in a list of lists.
+    pandas_data = [
+        memory.values()
+        for layer in returned_view.values()
+        for memory in layer.values()
+    ]
+
+    # We return the built view.
+    return pd.DataFrame(pandas_data, index=labels, columns=columns)
 
 
 ##################################### MAIN #####################################
