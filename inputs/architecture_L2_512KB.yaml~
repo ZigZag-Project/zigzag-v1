@@ -36,17 +36,22 @@ memory_hint:
 
 memory_hierarchy:
   rf_psum:
-      memory_instance : reg_8
-      bank_instances : 168
+      memory_instance : rf8
+      bank_instances : 256
       operand_stored : [O]
       nbanks : 1
-  global_buffer:
-      memory_instance: buffer_108Kbyte
+  buffer_weight:
+      memory_instance: sram64kb
       bank_instances: 1
-      operand_stored: [I, O]
+      operand_stored: [W]
+      nbanks : 1
+ global_buffer:
+      memory_instance: sram512kb
+      bank_instances: 1
+      operand_stored: [W, I, O]
       nbanks : 1
   top_sram:
-      memory_instance: sram_eyeriss
+      memory_instance: sram16Mb
       bank_instances: 1
       operand_stored: [W,I,O]
       nbanks : 1

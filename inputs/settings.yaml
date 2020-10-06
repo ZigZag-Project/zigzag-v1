@@ -1,7 +1,7 @@
 
 # OUTPUT FILE
-result_path : './results'
-result_filename : Eyeriss_AlexNet
+result_path : './results/DIANA/L2_512kB/DarkNet19'
+result_filename : D19
 
 # OUTPUT FILE PRINTING MODE
 # 'concise' for printing the basic information for each optimal design point found, i.e. energy and performance.
@@ -11,7 +11,7 @@ result_print_mode : concise
 # SEARCH SETTINGS
 # 'False' for searching the corresponding space.
 fixed_architecture : True
-fixed_spatial_unrolling : False
+fixed_spatial_unrolling : True
 fixed_temporal_mapping : False
 
 # RESULT SAVING SETTINGS
@@ -25,8 +25,8 @@ save_all_temporal_mapping_result : False
 # layer_indices can be a single-element list or a multiple-element list.
 # For now, multi-layer parallel search is supported if only doing temporal mapping search, e.g. layer_indices : [3,4,5].
 # please keep it as a single-element list if doing spatial-unrolling search or architecture search, e.g. layer_indices : [5].
-layer_filename : './NN_layers/AlexNet'
-layer_indices : [5]
+layer_filename : './NN_layers/DarkNet19'
+layer_indices : [1]
 
 # MULTIPROCESSING
 # run the framework in multiprocessing mode to speedup the search procedure.

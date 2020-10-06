@@ -1,0 +1,58 @@
+rf8:  
+   size_bit: 8 
+   area: [2847]
+   cost:
+     read_word: [1.858]
+     write_word: [2.573]
+   mem_bw: [8]
+   mem_type: dual_port_single_buffered
+   utilization_rate: 0.7
+
+        # FIXED TEMPORAL MAPPING
+        temporal_mapping_fixed:
+          weight:
+            rf_weight: [[FX,3],[C,3],[K,16]]
+            top_sram: [[OX,13],[C,32],[K,2], [K,6]]
+          input:
+            rf_input: [[FX,3],[C,3],[K,16]]
+            global_buffer: [[OX,13],[C,32],[K,2]]
+            top_sram: [[K,6]]
+  output:
+    rf_psum: [[FX,3],[C,3],[K,16]]
+    global_buffer: [[OX,13],[C,32],[K,2]]
+    top_sram: [[K,6]]
+
+# FIXED SPATIAL MAPPING
+# Numbers 0, 1, (2) below indicate different memory levels.
+# In this example, for weight, there are MAC level, the 0th memory level (rf_weight), and the 1st memory level (top_sram),
+# the spatial unrolling happens at 0th memory level (rf_weight) and below (MAC level).
+spatial_mapping_fixed:
+  weight:
+    MAC: []
+    0:
+      Col: [[K,16]]
+      Row: [[OX,16]]
+    1: []
+    2: []
+    3: []
+  input:
+    MAC: []
+    0:
+      Col: [[K,16]]
+     Row:  [[OX,16]]
+   1: []
+    2: []
+  output:
+    MAC: []
+    0:
+      Col: [[K,16]]
+      Row: [[OX,16]]
+    1: []
+    2: []
+
+# SPATIAL MAPPING HINT LIST
+# used as hint if 'hint_driven' search method is chosen in the setting file.
+spatial_mapping_list: [
+  [Col : [OX], Row : [K, FX]],
+  [Col : [C],  Row : [K]]
+]
