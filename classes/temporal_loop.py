@@ -36,7 +36,7 @@ class TemporalLoop(object):
         temporal_loop_copy = copy.deepcopy(temporal_loop)
     
         for operand in ['W', 'I', 'O']:
-            #temporal_loop_st[operand] = [[]] * temporal_loop_copy[operand].__len__()
+            temporal_loop_st[operand] = []
             for level, li in enumerate(temporal_loop[operand]):
                 temporal_loop_st[operand].append([])
                 if level == 0 or not li:
