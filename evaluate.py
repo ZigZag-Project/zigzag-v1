@@ -626,33 +626,73 @@ def optimal_su_evaluate(input_settings, multi_manager):
     # to find the best hierarchy for the network of layers
     if len(input_settings.layer_number) > 1:
 
-        best_network_energy = sys.float_info.max
+        best_network_energy = sys.float_info.max # energy of minimal energy network
+        best_network_energy_latency = sys.float_info.max # latency of minimal energy network
+        best_network_latency_energy = sys.float_info.max # energy of minimal latency network
+        best_network_latency = sys.float_info.max # latency of minimal latency network
         best_mem_scheme_index_en = None
+        best_mem_scheme_index_ut = None
 
         for mem_scheme_index in range(len(mem_scheme_sim)):
 
-            total_energy = 0
             mem_scheme_str = 'M_%d' % (mem_scheme_index + 1)
+
+
+            tot_min_en_energy = 0
+            tot_min_en_latency = 0
+
+            tot_max_ut_energy = 0
+            tot_max_ut_latency = 0
 
             for layer_index in input_settings.layer_number:
 
                 layer_str = 'L_%d' % layer_index
+
+                # Energy part
                 su_dict_en = list_min_energy[mem_scheme_str][layer_str]['best_su_each_mem'][0]
-                mem_scheme_su_str_en = su_dict_en.keys()
-                (en, ut) = list(su_dict_en.values())[0] # cast dict_values type to list
-                total_energy += en
+                mem_scheme_su_str_en = list(su_dict_en.keys())[0] # casts dict_keys type to list
+                (min_en_en, min_en_ut) = list(su_dict_en.values())[0] # casts dict_values type to list
+                min_en_output = list_min_en_output[mem_scheme_str][layer_str]['best_su_each_mem'][0][mem_scheme_su_str_en]
+                min_en_latency = min_en_output.utilization.latency_tot
+
+                tot_min_en_energy += min_en_en
+                tot_min_en_latency += min_en_latency
+
+                # Utilization (latency) part
+                su_dict_ut = list_max_utilization[mem_scheme_str][layer_str]['best_su_each_mem'][0]
+                mem_scheme_su_str_ut = list(su_dict_ut.keys())[0] # casts dict_keys type to list
+                (max_ut_en, max_ut_ut) = list(su_dict_ut.values())[0] # cast dict_values type to list
+                max_ut_output = list_max_ut_output[mem_scheme_str][layer_str]['best_su_each_mem'][0][mem_scheme_su_str_ut]
+                max_ut_latency = max_ut_output.utilization.latency_tot
+
+                tot_max_ut_energy += max_ut_en
+                tot_max_ut_latency += max_ut_latency
 
             # Check if total energy for this memory scheme is best so far
-            if total_energy < best_network_energy: # TODO: what if equal (how to sum utilizations for layers?)
-                best_network_energy = total_energy
+            if ((tot_min_en_energy < best_network_energy) or 
+            (tot_min_en_energy == best_network_energy and tot_min_en_latency < best_network_energy_latency)):
+                best_network_energy = tot_min_en_energy
+                best_network_energy_latency = tot_min_en_latency
                 best_mem_scheme_index_en = mem_scheme_index
+
+            if ((tot_max_ut_latency < best_network_latency) or 
+            (tot_max_ut_latency == best_network_latency and tot_max_ut_energy < best_network_latency_energy)):
+                best_network_latency = tot_max_ut_latency
+                best_network_latency_energy = tot_max_ut_energy
+                best_mem_scheme_index_ut = mem_scheme_index
 
             now = datetime.now()
             current_time = now.strftime("%H:%M:%S")
 
-            print('{0:s} {1:s} M {2:d}: Minimal energy for all layers = {3:d}'.format(
-                current_time, str(input_settings.layer_filename.split('/')[-1]), mem_scheme_index + 1, int(total_energy)))
+            network_name = str(input_settings.layer_filename.split('/')[-1])
+            # print()
+            print('{0:s} {1:s} M {2:d}: Minimal energy for all layers:      (energy, latency) = ({3:d}, {4:d})'.format(
+                current_time, network_name, mem_scheme_index + 1, int(tot_min_en_energy), int(tot_min_en_latency)))
+            print('{0:s} {1:s} M {2:d}: Maximal utilization for all layers: (energy, latency) = ({3:d}, {4:d})'.format(
+                current_time, network_name, mem_scheme_index + 1, int(tot_max_ut_energy), int(tot_max_ut_latency)))                
 
+        # print()
         # Set the multi_manager's parameter with the correct mem_scheme_index
         multi_manager.best_mem_scheme_index_en = best_mem_scheme_index_en
+        multi_manager.best_mem_scheme_index_ut = best_mem_scheme_index_ut
 
