@@ -1,6 +1,7 @@
 import numpy as np
 import copy
 import sys
+import math
 
 """
 
@@ -26,9 +27,23 @@ def get_operand_level_energy_cost(operand, level, mem_word_cost, mac_array_info,
     return [wire_cost, mem_cost_dy, mem_cost_st]
 
 
-def get_mac_cost(layer, single_mac_energy):
-    # TODO
+def get_active_mac_cost(layer, single_mac_energy):
     return layer.total_MAC_op * single_mac_energy
+
+
+def get_idle_mac_cost(layer, array_size, idle_mac_energy, spatial_unrolling):
+    idle_mac_cost = []
+    for su in spatial_unrolling:
+        active_mac_count = 1
+        for level_list in su['W']:
+            if level_list:
+                for su_unit in level_list:
+                    active_mac_count *= su_unit[1]
+        total_mapping_count = math.ceil(layer.total_MAC_op/active_mac_count)
+        ideal_mac_count = total_mapping_count * array_size[0] * array_size[1]
+        idle_mac_count = ideal_mac_count - layer.total_MAC_op
+        idle_mac_cost.append(idle_mac_count * idle_mac_energy)
+    return idle_mac_cost
 
 
 def get_operand_level_inter_pe_distance(op, operand_partitions, input_temporal_loops, is_fifo):

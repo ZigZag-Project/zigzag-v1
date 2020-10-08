@@ -73,6 +73,7 @@ class MemorySchemeNode:
 class MemoryScheme:
     spatial_unrolling = []
     flooring = []
+    fraction_spatial_unrolling = []
 
     def __init__(self, mem_name, mem_size, mem_cost, mem_utilization_rate, mem_utilization_rate_fixed, mem_share,
                  mem_unroll, mem_fifo, mem_bw, mem_type, mem_area, mem_nbanks):
@@ -98,6 +99,9 @@ class MemoryScheme:
     def set_spatial_unrolling_flooring(self, spatial_unrolling, flooring):
         self.spatial_unrolling = spatial_unrolling
         self.flooring = flooring
+
+    def set_fraction_spatial_unrolling(self, fraction_spatial_unrolling):
+        self.frac_spatial_unrolling = fraction_spatial_unrolling
 
 
 def fix_best_scheme(old_best_scheme, new_best_scheme, mem_pool):
@@ -1038,8 +1042,7 @@ def spatial_unrolling_generator_with_hint(mem_scheme, array_dimension, layer, un
             if not_good:
                 break
             for ii_level, unroll in enumerate(mem_scheme.mem_unroll[operand]):
-                if array_dimension[0] < unroll <= array_dimension[0] * array_dimension[1] and array_dimension[
-                    1] < unroll <= array_dimension[0] * array_dimension[1]:
+                if array_dimension[0] < unroll <= array_dimension[0] * array_dimension[1] and array_dimension[1] < unroll <= array_dimension[0] * array_dimension[1]:
                     unroll = np.prod([x[1] for x in cluster_scheme])
                 elif unroll != 1:
                     unroll = np.prod([x[1] for x in cluster_scheme if x[0] not in operand_irrelevant[operand]])
@@ -1285,6 +1288,16 @@ def unroll_scheme_list_generator(mem_scheme, array_dimension, layer, precision, 
         # print('TEMPORAL DATA REUSE: ', tdr_list_clean2[ii])
         # print()
         return (unrolling_scheme_list_clean2)
+
+
+def fraction_su_gen(spatial_unrolling, fraction_su_short):
+    fraction_su = copy.deepcopy(spatial_unrolling)
+    for op in ['W','I','O']:
+        for level, outer_list in enumerate(spatial_unrolling[0][op]):
+            if outer_list:
+                for idx, inner_list in enumerate(outer_list):
+                    fraction_su[0][op][level][idx] = fraction_su_short[idx]
+    return fraction_su
 
 
 def iterative_data_format_clean(original_dict):

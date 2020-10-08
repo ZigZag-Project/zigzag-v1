@@ -1,6 +1,6 @@
 PE_array:
-  Col : 4
-  Row : 4
+  Col : 8
+  Row : 8
 
 precision:
   I : 16
@@ -9,6 +9,7 @@ precision:
   O_final : 16
 
 single_mac_energy : 16
+idle_mac_energy : 1
 
 mac_array_stall :
   systolic: 1
