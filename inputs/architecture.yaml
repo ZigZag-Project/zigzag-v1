@@ -1,4 +1,4 @@
-PE_array:
+PE_array:                                       
   Col : 14
   Row : 12
 
@@ -11,21 +11,25 @@ precision:
 single_mac_energy_active : 16
 single_mac_energy_idle : 0.05
 
+# The characteristics of the systolic flow of data in the array: 
+# 0 is horizontal
+# 1 is vertical
+# 2 is diagonal
 mac_array_stall :
-  systolic: 1
+  systolic: 
 
 ############### you need to set them if doing architecture search ###############
 area_max : 3.5e6
 area_utilization : 0.75
-mem_ratio : 8
-PE_memory_depth : 2
-PE_threshold : 3000
+mem_ratio : 8                                   # minimum ratio between two adjacent levels in the memory hierarchy
+PE_memory_depth : 2                             # max number of memory levels in the hierarchy inside the PEs
+PE_threshold : 3000                             # maximum memory size that can be stored inside each PE
 CHIP_memory_depth : 2
 
-banking : [1,4]
+banking : [1,4]                                 # is this used ?
 
-L2_size:
-  [1048576, 4194304]
+L2_size:                                        #Each size listed is expressed as a banked combination of elements drawn from the memory pool
+  [1048576, 4194304]                            # when does it have to be specified ??
 L1_size:
   [65536, 524288]
 
@@ -39,8 +43,8 @@ memory_hint:
 ############# you need to set them if not doing architecture search #############
 memory_hierarchy:
   rf_psum:
-      memory_instance : spad_48byte
-      memory_unroll : 168
+      memory_instance : spad_48byte              # element in the memory pool which is taken;
+      bank_instances : 168                       # number of separate instances present in the architecture
       operand_stored : [O]
   rf_input:
       memory_instance: spad_24byte
