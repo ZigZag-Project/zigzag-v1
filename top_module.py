@@ -10,7 +10,7 @@ import time
 from multiprocessing import Process, Value, Manager
 from datetime import datetime
 import evaluate
-from classes.multi_manager import Multimanager
+from classes.multi_manager import MultiManager
 
 if __name__ == "__main__":
     
@@ -76,7 +76,7 @@ if __name__ == "__main__":
         raise ValueError('The largest memory in the hierarchy is still too small for holding the required workload.')
 
     # Manages the variables passed to the multiple parallel processes
-    multi_manager = Multimanager(input_settings, mem_scheme_sim, layer_spec)
+    multi_manager = MultiManager(input_settings, mem_scheme_sim, layer_spec)
 
     # A list containing the chunks that will be processed sequentially
     # Each element within a chunk will be processed in parallel
