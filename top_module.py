@@ -13,7 +13,7 @@ import evaluate
 from classes.multi_manager import Multimanager
 
 if __name__ == "__main__":
-    
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--map", help="Path to the mapping setting file")
     parser.add_argument("--mempool", help="Path to the memory pool file")
@@ -76,7 +76,7 @@ if __name__ == "__main__":
         raise ValueError('The largest memory in the hierarchy is still too small for holding the required workload.')
 
     # Manages the variables passed to the multiple parallel processes
-    multi_manager = Multimanager(mem_scheme_sim, layer_spec)
+    multi_manager = Multimanager(input_settings, mem_scheme_sim, layer_spec)
 
     # A list containing the chunks that will be processed sequentially
     # Each element within a chunk will be processed in parallel
@@ -85,8 +85,8 @@ if __name__ == "__main__":
     mem_scheme_sim_chunk_list = [mem_scheme_sim[i:i + input_settings.mem_scheme_parallel_processing] for i in
                                  range(0, len(mem_scheme_sim), input_settings.mem_scheme_parallel_processing)]
 
-
-    for ii_mem_scheme_chunk, mem_scheme_sim_chunk in enumerate(mem_scheme_sim_chunk_list): # serial processing of chunks
+    for ii_mem_scheme_chunk, mem_scheme_sim_chunk in enumerate(
+            mem_scheme_sim_chunk_list):  # serial processing of chunks
         procs = []
         for mem_scheme_index, mem_scheme in enumerate(mem_scheme_sim_chunk):  # parallel processing of one chunk
             current_mem_scheme_index = mem_scheme_index + input_settings.mem_scheme_parallel_processing * ii_mem_scheme_chunk
@@ -98,7 +98,7 @@ if __name__ == "__main__":
 
     ''' Collect the optimum spatial unrolling results for all memory schemes if doing architecture exploration'''
     if not input_settings.mem_hierarchy_single_simulation:
-        evaluate.optimal_su_evaluate(multi_manager)
+        evaluate.optimal_su_evaluate(input_settings, multi_manager)
 
     of.print_helper(input_settings, multi_manager)
 

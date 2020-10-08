@@ -633,13 +633,6 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
                 for unroll in range(0, len(spatial_unrolling[op][level])):
                     sp = su.prime_factors(spatial_unrolling[op][level][unroll][1])
                     bs[op][level] += [tuple([spatial_unrolling[op][level][unroll][0], j]) for j in sp]
-    # Append hint
-    # if tmg_scheme_hint:
-    #    for op in tmg_scheme_hint[layer_index]:
-    #        for lev in tmg_scheme_hint[layer_index][op]:
-    #            for tm in tmg_scheme_hint[layer_index][op][lev]:
-    #                t = su.prime_factors(tm[1])
-    #                bs[op][lev] += [tuple([tm[0], j]) for j in t]
 
     # Assign prime factors for each loop type
     ll = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B'}
@@ -659,28 +652,6 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
                 except:
                     print('in bsg, spatial_unrolling', spatial_unrolling)
                     print(j)
-    # max_len_hint = 0
-    # max_op_hint = None
-    # if tmg_scheme_hint:
-    #    for op in ['W','I','O']:
-    #        if sum([tmg_scheme_hint[layer_index][op][lev].__len__() for lev in tmg_scheme_hint[layer_index][op]]) > max_len_hint:
-    #            max_len_hint = sum([tmg_scheme_hint[layer_index][op][lev].__len__() for lev in tmg_scheme_hint[layer_index][op]])
-    #            max_op_hint = op
-    #    if max_len_hint > 0:
-    #        for level in tmg_scheme_hint[layer_index][max_op_hint]:
-    #            for tm in tmg_scheme_hint[layer_index][max_op_hint][lev]:
-    #                t = su.prime_factors(tm[1])
-    #                for j in t:
-    #                    try:
-    #                        loops_pf[tm[0]].remove(j)
-    #                    except:
-    #                        print(spatial_unrolling)
-    #                        print(j)
-    # print()
-    # print('OCCHIO QUI')
-    # print(bs)
-    # print(loops_pf)
-    # lpf2a = sum([len(x) for x in loops_pf.values()])
 
     # Assign relative memory sizes for each operand at each memory level
     for operand in ['W', 'I', 'O']:
@@ -780,7 +751,7 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
             min_roof_list = []
             for operand in roof:
                 if any((roof[roof_op][0] < roof[operand][0]) for roof_op in
-                       roof):
+                       roof) and not all([roof[opx][0] == len(mem_size[opx]) - 1 for opx in ['W', 'I', 'O']]):
                     if roof[operand][0] == (len(mem_size[operand]) - 1):
                         continue
                 if (roof[operand][0] == (len(mem_size[operand]) - 1) and (
@@ -892,7 +863,7 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
                                               precision,
                                               operand_irrelevant, new_loops_pf, layer_loop_info)
                     isgood = su.check_node(LPF_scheme, mem_size, operand_irrelevant, mem_share, precision,
-                                            layer_loop_info, utilization_rate)
+                                           layer_loop_info, utilization_rate)
                     # No need to update LPF scheme
                     new_LPF_scheme = copy.deepcopy(LPF_scheme)
 
@@ -946,23 +917,51 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
                                                   mem_size,
                                                   precision,
                                                   operand_irrelevant, new_loops_pf, layer_loop_info)
+                        isgood = su.check_node(new_LPF_scheme, mem_size, operand_irrelevant, mem_share, precision,
+                                               layer_loop_info, utilization_rate)
 
-                        # Generate new node in the blocking scheme tree, add it to the list
-                        blocking_node = su.SchedulerNode(new_LPF_scheme, new_roof, new_loops_pf)
+                        if isgood:
+                            # Generate new node in the blocking scheme tree, add it to the list
+                            blocking_node = su.SchedulerNode(new_LPF_scheme, new_roof, new_loops_pf)
 
-                        # The following if condition checks whether all the LPFs have been assigned.
-                        # If so, the partial scheme is considere a complete scheme and the SchedulerNode will have leaf_over == True
-                        over = False
-                        if all(new_loops_pf[loop_types] == [] for loop_types in new_loops_pf):
-                            over = True
-                            finished_lpf_scheme += 1
-                        if over:
-                            blocking_node.set_leaf_over()
-                        next_partial_LPF_schemes_list.append(blocking_node)
+                            # The following if condition checks whether all the LPFs have been assigned.
+                            # If so, the partial scheme is considere a complete scheme and the SchedulerNode will have leaf_over == True
+                            over = False
+                            if all(new_loops_pf[loop_types] == [] for loop_types in new_loops_pf):
+                                over = True
+                                finished_lpf_scheme += 1
+                            if over:
+                                blocking_node.set_leaf_over()
+                            next_partial_LPF_schemes_list.append(blocking_node)
+                        else:
+                            # No need to update loops_pf
+                            new_loops_pf = copy.deepcopy(loops_pf)
+                            tt = sum([len(x) for x in new_loops_pf.values()])
 
-                        # print('\r bs',f'{tt:3d}','/',f'{lpf2a:3d}',' ', f'{(z+1)/len(partial_LPF_schemes_list)*100:3.0f}','%, : f ',finished_lpf_scheme,' r ',len(next_partial_LPF_schemes_list), end='')
+                            # Update roof level of current min_roof.
+                            # If min roof is shared, go one memory level up for all roofs that are shared with min_roof
+                            new_tmp_roof = copy.deepcopy(roof)
+                            for p in range(0, len(shared_min_roof_levels)):
+                                level_up = 1
+                                if shared_min_roof_levels[p][1] == len(
+                                        mem_block_size[shared_min_roof_levels[p][0]]) - 1:
+                                    level_up = 0
+                                new_tmp_roof[shared_min_roof_levels[p][0]][0] = shared_min_roof_levels[p][1] + level_up
+                            new_roof = su.update_roof(LPF_scheme, spatial_unrolling, [], new_tmp_roof, mem_share,
+                                                      mem_size,
+                                                      precision,
+                                                      operand_irrelevant, new_loops_pf, layer_loop_info)
+                            isgood = su.check_node(LPF_scheme, mem_size, operand_irrelevant, mem_share, precision,
+                                                   layer_loop_info, utilization_rate)
 
-    list_LPF_schemes= [scheme_node.LPF_scheme for scheme_node in final_LPF_schemes_list]
+                            if isgood:
+                                # No need to update LPF scheme
+                                new_LPF_scheme = copy.deepcopy(LPF_scheme)
+                                # Generate new node in the blocking scheme tree, add it to the list
+                                blocking_node = su.SchedulerNode(new_LPF_scheme, new_roof, new_loops_pf)
+                                next_partial_LPF_schemes_list.append(blocking_node)
+
+    list_LPF_schemes = [scheme_node.LPF_scheme for scheme_node in final_LPF_schemes_list]
 
     # Remove the LPFs which correspond to the spatial unrollings that were previously assigned
     # for each LPF scheme in list_LPF_schemes
@@ -998,79 +997,424 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
     return (total)
 
 
-def fix_lpf_scheme(mem_scheme_sim_best_tl, fixed_mem_scheme, not_fixed_mem_scheme):
-    best_scheme = fixed_mem_scheme.memory_scheme.union(not_fixed_mem_scheme.memory_scheme)
-    fixed_scheme = fixed_mem_scheme.memory_scheme
-    not_fixed_scheme = not_fixed_mem_scheme.memory_scheme
-    for m in fixed_mem_scheme.memory_scheme:
-        print(m.memory_level)
-    best_mem_size = {'W': [], 'I': [], 'O': []}
-    fixed_mem_size = {'W': [], 'I': [], 'O': []}
+def bsg_fixed_order(loop_order, mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer_index,
+                    spatial_unrolling):
+    operand_irrelevant = {
+        'W': [3, 4, 7],
+        'O': [1, 2, 5],
+        'I': [6]
+    }
 
-    best_mem_list = [x for x in best_scheme]
-    fixed_mem_list = [x for x in fixed_scheme]
-    longest_fixed_size = 0
-    longest_fixed_op_list = []
+    # loops_pf contains prime factors for each loop type.
+    # After each loop assignment the relative list is updated
+    loops_pf = {
+        7: [],
+        6: [],
+        5: [],
+        4: [],
+        3: [],
+        2: [],
+        1: []
+    }
+
+    # For each operand and memory level defines the effective size of blockings that it can contain
+    mem_block_size = {
+        'W': [],
+        'O': [],
+        'I': []
+    }
+
+    # Auxiliary term that stores the temporary roof values.
+    # For each operand it is defined to what memory level the roof belongs and how much space is still left to be assigned
+    # 'operand' : [memory_level, roof_value]
+    roof = {
+        'O': [0, 0],
+        'I': [0, 0],
+        'W': [0, 0]
+    }
+
+    # Init blocking scheme
+    bs = {
+        'W': [[] for i in range(len(mem_size['W']))],
+        'O': [[] for i in range(len(mem_size['O']))],
+        'I': [[] for i in range(len(mem_size['I']))],
+    }
+
+    # Append those LPFs that are relative to the spatial unrollings to the memory level where they have to be stored
     for op in ['W', 'I', 'O']:
-        mem_list_op = [x for x in best_mem_list if op in x.operand]
-        mem_list_op.sort()
-        for mn in mem_list_op:
-            best_mem_size[op].append(mn.memory_level['size_bit'])
+        for level in range(0, len(spatial_unrolling[op])):
+            if spatial_unrolling[op][level]:
+                for unroll in range(0, len(spatial_unrolling[op][level])):
+                    sp = su.prime_factors(spatial_unrolling[op][level][unroll][1])
+                    bs[op][level] += [tuple([spatial_unrolling[op][level][unroll][0], j]) for j in sp]
 
-        mem_list_op = [x for x in fixed_mem_list if op in x.operand]
-        mem_list_op.sort()
-        for mn in mem_list_op:
-            fixed_mem_size[op].append(mn.memory_level['size_bit'])
-        if len(best_mem_size[op]) > longest_fixed_size:
-            longest_fixed_size = len(best_mem_size[op])
-    for op in ['W', 'I', 'O']:
-        if len(best_mem_size[op]) == longest_fixed_size and longest_fixed_size != 0:
-            longest_fixed_op_list += op
-    tmg_hint = {}
-    print(longest_fixed_size)
-    print(longest_fixed_op_list)
-    if longest_fixed_size > 0:
-        for layer_index in mem_scheme_sim_best_tl:
-            tmg_scheme_hint = {'W': {}, 'I': {}, 'O': {}}
-            tmg = mem_scheme_sim_best_tl[layer_index]
-            # print()
-            # print(tmg)
-            fixed_set_lpf = []
-            shortest_fixed_op = None
-            min_flp = float('inf')
-            for op in longest_fixed_op_list:
-                flp = []
-                for ii_mem, mem in enumerate(best_mem_size[op]):
-                    if mem in fixed_mem_size[op]:
-                        # print(op, ' ', ii_mem)
-                        flp += tmg[op][ii_mem]
-                if len(flp) < min_flp:
-                    tmg_scheme_hint = {'W': {}, 'I': {}, 'O': {}}
-                    min_flp = len(flp)
-                    shortest_fixed_op = op
-                    fixed_set_lpf = flp
-                    for ii_mem, mem in enumerate(best_mem_size[op]):
-                        if mem in fixed_mem_size[op]:
-                            tmg_scheme_hint[op][-len(best_mem_size[op]) + ii_mem] = tmg[op][ii_mem]
+    # Assign prime factors for each loop type
+    ll = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B'}
 
-            # print(shortest_fixed_op)
-            # print(fixed_set_lpf)
-            # print(fixed_mem_size)
-            for operand in ['W', 'I', 'O']:
-                if operand != shortest_fixed_op:
-                    fixed_set_lpf_tmp = copy.deepcopy(fixed_set_lpf)
-                    if len(fixed_mem_size[operand]) == 0:
-                        tmg_scheme_hint[operand][-1] += fixed_set_lpf_tmp
-                    for ii_mem, mem in enumerate(best_mem_size[operand]):
-                        if mem in fixed_mem_size[operand]:
-                            tm_list = []
-                            for tm in tmg[operand][ii_mem]:
-                                if tm in fixed_set_lpf_tmp:
-                                    tm_list.append(tm)
-                                    fixed_set_lpf_tmp.remove(tm)
-                            tmg_scheme_hint[operand][-len(best_mem_size[operand]) + ii_mem] = tm_list
-            tmg_hint[layer_index] = tmg_scheme_hint
+    for loop_type in loops_pf:
+        loops_pf[loop_type] = su.prime_factors(layer_loop_info[ll[loop_type]])
 
-    return tmg_hint
+    loops_pf_irrelevant_unrolled = {'W': [], 'I': [], 'O': []}
 
-# even_uneven()
+    # Remove the LPFs relative to the spatial unrollings from loops_pf
+    for level in range(0, len(spatial_unrolling['W'])):
+        for unroll in range(0, len(spatial_unrolling['W'][level])):
+            sp = su.prime_factors(spatial_unrolling['W'][level][unroll][1])
+            for j in sp:
+                try:
+                    loops_pf[spatial_unrolling['W'][level][unroll][0]].remove(j)
+                except:
+                    print('in bsg, spatial_unrolling', spatial_unrolling)
+                    print(j)
+
+    # Assign relative memory sizes for each operand at each memory level
+    for operand in ['W', 'I', 'O']:
+        for level in range(0, len(mem_size[operand])):
+            mem_block_size[operand].append(math.floor(mem_size[operand][level] / precision[operand]))
+
+    # Initialize roof values
+    for operand in ['W', 'I', 'O']:
+        roof[operand][1] = mem_block_size[operand][0]
+    roof = su.update_roof(bs, spatial_unrolling, [], roof, mem_share, mem_size, precision, operand_irrelevant, loops_pf,
+                          layer_loop_info)
+    r_op, r_lev = roof.keys(), roof.values()
+    r_lev, r_size = zip(*r_lev)
+
+    min_roof_aux = ['', 0, max(r_size)]
+    next_min_roof = ['', 0, max(r_size)]
+    last_roof = ['', 0, max(r_size)]
+
+    # The root_node is a SchedulerNode object. It corresponds to the very initial partial scheme, which is empty and with no
+    # temporal LPF assigned (only the spatial LPF are present in bs). Each SchedulerNode object is defined by
+    # - Its partial scheme of LPFs (bs in this case)
+    # - The set of LPFs still to be assigned (loops_pf)
+    # - The roof variable which identifies at which memory level in the hierarchy for each operand the assignments must be carried out
+    root_node = su.SchedulerNode(bs, roof, loops_pf)
+    next_partial_LPF_schemes_list = [root_node]
+    final_LPF_schemes_list = []
+    finished = False
+
+    old_clean_LPF_schemes_list = []
+    rep = 0
+    # finished = True
+
+    while not finished:
+        # finished = True
+        # Check if all the nodes in next_partial_LPF_schemes_list are leaf nodes
+        # The cleaner eliminates duplicate partial schemes
+        clean_LPF_schemes_list = su.cleaner(next_partial_LPF_schemes_list)
+        # The following if condition checks whether the previous assignment step was unsuccessful.
+        # If three consecutive LPF assignments are unsuccessful the assignement process is terminated (finished = True),
+        # and only those schemes that are finished (leaf.over == True) are considered for successive reordering
+        if clean_LPF_schemes_list:
+            if all(any(old_node == node for old_node in old_clean_LPF_schemes_list) for node in
+                   clean_LPF_schemes_list):
+                rep += 1
+                if rep == 3:
+                    final_LPF_schemes_list = [bn for bn in clean_LPF_schemes_list if bn.leaf_over == True]
+                    # if not final_LPF_schemes_list:
+                    # print('no fitting found!')
+                    finished = True
+                    # print('case2')
+                    continue
+            else:
+                rep = 0
+        old_clean_LPF_schemes_list = copy.deepcopy(clean_LPF_schemes_list)
+        # The following if condition checks whether all the partial schemes in the cleaned list of schemes are finished.
+        # If all partial schemes are finished (leaf_over == True) then the while loop is broken (finished = True) and the
+        # scheme are considered for the reordering step
+        if all(nodes.leaf_over == True for nodes in clean_LPF_schemes_list) and clean_LPF_schemes_list.__len__() > 0:
+            final_LPF_schemes_list = [bn for bn in clean_LPF_schemes_list if bn.leaf_over == True]
+            finished = True
+            # print('case3', clean_LPF_schemes_list.__len__())
+            continue
+
+        partial_LPF_schemes_list = copy.deepcopy(clean_LPF_schemes_list)
+        next_partial_LPF_schemes_list = []
+        finished_lpf_scheme = 0
+        # partial_LPF_schemes_list is a copy of the cleaned list of partial schemes obtained from previous assignements.
+        # Each partial scheme is analyzed *individually*: a set of fitting LPF combinations will be found that can be stacked
+        # for each partial scheme. Each of these sets will contribute to a new partial scheme, that will be appended to
+        # next_partial_LPF_schemes_list
+        for z in range(0, len(partial_LPF_schemes_list)):
+            # The following if condition checks whether the partial scheme is in fact a complete scheme
+            # A complete scheme is a scheme where all the LPF have been assigned
+            # If it is a complete scheme (leaf_over == True), no assignement is needed and the scheme is appended to next_partial_LPF_schemes_list
+            if partial_LPF_schemes_list[z].leaf_over:
+                leaf_node = su.SchedulerNode(partial_LPF_schemes_list[z].LPF_scheme, partial_LPF_schemes_list[z].roof,
+                                             partial_LPF_schemes_list[z].loops_pf)
+                leaf_node.set_leaf_over()
+                next_partial_LPF_schemes_list.append(leaf_node)
+                continue
+            roof = copy.deepcopy(partial_LPF_schemes_list[z].roof)
+            LPF_scheme = copy.deepcopy(partial_LPF_schemes_list[z].LPF_scheme)
+            loops_pf = copy.deepcopy(partial_LPF_schemes_list[z].loops_pf)
+            r_op, r_lev = roof.keys(), roof.values()
+            r_lev, r_size = zip(*r_lev)
+            m_size = max([len(mem_size['I']), len(mem_size['W']), len(mem_size['O'])])
+
+            min_roof_aux = ['', m_size, max(r_size)]
+            tmp_min_roof = ['', m_size, max(r_size)]
+            # Given the partial scheme and its relative roof value, a list of minimum roofs is found.
+            # A minimum roof correspond to a roof value that has the lowest level in the mem hierarchy and/or
+            # the smallest amount of blockings space available if equivalent level in the hierarchy
+            # EG between W : [0, 5] and I : [2, 245] the min roof will be the 'W' one, since it belongs to a lower level in the hierarchy
+            # EG between W : [0, 5] and I : [0, 2] the min roof will be the 'I' one, since it has less blockings space available
+            min_roof_list = []
+            for operand in roof:
+                if any((roof[roof_op][0] < roof[operand][0]) for roof_op in
+                       roof) and not all([roof[opx][0] == len(mem_size[opx]) - 1 for opx in ['W', 'I', 'O']]):
+                    if roof[operand][0] == (len(mem_size[operand]) - 1):
+                        continue
+                if (roof[operand][0] == (len(mem_size[operand]) - 1) and (
+                        roof[operand][1] == 1 or roof[operand][1] == 0)):
+                    continue
+                else:
+                    if roof[operand][1] <= min_roof_aux[2]:
+                        min_roof_aux[0] = operand
+                        min_roof_aux[1] = roof[operand][0]
+                        min_roof_aux[2] = roof[operand][1]
+
+            for operand in roof:
+                if roof[operand][0] == min_roof_aux[1] and roof[operand][1] == min_roof_aux[2]:
+                    tmp_min_roof = ['', m_size, r_size]
+                    tmp_min_roof[0] = operand
+                    tmp_min_roof[1] = roof[operand][0]
+                    tmp_min_roof[2] = roof[operand][1]
+                    min_roof_list.append(tmp_min_roof)
+
+            mr_list_operand = [mr[0] for mr in min_roof_list]
+            # The assignment process is carried out for *each min roof separately*
+            # Each min roof will have a different set of
+            for min_roof in min_roof_list:
+                # Check if min roof belongs to a shared level of memory. If so, create a list with all shared memory levels related to min roof
+                shared_min_roof_levels = [tuple([min_roof[0], min_roof[1]])]
+                for shared_set in mem_share:
+                    if tuple([min_roof[0], min_roof[1]]) in mem_share[shared_set]:
+                        shared_min_roof_levels = mem_share[shared_set]
+
+                fitting_combination = []
+                min_list_fitting_combinations = []
+                loop_blocks = []
+
+                # List LPFs that can be assigned to min roof operand
+                # for loop_type in loops_pf:
+                for loop_type in loops_pf:
+                    for i in range(0, len(loops_pf[loop_type])):
+                        loop_blocks.append(tuple([loop_type, loops_pf[loop_type][i]]))
+                roof_list = [[rf, roof[rf][0], roof[rf][1]] for rf in roof]
+                # Definition of k_range: Each LPF combination corresponds to a combination of LPFs drawn from loop_block
+                # Normally this combinations can have range (defined by k) from 0 to the amount of LPFs to be assigned.
+                # If the level where the min roof belongs to is the last level in the hierarchy then the k should be equal only
+                # to all the LPF still to be assigned, in order to avoid redundant computations.
+                if all([roof[rf][0] == len(mem_size[rf]) - 1 for rf in roof]):
+                    k_range = range(len(loop_blocks), len(loop_blocks) + 1)
+                else:
+                    k_range = range(0, len(loop_blocks) + 1)
+
+                k_range = list(k_range)
+                k_range.reverse()
+
+                loop_blocks_lpfs = {}
+                for lp in loop_blocks:
+                    loop_blocks_lpfs[lp[0]] = len([x for x in loop_blocks if x[0] == lp[0]])
+                # For each k in k_range:
+                # 1. Generate all possible combinations of loop blocks with length k
+                # 2. For each combination generated check if they fit within the roof (check_comb_fit function)
+                # 3. If they fit, append the combination to fitting_combination
+                for k in k_range:
+                    tmp_comb = combinations(loop_blocks, k)
+                    aix = [loop_order.index(i[0]) for i in loop_blocks]
+                    min_x = min(aix)
+                    comb = []
+                    for x in tmp_comb:
+                        if x:
+                            loop_typesx, loop_sizesx = zip(*x)
+                            loop_typesa = list(set(loop_typesx))
+                            loop_typesy = [loop_order.index(i) for i in loop_typesa]
+                            goodcomb = True
+                            loop_typesa = sorted(loop_typesa, key=lambda i: loop_order.index(i))
+                            for lt in loop_typesa[:-1]:
+                                if loop_blocks_lpfs[lt] != len([lpf for lpf in x if lpf[0] == lt]):
+                                    goodcomb = False
+                            if min(loop_typesy) == min_x and max(loop_typesy) - min(loop_typesy) == len(
+                                    loop_typesy) - 1 and goodcomb:
+                                x = sorted(x, key=lambda i: loop_order.index(i[0]))
+                                if x not in comb:
+                                    comb.append(sorted(x, key=lambda i: loop_order.index(i[0])))
+                    mlft = len(fitting_combination)
+                    for j in range(0, len(comb)):
+                        is_fit = True
+                        for r in roof_list:
+                            is_min_roof = False
+                            if r[0] in mr_list_operand:
+                                is_min_roof = True
+                            is_fit = su.check_comb_fit(LPF_scheme, spatial_unrolling, comb[j], r, mem_size, mem_share,
+                                                       utilization_rate, precision, operand_irrelevant, is_min_roof,
+                                                       layer_loop_info)
+                            # print('FIT ', is_fit)
+                            if not is_fit:
+                                break
+                        if not is_fit:
+                            continue
+                        fitting_combination.append(comb[j])
+                        break
+                    if len(fitting_combination) > 0 and len(fitting_combination) == mlft:
+                        break
+                    if is_fit:
+                        break
+                # Clean up all duplicate combinations from fitting_combination (order is not important yet)
+                # The sanitized list of fitting combinations of LPF within the roof is contained in min_list_fitting_combinations
+                # ------------------------------------------------------------------------------Here--------------------
+                # fitting_combination.append([])
+                for ii_fit_comb in range(0, len(fitting_combination)):
+                    s = list(fitting_combination[ii_fit_comb])
+                    if s not in min_list_fitting_combinations:
+                        min_list_fitting_combinations.append(s)
+                # remove all fitting combs that are subsets
+                if all([roof[op][0] == (len(mem_block_size[op]) - 1) for op in ['W', 'I', 'O']]):
+                    for lfc in reversed(min_list_fitting_combinations):
+                        if any([all(x in mlfc for x in lfc) for mlfc in min_list_fitting_combinations if mlfc != lfc]):
+                            min_list_fitting_combinations.remove(lfc)
+                # The following if condition is for the case when, given a specific roof, *no LPF combination* is found to fit
+                # In this case the only operation to be done is to update the roof value by going up one level in the min roof
+                # The loops_pf will remain the same (no comb is found and therefore no LPF has to be removed from loops_pf)
+                # The LPF_scheme will remain the same (no comb is found that can be stacked on top of the previous one)
+                # The roof value is updated (update level of current min_roof and then call update_roof)
+                if not min_list_fitting_combinations:
+                    # print('wtf')
+                    # No need to update loops_pf
+                    new_loops_pf = copy.deepcopy(loops_pf)
+                    tt = sum([len(x) for x in new_loops_pf.values()])
+
+                    # Update roof level of current min_roof.
+                    # If min roof is shared, go one memory level up for all roofs that are shared with min_roof
+                    new_tmp_roof = copy.deepcopy(roof)
+                    for p in range(0, len(shared_min_roof_levels)):
+                        level_up = 1
+                        if shared_min_roof_levels[p][1] == len(mem_block_size[shared_min_roof_levels[p][0]]) - 1:
+                            level_up = 0
+                        new_tmp_roof[shared_min_roof_levels[p][0]][0] = shared_min_roof_levels[p][1] + level_up
+                    new_roof = su.update_roof(LPF_scheme, spatial_unrolling, [], new_tmp_roof, mem_share, mem_size,
+                                              precision,
+                                              operand_irrelevant, new_loops_pf, layer_loop_info)
+                    isgood = su.check_node(LPF_scheme, mem_size, operand_irrelevant, mem_share, precision,
+                                           layer_loop_info, utilization_rate)
+                    # No need to update LPF scheme
+                    new_LPF_scheme = copy.deepcopy(LPF_scheme)
+
+                    # Generate new node in the blocking scheme tree, add it to the list
+                    blocking_node = su.SchedulerNode(new_LPF_scheme, new_roof, new_loops_pf)
+                    if isgood:
+                        next_partial_LPF_schemes_list.append(blocking_node)
+
+
+                # If there list of fitting combinations of LPFs within the roof is NOT empty, proceed in creating new partial schemes
+                # For each fitting combination a new SchedulerNode object is created that contains:
+                # - An updated loops_pf in which the LPF in the fitting combination are removed
+                # - An updated roof value
+                # - A new partial scheme with the fitting combination stacked on top of the previous partial scheme
+                else:
+                    for k in range(0, len(min_list_fitting_combinations)):
+
+                        # Generate different tmp roof and tmp loops pf since for each min roof fitting combination different roofs and loops pf will be defined
+                        new_loops_pf = copy.deepcopy(loops_pf)
+                        # Given remaining loop prime factors, remove those assigned in this combination to min roof
+                        for i in range(0, len(min_list_fitting_combinations[k])):
+                            new_loops_pf[min_list_fitting_combinations[k][i][0]].remove(
+                                min_list_fitting_combinations[k][i][1])
+                        tt = sum([len(x) for x in new_loops_pf.values()])
+
+                        # Set temporary roof with selected fitting combination
+                        # This temporary roof is only used for updating the level in the min roof
+                        # It is not the one that is ultimately saved in the SchedulerNode object
+                        tmp_roof = su.update_roof(LPF_scheme, spatial_unrolling, min_list_fitting_combinations[k], roof,
+                                                  mem_share,
+                                                  mem_size, precision, operand_irrelevant, new_loops_pf,
+                                                  layer_loop_info)
+
+                        new_tmp_roof = copy.deepcopy(tmp_roof)
+                        new_LPF_scheme = copy.deepcopy(LPF_scheme)
+                        level0 = copy.deepcopy(min_list_fitting_combinations[k])
+
+                        for rf in roof:
+                            new_LPF_scheme[rf][roof[rf][0]] += copy.deepcopy(level0)
+                        for p in range(0, len(shared_min_roof_levels)):
+                            level_up = 1
+                            if shared_min_roof_levels[p][1] == len(
+                                    mem_block_size[shared_min_roof_levels[p][0]]) - 1:
+                                level_up = 0
+                            new_tmp_roof[shared_min_roof_levels[p][0]][0] = shared_min_roof_levels[p][1] + level_up
+
+                        # The new_roof variable contains the final updated value of the new roof, with the updated blocking space available
+                        # for each operand in the roof
+                        new_roof = su.update_roof(new_LPF_scheme, spatial_unrolling, [], new_tmp_roof, mem_share,
+                                                  mem_size,
+                                                  precision,
+                                                  operand_irrelevant, new_loops_pf, layer_loop_info)
+
+                        isgood = su.check_node(new_LPF_scheme, mem_size, operand_irrelevant, mem_share, precision,
+                                               layer_loop_info, utilization_rate)
+                        if isgood:
+                            # Generate new node in the blocking scheme tree, add it to the list
+                            blocking_node = su.SchedulerNode(new_LPF_scheme, new_roof, new_loops_pf)
+
+                            # The following if condition checks whether all the LPFs have been assigned.
+                            # If so, the partial scheme is considere a complete scheme and the SchedulerNode will have leaf_over == True
+                            over = False
+                            if all(new_loops_pf[loop_types] == [] for loop_types in new_loops_pf):
+                                over = True
+                                finished_lpf_scheme += 1
+                            if over:
+                                blocking_node.set_leaf_over()
+                            next_partial_LPF_schemes_list.append(blocking_node)
+                        else:
+                            # No need to update loops_pf
+                            new_loops_pf = copy.deepcopy(loops_pf)
+                            tt = sum([len(x) for x in new_loops_pf.values()])
+
+                            # Update roof level of current min_roof.
+                            # If min roof is shared, go one memory level up for all roofs that are shared with min_roof
+                            new_tmp_roof = copy.deepcopy(roof)
+                            for p in range(0, len(shared_min_roof_levels)):
+                                level_up = 1
+                                if shared_min_roof_levels[p][1] == len(
+                                        mem_block_size[shared_min_roof_levels[p][0]]) - 1:
+                                    level_up = 0
+                                new_tmp_roof[shared_min_roof_levels[p][0]][0] = shared_min_roof_levels[p][1] + level_up
+                            new_roof = su.update_roof(LPF_scheme, spatial_unrolling, [], new_tmp_roof, mem_share,
+                                                      mem_size,
+                                                      precision,
+                                                      operand_irrelevant, new_loops_pf, layer_loop_info)
+                            isgood = su.check_node(LPF_scheme, mem_size, operand_irrelevant, mem_share, precision,
+                                                   layer_loop_info, utilization_rate)
+
+                            if isgood:
+                                # No need to update LPF scheme
+                                new_LPF_scheme = copy.deepcopy(LPF_scheme)
+                                # Generate new node in the blocking scheme tree, add it to the list
+                                blocking_node = su.SchedulerNode(new_LPF_scheme, new_roof, new_loops_pf)
+                                next_partial_LPF_schemes_list.append(blocking_node)
+
+    list_LPF_schemes = [scheme_node.LPF_scheme for scheme_node in final_LPF_schemes_list]
+
+    # Remove the LPFs which correspond to the spatial unrollings that were previously assigned
+    # for each LPF scheme in list_LPF_schemes
+    for bs in list_LPF_schemes:
+        for op in spatial_unrolling:
+            for level in range(0, len(spatial_unrolling[op])):
+                if spatial_unrolling[op][level]:
+                    for unroll in range(0, len(spatial_unrolling[op][level])):
+                        sp = su.prime_factors(spatial_unrolling[op][level][unroll][1])
+                        for i in range(0, len(sp)):
+                            try:
+                                bs[op][level].remove(tuple([spatial_unrolling[op][level][unroll][0], sp[i]]))
+                            except IndexError:
+                                continue
+
+    for sch in list_LPF_schemes:
+        for op in ['W', 'I', 'O']:
+            print(op, ' ', sch[op])
+
+    return list_LPF_schemes
+

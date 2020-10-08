@@ -117,19 +117,22 @@ def check_comb_fit(LPF_scheme, spatial_unrolling, comb, min_roof, mem_size, mem_
     for i in range(0, len(shared_min_roof_levels)):
         tmp_LPF_scheme = copy.deepcopy(LPF_scheme)
         # Append the LPFs contained in comb to the LPF scheme
-        tmp_LPF_scheme[shared_min_roof_levels[i][0]][shared_min_roof_levels[i][1]] = copy.deepcopy(tmp_LPF_scheme[shared_min_roof_levels[i][0]][
-                                                               shared_min_roof_levels[i][1]] + list(comb))
-        
+        tmp_LPF_scheme[shared_min_roof_levels[i][0]][shared_min_roof_levels[i][1]] = copy.deepcopy(
+            tmp_LPF_scheme[shared_min_roof_levels[i][0]][
+                shared_min_roof_levels[i][1]] + list(comb))
+
         # Compute the size in bits of the LPF contained in the tmp LPF scheme if operand is 'I' or otherwise
         # While for the other operands is enough to compute the product of the sizes of the relevant LPFs, for 'I'
         # it is necessary to take into account FX, OX, FY, OY, stride values
         if shared_min_roof_levels[i][0] == 'I':
-            block_size = input_relevant_size_below(tmp_LPF_scheme, shared_min_roof_levels[i][1], layer_loop_info) * precision[
-                shared_min_roof_levels[i][0]]
+            block_size = input_relevant_size_below(tmp_LPF_scheme, shared_min_roof_levels[i][1], layer_loop_info) * \
+                         precision[
+                             shared_min_roof_levels[i][0]]
         else:
             block_size = precision[shared_min_roof_levels[i][0]]
             for z in range(0, shared_min_roof_levels[i][1] + 1):
                 if tmp_LPF_scheme[shared_min_roof_levels[i][0]][z]:
+                    # print(tmp_LPF_scheme)
                     block_types, block_sizes = zip(*tmp_LPF_scheme[shared_min_roof_levels[i][0]][z])
                     for j in range(0, len(block_types)):
                         if block_types[j] not in operand_irrelevant[shared_min_roof_levels[i][0]]:
@@ -146,7 +149,15 @@ def check_comb_fit(LPF_scheme, spatial_unrolling, comb, min_roof, mem_size, mem_
     else:
         if total_size > mem_size[shared_min_roof_levels[0][0]][shared_min_roof_levels[0][1]]:
             is_fit = False
-
+    # if is_fit == False:
+    #      print()
+    #      print('COMB',comb)
+    #     for opx in ['W','I','O']:
+    #         print(opx, tmp_LPF_scheme[opx])
+    #     print(min_roof)
+    #     print('total size', total_size)
+    # print(mem_size)
+    # print('ur ', total_size / mem_size[min_roof[0]][min_roof[1]] < utilization_rate[min_roof[0]][min_roof[1]])
     return is_fit
 
 
@@ -163,7 +174,6 @@ def update_roof(LPF_scheme, spatial_unrolling, fitting_combination, old_roof, me
         tmp_LPF_scheme2[operand][old_roof[operand][0]] = copy.deepcopy(tmp_LPF_scheme[operand][
                                                                            old_roof[operand][0]] + fitting_combination)
     new_roof = copy.deepcopy(old_roof)
-
     # For each operand:
     # - If the respective roof memory level is NOT SHARED compute the space available still and divide by the precision of the operand
     # - If the respective roof memory level is SHARED find the max size of combination of relevant LPFs that fit in the shared level

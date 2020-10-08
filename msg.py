@@ -130,7 +130,8 @@ def fix_best_scheme(old_best_scheme, new_best_scheme, mem_pool):
                     break
             if fixed == 0:
                 for mp in mem_pool:
-                    if mp['size_bit'] == new_mem_level.memory_level['size_bit'] and new_mem_level.memory_level['mem_type'] == mp['mem_type']:
+                    if mp['size_bit'] == new_mem_level.memory_level['size_bit'] and new_mem_level.memory_level[
+                        'mem_type'] == mp['mem_type']:
                         tmp_mem_level = mp
                         tmp_mem_level['unroll'] = new_mem_level.memory_level['unroll']
                         break
@@ -511,8 +512,12 @@ def memory_scheme_generator(mem_pool, array_dimension, max_area, utilization_rat
     return schemes
 
 
-def msg(mem_pool, array_dimension, max_area, utilization_rate_area, memory_hierarchy_ratio, prune_PE_RF, PE_RF_size_threshold, PE_RF_depth, CHIP_depth, tmp_msn, tmp_node_list, single_sim, banking, L1_size, L2_size):
-    memory_scheme_list = memory_scheme_generator(mem_pool, array_dimension, max_area, utilization_rate_area, memory_hierarchy_ratio, prune_PE_RF, PE_RF_size_threshold, PE_RF_depth, CHIP_depth, banking, L1_size, L2_size, tmp_msn, tmp_node_list, single_sim)
+def msg(mem_pool, array_dimension, max_area, utilization_rate_area, memory_hierarchy_ratio, prune_PE_RF,
+        PE_RF_size_threshold, PE_RF_depth, CHIP_depth, tmp_msn, tmp_node_list, single_sim, banking, L1_size, L2_size):
+    memory_scheme_list = memory_scheme_generator(mem_pool, array_dimension, max_area, utilization_rate_area,
+                                                 memory_hierarchy_ratio, prune_PE_RF, PE_RF_size_threshold, PE_RF_depth,
+                                                 CHIP_depth, banking, L1_size, L2_size, tmp_msn, tmp_node_list,
+                                                 single_sim)
     ms_list = []
     # Conversion from memory_pool format to framework input format
     for memory_scheme_node in memory_scheme_list:
@@ -585,7 +590,8 @@ def mem_scheme_not_ordered_check(mem_scheme_set_list, memory_hierarchy_ratio, ar
             #         mem_scheme_fit = False
             # break
             # Check if the depth parameters set are respected
-            if PE_mo_size > PE_RF_depth or PE_mo_size == 0 or len(memory_operand_list) - PE_mo_size > CHIP_depth: # or memory_operand_list_size.__len__() - PE_RF_depth < CHIP_depth:
+            if PE_mo_size > PE_RF_depth or PE_mo_size == 0 or len(
+                    memory_operand_list) - PE_mo_size > CHIP_depth:  # or memory_operand_list_size.__len__() - PE_RF_depth < CHIP_depth:
                 mem_scheme_fit = False
                 # print(PE_mo_size, PE_RF_depth,'Not all operands are present in this scheme')
                 break
@@ -614,8 +620,9 @@ def mem_scheme_not_ordered_check(mem_scheme_set_list, memory_hierarchy_ratio, ar
             memory_ratios = []
             # Check if the memory scheme respects the memory hierarchy ratio
             for m in memory_operand_list:
-                memory_ratios = [x.memory_level['size_bit'] / m.memory_level['size_bit'] for x in memory_operand_list if x != m]
-                if any([x > 1/memory_hierarchy_ratio and x < memory_hierarchy_ratio for x in memory_ratios]):
+                memory_ratios = [x.memory_level['size_bit'] / m.memory_level['size_bit'] for x in memory_operand_list if
+                                 x != m]
+                if any([x > 1 / memory_hierarchy_ratio and x < memory_hierarchy_ratio for x in memory_ratios]):
                     mem_scheme_fit = False
                     # print('wtf')
                     break
@@ -696,7 +703,8 @@ def mem_scheme_fit_check(mem_scheme, precision, layer, layer_number):
         if layer_idx in layer_number:
             operand_size = {}
             operand_size['W'] = each_layer['FX'] * each_layer['FY'] * each_layer['C'] * each_layer['K'] * precision['W']
-            operand_size['O'] = each_layer['OX'] * each_layer['OY'] * each_layer['K'] * each_layer['B'] * precision['O_final']
+            operand_size['O'] = each_layer['OX'] * each_layer['OY'] * each_layer['K'] * each_layer['B'] * precision[
+                'O_final']
             operand_size['I'] = (each_layer['SX'] * (each_layer['OX'] - 1) + each_layer['SFX'] * (
                     each_layer['FX'] - 1) + 1) * \
                                 (each_layer['SY'] * (each_layer['OY'] - 1) + each_layer['SFY'] * (
@@ -984,8 +992,9 @@ def spatial_unrolling_generator_with_hint(mem_scheme, array_dimension, layer, un
                             best_unroll_size = uc_size
                             best_comb = uc
             if best_unroll_size == 1:
-                good_scheme = False
-                break
+                # good_scheme = False
+                # break
+                best_comb = ([unroll_dim[0],1],)
             for u in best_comb:
                 if cluster_scheme:
                     u_cs_type, u_cs_size = zip(*cluster_scheme)
@@ -1090,6 +1099,8 @@ def spatial_unrolling_generator_with_hint(mem_scheme, array_dimension, layer, un
         if not not_good:
             spatial_loop_list.append(spatial_loop)
             flooring_list.append(flooring)
+    if not 'not_good' in locals():
+        not_good = not (good_scheme)
     return spatial_loop_list, flooring_list, mem_scheme, not_good
 
 
@@ -1267,12 +1278,12 @@ def unroll_scheme_list_generator(mem_scheme, array_dimension, layer, precision, 
                 unrolling_scheme_list_clean2.remove(unrolling_scheme_list_clean[idx])
 
         # for ii, m in enumerate(unrolling_scheme_list_clean2):
-            # print(ii + 1, m)
-            # print(opsize)
-            # print('MAX DATA REUSE: ', mdr)
-            # print('SPATIAL DATA REUSE: ', sdr_list_clean2[ii])
-            # print('TEMPORAL DATA REUSE: ', tdr_list_clean2[ii])
-            # print()
+        # print(ii + 1, m)
+        # print(opsize)
+        # print('MAX DATA REUSE: ', mdr)
+        # print('SPATIAL DATA REUSE: ', sdr_list_clean2[ii])
+        # print('TEMPORAL DATA REUSE: ', tdr_list_clean2[ii])
+        # print()
         return (unrolling_scheme_list_clean2)
 
 
