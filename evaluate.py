@@ -48,10 +48,10 @@ def mem_scheme_su_evaluate(input_settings, list_min_energy, list_min_en_output, 
     spatial_loop_fractional = cls.SpatialLoop.extract_loop_info(mem_scheme.fraction_spatial_unrolling[ii_su],layer_post)
 
     active_mac_cost = cmf.get_active_mac_cost(layer, input_settings.mac_array_info['single_mac_energy'])
-    idle_mac_cost = cmf.get_idle_mac_cost(layer, input_settings.mac_array_info['array_size'],
+    layer_rounded = cls.Layer.extract_layer_info(layer_post)
+    idle_mac_cost = cmf.get_idle_mac_cost(layer, layer_rounded, input_settings.mac_array_info['array_size'],
                                           input_settings.mac_array_info['idle_mac_energy'],
                                           mem_scheme.spatial_unrolling)
-
 
     mem_scheme.mem_utilization_rate, good_scheme = utilization_rate_optimizer(mem_scheme.mem_size,
                                                                               mem_scheme.spatial_unrolling[ii_su],
