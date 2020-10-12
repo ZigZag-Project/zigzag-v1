@@ -1290,14 +1290,16 @@ def unroll_scheme_list_generator(mem_scheme, array_dimension, layer, precision, 
         return (unrolling_scheme_list_clean2)
 
 
-def fraction_su_gen(spatial_unrolling, fraction_su_short):
+def su_reformat(spatial_unrolling, ideal_su_old, fraction_su_old):
+    ideal_su = copy.deepcopy(spatial_unrolling)
     fraction_su = copy.deepcopy(spatial_unrolling)
     for op in ['W','I','O']:
         for level, outer_list in enumerate(spatial_unrolling[0][op]):
             if outer_list:
                 for idx, inner_list in enumerate(outer_list):
-                    fraction_su[0][op][level][idx] = fraction_su_short[idx]
-    return fraction_su
+                    ideal_su[0][op][level][idx] = ideal_su_old[idx]
+                    fraction_su[0][op][level][idx] = fraction_su_old[idx]
+    return ideal_su, fraction_su
 
 
 def iterative_data_format_clean(original_dict):

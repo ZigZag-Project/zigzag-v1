@@ -334,41 +334,49 @@ def mem_scheme_evaluate(input_settings, list_min_energy, list_min_en_output, lis
         current_time = now.strftime("%H:%M:%S")
         print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, ', M',
               mem_scheme_index + 1, '/', mem_scheme_count, ' SUG started')
+
         # hint_driven_with_greedy_mapping
         if input_settings.spatial_unrolling_mode == 4:
             layer_rounded = cls.layer_rounding.LayerRound(layer_spec.layer_info[layer_index],
                                                           input_settings.mac_array_info['array_size'],
                                                           input_settings.unrolling_scheme_list)
-            layer_spec.layer_info[layer_index] = layer_rounded.roun_layer_info
-            fraction_su_short = layer_rounded.fraction_su
+            layer_spec.layer_info[layer_index] = layer_rounded.round_layer_info
+            aux_layer_to_su_hint_table = layer_rounded.aux_layer_to_su_hint_table
+            fraction_su = layer_rounded.fraction_su
+            ideal_su = layer_rounded.ideal_su
             spatial_unrolling = []
             flooring = []
             fraction_spatial_unrolling = []
-
-            for su_hint_idx in range(len(input_settings.unrolling_scheme_list)):
+            for aux_layer_idx in range(len(layer_spec.layer_info[layer_index])):
+                su_hint_idx = aux_layer_to_su_hint_table[aux_layer_idx]
                 spatial_unrolling_, flooring_, mem_scheme, not_good = msg.spatial_unrolling_generator_with_hint(
                     mem_scheme, input_settings.mac_array_info['array_size'], layer_spec.layer_info[layer_index][su_hint_idx],
                     [input_settings.unrolling_scheme_list[su_hint_idx]])
-                fraction_spatial_unrolling_ = msg.fraction_su_gen(spatial_unrolling_, fraction_su_short[su_hint_idx])
+                spatial_unrolling_, fraction_spatial_unrolling_ = \
+                    msg.su_reformat(spatial_unrolling_, ideal_su[aux_layer_idx], fraction_su[aux_layer_idx])
                 spatial_unrolling += spatial_unrolling_
                 flooring += flooring_
                 fraction_spatial_unrolling += fraction_spatial_unrolling_
-        # hint_driven (prime factor factorization-based)
+            mem_scheme.fraction_spatial_unrolling = fraction_spatial_unrolling
+
+        # hint_driven (prime factor factorization based)
         elif input_settings.spatial_unrolling_mode == 3:
             spatial_unrolling, flooring, mem_scheme, not_good = msg.spatial_unrolling_generator_with_hint(
                 mem_scheme, input_settings.mac_array_info['array_size'], layer_spec.layer_info[layer_index],
                 input_settings.unrolling_scheme_list)
+            mem_scheme.fraction_spatial_unrolling = spatial_unrolling
+
+        # spatial unrolling full search based on user-defined spatial_utilization_threshold
         else:
             spatial_unrolling, flooring, mem_scheme, not_good = msg.spatial_unrolling_generator(
                 mem_scheme, input_settings.mac_array_info['array_size'], layer_spec.layer_info[layer_index],
                 input_settings.precision, input_settings.spatial_utilization_threshold,
                 input_settings.spatial_unrolling_mode)
+            mem_scheme.fraction_spatial_unrolling = spatial_unrolling
+
         mem_scheme.spatial_unrolling = spatial_unrolling
         mem_scheme.flooring = flooring
-        if 'fraction_spatial_unrolling' in locals():
-            mem_scheme.fraction_spatial_unrolling = fraction_spatial_unrolling
-        else:
-            mem_scheme.fraction_spatial_unrolling = spatial_unrolling
+
         print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, ', M',
               mem_scheme_index + 1, '/', mem_scheme_count, ' SUG finished',
               '| Valid SU found:', len(spatial_unrolling))

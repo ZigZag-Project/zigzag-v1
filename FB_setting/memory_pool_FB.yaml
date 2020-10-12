@@ -28,7 +28,7 @@ sram_BW512_32KB:
   mem_bw: [512]
   mem_type: single_port_double_buffered
   size_bit: 262144
-  utilization_rate: 0.7
+  utilization_rate: 0.1
   nbanks : 1
 
 #sram_BW512_32KB:
@@ -50,7 +50,7 @@ sram_BW256_16KB:
   mem_bw: [256]
   mem_type: single_port_double_buffered
   size_bit: 131072
-  utilization_rate: 0.7
+  utilization_rate: 0.1
   nbanks: 1
 
 sram_BW2048_1MB:

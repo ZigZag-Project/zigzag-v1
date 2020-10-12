@@ -1,6 +1,6 @@
 PE_array:
-  Col : 8
-  Row : 8
+  Col : 18
+  Row : 18
 
 precision:
   I : 16
@@ -38,17 +38,17 @@ memory_hint:
 memory_hierarchy:
   rf_psum:
       memory_instance : spad_48byte
-      bank_instances : 16
+      bank_instances : 64
       operand_stored : [O]
       nbanks : 1
   rf_input:
       memory_instance: spad_24byte
-      bank_instances: 16
+      bank_instances: 64
       operand_stored: [I]
       nbanks : 1
   rf_weight:
       memory_instance: spad_448byte
-      bank_instances: 16
+      bank_instances: 64
       operand_stored: [W]
       nbanks : 1
   top_sram:
