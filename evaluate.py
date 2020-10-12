@@ -19,7 +19,7 @@ from multiprocessing import Process, Value, Manager
 from datetime import datetime
 from pathlib import Path
 
-def mem_scheme_su_evaluate(input_settings, layer, layer_index, ii_layer_index, mem_scheme, mem_scheme_index, 
+def mem_scheme_su_evaluate(input_settings, layer, layer_index, mem_scheme, mem_scheme_index, 
                             ii_su, spatial_unrolling, spatial_unrolling_count, multi_manager):
 
     mem_scheme_count = multi_manager.mem_scheme_count
@@ -31,7 +31,6 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, ii_layer_index, m
     list_tm_count_ut = multi_manager.list_tm_count_ut
     layer_spec = multi_manager.layer_spec
     list_sim_time = multi_manager.list_sim_time
-    list_su_count = multi_manager.list_su_count
 
     tl_list = []
     t1 = time.time()
@@ -95,7 +94,7 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, ii_layer_index, m
                       tl_combinations, ', final:', len(tl_list), ')')
             else:
                 print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, ', M', mem_scheme_index + 1, '/', mem_scheme_count, ', SU',
-                      ii_su + 1, '/', len(mem_scheme.spatial_unrolling), ' TMG Finished', '| Valid TM found',
+                      ii_su + 1, '/', len(mem_scheme.spatial_unrolling), ' TMG Finished', '| Valid TMs found:',
                       len(tl_list))
         else:
             now = datetime.now()
@@ -215,30 +214,29 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, ii_layer_index, m
         '''
         Append common terms to the result list.
         '''
-        spatial_unrolling_index = str(ii_su + 1) + '/' + str(spatial_unrolling_count)
-        mem_scheme_count = str(mem_scheme_index + 1) + '/' + str(mem_scheme_count)
-        common_settings = of.CommonSetting(input_settings,
-                                           ii_layer_index,
-                                           mem_scheme_count,
-                                           spatial_unrolling_index,
-                                           msc_list[0])
+        # spatial_unrolling_index = str(ii_su + 1) + '/' + str(spatial_unrolling_count)
+        # mem_scheme_count = str(mem_scheme_index + 1) + '/' + str(mem_scheme_count)
+        # common_settings = of.CommonSetting(input_settings,
+        #                                    ii_layer_index,
+        #                                    mem_scheme_count,
+        #                                    spatial_unrolling_index,
+        #                                    msc_list[0])
 
         if input_settings.fixed_temporal_mapping or input_settings.tmg_search_method != 0:
             tm_count = len(tl_list)
         else:
             tm_count = {'partial': tl_combinations, 'final': len(tl_list)}
 
-        if input_settings.fixed_spatial_unrolling and input_settings.fixed_temporal_mapping:
-            sub_path = '/fixed_tm_for_fixed_su/'
-        elif input_settings.fixed_spatial_unrolling:
-            sub_path = '/best_tm_for_fixed_su/'
-        else:
-            sub_path = '/best_tm_for_each_su/'
+        # if input_settings.fixed_spatial_unrolling and input_settings.fixed_temporal_mapping:
+        #     sub_path = '/fixed_tm_for_fixed_su/'
+        # elif input_settings.fixed_spatial_unrolling:
+        #     sub_path = '/best_tm_for_fixed_su/'
+        # else:
+        #     sub_path = '/best_tm_for_each_su/'
 
-        if not (input_settings.fixed_spatial_unrolling is False
-                and input_settings.su_search_result_saving is False):
-            if not (input_settings.fixed_spatial_unrolling and input_settings.fixed_temporal_mapping):
-                pass
+        # if not (input_settings.fixed_spatial_unrolling is False
+        #         and input_settings.su_search_result_saving is False):
+        #     if not (input_settings.fixed_spatial_unrolling and input_settings.fixed_temporal_mapping):
                 # rf = input_settings.results_path + sub_path + input_settings.results_filename + '_L' + str(
                 #     layer_index) + '_M' + str(
                 #     mem_scheme_index + 1) + '_SU' + str(
@@ -252,8 +250,7 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, ii_layer_index, m
                 #     ii_su + 1) + '_max_ut'
                 # of.print_xml(rf, layer, msc_list[0], best_output_utilization, common_settings, tm_count, t2,
                 #              input_settings.result_print_mode)
-            else:
-                pass
+            # else:
                 # rf = input_settings.results_path + sub_path + input_settings.results_filename + '_L' + str(
                 #     layer_index) + '_M' + str(
                 #     mem_scheme_index + 1) + '_SU' + str(
@@ -279,14 +276,20 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, ii_layer_index, m
     list_tm_count_ut[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: tm_count})
     list_sim_time[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: t2})
 
-def mem_scheme_evaluate(input_settings, layer_index, ii_layer_index, mem_scheme, mem_scheme_index, multi_manager):
+def mem_scheme_evaluate(input_settings, layer_index, layer, mem_scheme, mem_scheme_index, multi_manager):
 
     mem_scheme_count = multi_manager.mem_scheme_count
     layer_spec = multi_manager.layer_spec
 
+    # Check if this is a duplicate layer
+    if layer.is_duplicate:
+        now = datetime.now()
+        current_time = now.strftime("%H:%M:%S")
+        print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, 
+            'is a duplicate of L', layer.parent, '. Skipping exploration.')
+        return
 
     t1 = time.time()
-    layer = cls.Layer.extract_layer_info(layer_spec.layer_info[layer_index])
     min_energy_utilization = 0
     discard_mem_scheme = False
     if discard_mem_scheme:
@@ -326,7 +329,7 @@ def mem_scheme_evaluate(input_settings, layer_index, ii_layer_index, mem_scheme,
                      range(0, len(spatial_unrolling), input_settings.su_parallel_processing)]
     for su_chunk in su_chunk_list:
         procs = [Process(target=mem_scheme_su_evaluate,
-                         args=(input_settings, layer, layer_index, ii_layer_index, mem_scheme, mem_scheme_index, 
+                         args=(input_settings, layer, layer_index, mem_scheme, mem_scheme_index, 
                          ii_su, spatial_unrolling[ii_su], len(spatial_unrolling), multi_manager))
                  for ii_su, su_x in zip(su_chunk, spatial_unrolling[su_chunk[0]:su_chunk[-1] + 1])]
         for p in procs: p.start()
@@ -373,6 +376,7 @@ def mem_scheme_evaluate(input_settings, layer_index, ii_layer_index, mem_scheme,
         list_sim_time[mem_scheme_str][layer_str]['best_su_each_mem'].update({best_en_mem_su_str: t2})
         list_su_count[mem_scheme_str][layer_str] = len(spatial_unrolling)
 
+
         best_ut = 0
         best_ut_en = sys.float_info.max
         for mem_su_str, (en, ut) in list_max_utilization[mem_scheme_str][layer_str]['best_tm_each_su'].items():
@@ -385,13 +389,22 @@ def mem_scheme_evaluate(input_settings, layer_index, ii_layer_index, mem_scheme,
         tm_count_ut = list_tm_count_ut[mem_scheme_str][layer_str]['best_tm_each_su'].get(best_ut_mem_su_str)
 
         list_tm_count_ut[mem_scheme_str][layer_str]['best_su_each_mem'].update({best_ut_mem_su_str: tm_count_ut})
-
         list_max_utilization[mem_scheme_str][layer_str]['best_su_each_mem'].update({best_ut_mem_su_str: (best_ut_en, best_ut)})
-
-        dd = list_max_ut_output[mem_scheme_str]
         list_max_ut_output[mem_scheme_str][layer_str]['best_su_each_mem'].update({best_ut_mem_su_str: best_ut_output})
-
         list_sim_time[mem_scheme_str][layer_str]['best_su_each_mem'].update({best_ut_mem_su_str: t2})
+
+        # Delete all results in 'best_tm_each_su' if save_all_spatial_unrolling_result is false,
+        # As this information is not required anymore an might be very large (>100 000 TM's possible)
+        if not input_settings.su_search_result_saving:
+            del list_tm_count_en[mem_scheme_str][layer_str]['best_tm_each_su']
+            del list_min_en_output[mem_scheme_str][layer_str]['best_tm_each_su']
+            del list_min_energy[mem_scheme_str][layer_str]['best_tm_each_su']
+
+            del list_tm_count_ut[mem_scheme_str][layer_str]['best_tm_each_su']
+            del list_max_ut_output[mem_scheme_str][layer_str]['best_tm_each_su']
+            del list_max_utilization[mem_scheme_str][layer_str]['best_tm_each_su']
+
+            del list_sim_time[mem_scheme_str][layer_str]['best_tm_each_su']
 
         if not input_settings.fixed_spatial_unrolling:
 
@@ -441,7 +454,7 @@ def mem_scheme_evaluate(input_settings, layer_index, ii_layer_index, mem_scheme,
                 # of.print_xml(rf, layer, mem_scheme, best_ut_output, common_settings_ut, tm_count_ut, t2,
                 #              input_settings.result_print_mode)
 
-def mem_scheme_list_evaluate(mem_scheme, input_settings, mem_scheme_index, multi_manager):
+def mem_scheme_list_evaluate(mem_scheme, input_settings, mem_scheme_index, layers_dict, multi_manager):
     
     mem_scheme_count = multi_manager.mem_scheme_count
 
@@ -449,17 +462,14 @@ def mem_scheme_list_evaluate(mem_scheme, input_settings, mem_scheme_index, multi
     print(mem_scheme.mem_size)
     print(mem_scheme.mem_unroll)
 
-    # total_cost_mem_scheme = Value('d', 0)
-    discard_mem_scheme = False
-
     layer_chunk_list = [input_settings.layer_number[i:i + input_settings.layer_parallel_processing] for i in
                         range(0, len(input_settings.layer_number), input_settings.layer_parallel_processing)]
 
     for ii_layer_chunk, layer_chunk in enumerate(layer_chunk_list):
         procs = []
-        for ii_layer_index, layer_index in enumerate(layer_chunk):
+        for ii_layer_index, layer_number in enumerate(layer_chunk):
             procs.append(Process(target=mem_scheme_evaluate,
-                            args=(input_settings, layer_index, ii_layer_index, mem_scheme, mem_scheme_index, multi_manager)))
+                        args=(input_settings, layer_number, layers_dict[layer_number], mem_scheme, mem_scheme_index, multi_manager)))
         for p in procs: p.start()
         for p in procs: p.join()
 

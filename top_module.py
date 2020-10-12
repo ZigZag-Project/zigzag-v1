@@ -24,6 +24,25 @@ if __name__ == "__main__":
     input_settings = input_funcs.get_input_settings(args.set, args.map, args.mempool, args.arch)
     layer_spec = importlib.machinery.SourceFileLoader('%s' % (input_settings.layer_filename),
                                                       '%s.py' % (input_settings.layer_filename)).load_module()
+
+    # Extract the layer information from the layer_spec
+    layers = [cls.Layer.extract_layer_info(layer_spec.layer_info[layer_number]) 
+            for layer_number in input_settings.layer_number]
+
+    # If there are duplicate layers, set flag for the latter ones.
+    # This flag will prevent the layer from being evaluated later on to speed up run.
+    for idx, layer in enumerate(layers):
+        layers_seen = layers[:idx]
+        for idx_other, other in enumerate(layers_seen):
+            if layer == other:
+                layer.set_duplicate(input_settings.layer_number[idx_other])
+
+    # Setup a layer dictionary of following format for easy access
+    # key: layer number
+    # value: Layer class
+    layers_dict = {input_settings.layer_number[i]: layers[i]
+                for i in range(len(layers))}
+
     results_path = input_settings.results_path
 
     if input_settings.mem_hierarchy_single_simulation:
@@ -76,7 +95,7 @@ if __name__ == "__main__":
         raise ValueError('The largest memory in the hierarchy is still too small for holding the required workload.')
 
     # Manages the variables passed to the multiple parallel processes
-    multi_manager = MultiManager(input_settings, mem_scheme_sim, layer_spec)
+    multi_manager = MultiManager(input_settings, mem_scheme_sim, layer_spec, layers)
 
     # A list containing the chunks that will be processed sequentially
     # Each element within a chunk will be processed in parallel
@@ -90,7 +109,7 @@ if __name__ == "__main__":
         for mem_scheme_index, mem_scheme in enumerate(mem_scheme_sim_chunk): # parallel processing of one chunk
             current_mem_scheme_index = mem_scheme_index + input_settings.mem_scheme_parallel_processing * ii_mem_scheme_chunk
             procs.append(Process(target=evaluate.mem_scheme_list_evaluate,
-                                args=(mem_scheme, input_settings, current_mem_scheme_index, multi_manager)))
+                                args=(mem_scheme, input_settings, current_mem_scheme_index, layers_dict, multi_manager)))
 
         for p in procs: p.start()
         for p in procs: p.join()
@@ -100,7 +119,7 @@ if __name__ == "__main__":
         evaluate.optimal_su_evaluate(input_settings, multi_manager)
 
 
-    of.print_helper(input_settings, multi_manager)
+    of.print_helper(input_settings, layers_dict, multi_manager)
         
 
     total_time = int(time.time() - t1)

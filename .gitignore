@@ -8,3 +8,4 @@ pycache/
 *.pickle
 .idea
 .vscode/
+mprofile_*

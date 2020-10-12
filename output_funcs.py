@@ -734,7 +734,7 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
         print_good_su_format(cost_model_output.spatial_scheme, mem_scheme.mem_name, results_filename+'.mapping')
         print_good_tm_format(cost_model_output.temporal_scheme, mem_scheme.mem_name, results_filename+'.mapping')
 
-def print_helper(input_settings, multi_manager):
+def print_helper(input_settings, layers_dict, multi_manager):
 
     # Use this for other print types (such as yaml) in the future
     print_type = 'xml'
@@ -798,7 +798,13 @@ def print_helper(input_settings, multi_manager):
                 if save_all_su:
                     # Save all the SU + best TM combinations
                     su_count = list_su_count[mem_scheme_str][layer_idx_str]
-                    for i in range(1,su_count+1):
+
+                    if su_count is None:
+                        # su count is None for duplicate layers, get su count from parent
+                        parent_str = 'L_%d' % layers_dict[layer_index].parent
+                        su_count = list_su_count[mem_scheme_str][parent_str]
+
+                    for i in range(1, su_count + 1):
                         mem_scheme_su_str = '%s_SU_%d_%d' % (mem_scheme_str, su_count, i)
 
                         best_output_energy = list_min_en_output[mem_scheme_str][layer_idx_str]['best_tm_each_su'][mem_scheme_su_str]
