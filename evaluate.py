@@ -638,11 +638,12 @@ def optimal_su_evaluate(input_settings, multi_manager):
             current_time = now.strftime("%H:%M:%S")
 
             network_name = str(input_settings.layer_filename.split('/')[-1])
+            memory_area = int(min_en_output.area)
 
-            print('{0:s} {1:s} M {2:d}: Minimal energy for all layers:      (energy, latency) = ({3:d}, {4:d})'.format(
-                current_time, network_name, mem_scheme_index + 1, int(tot_min_en_energy), int(tot_min_en_latency)))
-            print('{0:s} {1:s} M {2:d}: Maximal utilization for all layers: (energy, latency) = ({3:d}, {4:d})'.format(
-                current_time, network_name, mem_scheme_index + 1, int(tot_max_ut_energy), int(tot_max_ut_latency)))                
+            print('{0:s} {1:s} M {2:d}: Minimal energy for all layers:      (energy, latency, area) = ({3:d}, {4:d}, {5:d})'.format(
+                current_time, network_name, mem_scheme_index + 1, int(tot_min_en_energy), int(tot_min_en_latency), memory_area))
+            print('{0:s} {1:s} M {2:d}: Maximal utilization for all layers: (energy, latency, area) = ({3:d}, {4:d}, {5:d})'.format(
+                current_time, network_name, mem_scheme_index + 1, int(tot_max_ut_energy), int(tot_max_ut_latency), memory_area))                
 
         # Set the multi_manager's parameter with the correct mem_scheme_index
         multi_manager.best_mem_scheme_index_en = best_mem_scheme_index_en

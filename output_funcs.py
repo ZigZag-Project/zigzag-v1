@@ -750,17 +750,6 @@ def print_helper(input_settings, layers_dict, multi_manager):
     fixed_su = input_settings.fixed_spatial_unrolling
     fixed_tm = input_settings.fixed_temporal_mapping
 
-    if (fixed_mem and fixed_su and fixed_tm):
-        mode = 1
-    elif (fixed_mem and fixed_su and not fixed_tm):
-        mode = 2
-    elif (fixed_mem and not fixed_su and not fixed_tm):
-        mode = 3
-    elif (not fixed_mem and fixed_su and not fixed_tm):
-        mode = 4
-    elif (not fixed_mem and not fixed_su and not fixed_tm):
-        mode = 5
-
     rf_base = input_settings.results_path + '%s' + input_settings.results_filename
     rf_ending_en = '_min_en'
     rf_ending_ut = '_max_ut'
@@ -922,7 +911,7 @@ def print_helper(input_settings, layers_dict, multi_manager):
             common_settings_ut = CommonSetting(input_settings, layer_index, mem_scheme_count_str_ut, spatial_unrolling_count_ut, msc_ut)
 
             mem_scheme_su_save_str_en = '_M%d_SU%s' %(best_mem_scheme_idx_en + 1, str(mem_scheme_su_str_en.split('_')[-1]))
-            mem_scheme_su_save_str_ut = '_M%d_S%s' %(best_mem_scheme_idx_ut + 1, str(mem_scheme_su_str_ut.split('_')[-1]))
+            mem_scheme_su_save_str_ut = '_M%d_SU%s' %(best_mem_scheme_idx_ut + 1, str(mem_scheme_su_str_ut.split('_')[-1]))
 
             sub_path = '/best_mem_network/'
 
