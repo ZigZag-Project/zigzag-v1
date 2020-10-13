@@ -24,7 +24,6 @@ save_all_temporal_mapping_result : False
 # WORKLOAD
 # layer_indices can be a single-element list or a multiple-element list.
 # For now, multi-layer parallel search is supported if only doing temporal mapping search, e.g. layer_indices : [3,4,5].
-# please keep it as a single-element list if doing spatial-unrolling search or architecture search, e.g. layer_indices : [5].
 layer_filename : './NN_layers/DarkNet19'
 layer_indices : [1]
 
