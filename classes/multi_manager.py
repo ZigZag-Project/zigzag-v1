@@ -3,7 +3,7 @@ import sys, time
 
 class MultiManager(object):
 
-    def __init__(self, input_settings, mem_scheme_sim, layer_spec):
+    def __init__(self, input_settings, mem_scheme_sim, layer_spec, layers):
 
         self.start_time = time.time()
 
@@ -56,38 +56,52 @@ class MultiManager(object):
 
             self.list_su_count[mem_str] = manager.dict()
 
+            for layer_idx, layer_number in enumerate(input_settings.layer_number):
 
-            for j in input_settings.layer_number:
+                layer_str = 'L_%d' % layer_number
 
-                layer_str = 'L_%d' % j
+                # If the layer is a duplicate, track variables of parent layer
+                if layers[layer_idx].is_duplicate:
+                    parent_number = layers[layer_idx].parent
+                    parent_str = 'L_%d' % parent_number
 
-                self.list_tm_count_en[mem_str][layer_str] = manager.dict(
-                    [('best_su_each_mem', manager.dict()), 
-                    ('best_tm_each_su', manager.dict())]
-                )
-                self.list_tm_count_ut[mem_str][layer_str] = manager.dict(
-                    [('best_su_each_mem', manager.dict()), 
-                    ('best_tm_each_su', manager.dict())]
-                )
-                self.list_min_energy[mem_str][layer_str] = manager.dict(
-                    [('best_su_each_mem', manager.dict()), 
-                    ('best_tm_each_su', manager.dict())]
-                )
-                self.list_min_en_output[mem_str][layer_str] = manager.dict(
-                    [('best_su_each_mem', manager.dict()), 
-                    ('best_tm_each_su', manager.dict())]
-                )
-                self.list_max_utilization[mem_str][layer_str] = manager.dict(
-                    [('best_su_each_mem', manager.dict()), 
-                    ('best_tm_each_su', manager.dict())]
-                )
-                self.list_max_ut_output[mem_str][layer_str] = manager.dict(
-                    [('best_su_each_mem', manager.dict()), 
-                    ('best_tm_each_su', manager.dict())]
-                )
-                self.list_sim_time[mem_str][layer_str] = manager.dict(
-                    [('best_su_each_mem', manager.dict()), 
-                    ('best_tm_each_su', manager.dict())]
-                )
+                    self.list_tm_count_en[mem_str][layer_str] = self.list_tm_count_en[mem_str][parent_str]
+                    self.list_tm_count_ut[mem_str][layer_str] = self.list_tm_count_ut[mem_str][parent_str]
+                    self.list_min_energy[mem_str][layer_str] = self.list_min_energy[mem_str][parent_str]
+                    self.list_min_en_output[mem_str][layer_str] = self.list_min_en_output[mem_str][parent_str]
+                    self.list_max_utilization[mem_str][layer_str] = self.list_max_utilization[mem_str][parent_str]
+                    self.list_max_ut_output[mem_str][layer_str] = self.list_max_ut_output[mem_str][parent_str]
+                    self.list_sim_time[mem_str][layer_str] = self.list_sim_time[mem_str][parent_str]
+                    self.list_su_count[mem_str][layer_str] = self.list_su_count[mem_str][parent_str]
+                else:
+                    self.list_tm_count_en[mem_str][layer_str] = manager.dict(
+                        [('best_su_each_mem', manager.dict()),
+                        ('best_tm_each_su', manager.dict())]
+                    )
+                    self.list_tm_count_ut[mem_str][layer_str] = manager.dict(
+                        [('best_su_each_mem', manager.dict()),
+                        ('best_tm_each_su', manager.dict())]
+                    )
+                    self.list_min_energy[mem_str][layer_str] = manager.dict(
+                        [('best_su_each_mem', manager.dict()),
+                        ('best_tm_each_su', manager.dict())]
+                    )
+                    self.list_min_en_output[mem_str][layer_str] = manager.dict(
+                        [('best_su_each_mem', manager.dict()),
+                        ('best_tm_each_su', manager.dict())]
+                    )
+                    self.list_max_utilization[mem_str][layer_str] = manager.dict(
+                        [('best_su_each_mem', manager.dict()),
+                        ('best_tm_each_su', manager.dict())]
+                    )
+                    self.list_max_ut_output[mem_str][layer_str] = manager.dict(
+                        [('best_su_each_mem', manager.dict()),
+                        ('best_tm_each_su', manager.dict())]
+                    )
+                    self.list_sim_time[mem_str][layer_str] = manager.dict(
+                        [('best_su_each_mem', manager.dict()),
+                        ('best_tm_each_su', manager.dict())]
+                    )
+                    self.list_su_count[mem_str][layer_str] = None
 
 
