@@ -57,7 +57,6 @@ class MultiManager(object):
             self.list_su_count[mem_str] = manager.dict()
 
 
-
             for j in input_settings.layer_number:
 
                 layer_str = 'L_%d' % j
@@ -90,6 +89,5 @@ class MultiManager(object):
                     [('best_su_each_mem', manager.dict()), 
                     ('best_tm_each_su', manager.dict())]
                 )
-
 
 

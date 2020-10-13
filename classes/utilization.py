@@ -28,6 +28,9 @@ class Utilization(object):
     def __init__(self, layer, temporal_loop, spatial_loop, loop, mac_array_info, mem_size_bit, mem_share,
                  mem_type, mac_array_stall, precision, mem_bw_bit, clk_domain={}):
 
+        if type(spatial_loop) != type([1]):
+            spatial_loop = [spatial_loop, spatial_loop]
+
         mem_level = temporal_loop.loop_levels
         output_pre = loop.output_precision
         output_dis = loop.output_distinguish
@@ -121,17 +124,16 @@ class Utilization(object):
         '''
 
         ''' Case 1 '''
-        num_of_used_mac = spatial_loop.unit_count['W'][0]
+        num_of_used_mac = spatial_loop[1].unit_count['W'][0]
         num_of_actual_mac = np.prod(mac_array_info['array_size']).item()
         mac_utilize_spatial1 = num_of_used_mac / num_of_actual_mac
 
         ''' Case 2 '''
         index = 0
         value = 1
-        for unrolled_loop in spatial_loop.spatial_loop_list:
+        for unrolled_loop in spatial_loop[1].spatial_loop_list:
             quotient = layer.size_list[unrolled_loop[index]] // unrolled_loop[value]
-            quotient_ceiling = (layer.size_list[unrolled_loop[index]] + unrolled_loop[value] - 1) // unrolled_loop[
-                value]
+            quotient_ceiling = (layer.size_list[unrolled_loop[index]] + unrolled_loop[value] - 1) // unrolled_loop[value]
             remainder = layer.size_list[unrolled_loop[index]] % unrolled_loop[value]
             mac_utilize_spatial2 = (quotient + (remainder / unrolled_loop[value])) / quotient_ceiling
 
@@ -203,7 +205,7 @@ class Utilization(object):
                     cc_load[operand].append(ceil(loop.req_mem_size[operand][level] * precision[operand] /
                                                  min(mem_bw_bit[operand][level][wr_bw],
                                                      mem_bw_bit[operand][level + 1][rd_bw] /
-                                                     spatial_loop.real_bw_boost[operand][level + 1])))
+                                                     spatial_loop[0].real_bw_boost[operand][level + 1])))
 
         cc_load_comb = {'W': cc_load['W'][-1],
                         'I': cc_load['I'][-1]}
@@ -868,7 +870,7 @@ class Utilization(object):
         # to_high = 1
         # data = 0
         # cycle = 1
-        # data_count = spatial_loop.real_bw_boost_low['O'][level0]
+        # data_count = spatial_loop[0].real_bw_boost_low['O'][level0]
         # fsum_gen_speed = loop.req_aver_mem_bw['O'][level0][to_high][cycle] / \
         #                  (loop.req_aver_mem_bw['O'][level0][to_high][data]*data_count*precision['O_final']
         #
@@ -891,7 +893,7 @@ class Utilization(object):
         #                               precision['O_final']
         # else:
         #     data_count_lowest_level = loop.dt_bloc_below['O'][level0][to_high][data] * \
-        #                               spatial_loop.real_bw_boost['O'][level0] * precision['O_final']
+        #                               spatial_loop[0].real_bw_boost['O'][level0] * precision['O_final']
         #
         #
         # wr = 0
@@ -981,12 +983,12 @@ class Utilization(object):
         for operand in ['W', 'I', 'O']:
             pun_factor[operand] = []
             for level, li in enumerate(req_mem_bw_bit[operand]):
-                if max_req_bw_bit[operand][level] * spatial_loop.real_bw_boost[operand][level] >= \
+                if max_req_bw_bit[operand][level] * spatial_loop[0].real_bw_boost[operand][level] >= \
                         mem_bw_bit[operand][level][0]:
                     pun_factor[operand].append(1)
                 else:
                     aftpac_mem_bw_bit = mem_bw_bit[operand][level][0] - mem_bw_bit[operand][level][0] % (
-                            max_req_bw_bit[operand][level] * spatial_loop.real_bw_boost[operand][level])
+                            max_req_bw_bit[operand][level] * spatial_loop[0].real_bw_boost[operand][level])
                     pun_factor[operand].append(mem_bw_bit[operand][level][0] / aftpac_mem_bw_bit)
 
         '''
@@ -999,7 +1001,7 @@ class Utilization(object):
                 for mem in shared_mem_list:
                     operand = mem[0]
                     level = mem[1]
-                    max_req_sh_bw_bit += max_req_bw_bit[operand][level] * spatial_loop.real_bw_boost[operand][level]
+                    max_req_sh_bw_bit += max_req_bw_bit[operand][level] * spatial_loop[0].real_bw_boost[operand][level]
                 if max_req_sh_bw_bit >= mem_bw_bit[operand][level][0]:
                     pun_factor_sh.append(1)
                 else:

@@ -1,0 +1,41 @@
+# FIXED TEMPORAL MAPPING
+temporal_mapping_fixed:
+  weight:
+    rf_weight: [[OX,2]]
+    top_sram: [[OY,2],[K,2],[C,2]]
+  input:
+    rf_input: [[OX,2]]
+    top_sram: [[OY,2],[K,2],[C,2]]
+  output:
+    rf_psum: [[OX,2]]
+    top_sram: [[OY,2],[K,2],[C,2]]
+
+# FIXED SPATIAL MAPPING
+# Numbers 0, 1, (2) below indicate different memory levels.
+# In this example, for weight, there are MAC level, the 0th memory level (rf_weight), and the 1st memory level (top_sram),
+# the spatial unrolling happens at 0th memory level (rf_weight) and below (MAC level).
+spatial_mapping_fixed:
+  weight:
+    MAC: []
+    0:
+      Col: [[K,1]]
+      Row: [[C,4]]
+    1: []
+  input:
+    MAC: []
+    0:
+      Col: [[K,1]]
+      Row: [[C,4]]
+    1: []
+  output:
+    MAC: []
+    0:
+      Col: [[K,1]]
+      Row: [[C,4]]
+    1: []
+
+# SPATIAL MAPPING HINT LIST
+# used as hint if 'hint_driven' search method is chosen in the setting file.
+spatial_mapping_list: [
+  [Col : [C, K],  Row : [OX, OY]]
+]

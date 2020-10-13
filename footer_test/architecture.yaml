@@ -1,6 +1,6 @@
 PE_array:
-  Col : 14
-  Row : 12
+  Col : 18
+  Row : 18
 
 precision:
   I : 16
@@ -9,7 +9,7 @@ precision:
   O_final : 16
 
 single_mac_energy : 16
-idle_mac_energy : 0.05
+idle_mac_energy : 1
 
 mac_array_stall :
   systolic: 1
@@ -38,23 +38,18 @@ memory_hint:
 memory_hierarchy:
   rf_psum:
       memory_instance : spad_48byte
-      bank_instances : 168
+      bank_instances : 64
       operand_stored : [O]
       nbanks : 1
   rf_input:
       memory_instance: spad_24byte
-      bank_instances: 168
+      bank_instances: 64
       operand_stored: [I]
       nbanks : 1
   rf_weight:
       memory_instance: spad_448byte
-      bank_instances: 168
+      bank_instances: 64
       operand_stored: [W]
-      nbanks : 1
-  global_buffer:
-      memory_instance: buffer_108Kbyte
-      bank_instances: 1
-      operand_stored: [I, O]
       nbanks : 1
   top_sram:
       memory_instance: sram_eyeriss
