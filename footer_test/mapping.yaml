@@ -37,5 +37,5 @@ spatial_mapping_fixed:
 # SPATIAL MAPPING HINT LIST
 # used as hint if 'hint_driven' search method is chosen in the setting file.
 spatial_mapping_list: [
-  [Col : [C, K],  Row : [OY]]
+  [Col : [C, K],  Row : [OX, OY]]
 ]

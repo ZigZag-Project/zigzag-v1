@@ -6,7 +6,7 @@ spad_448byte :
     read_word: [16]
     write_word: [16]
   mem_type: dual_port_single_buffered
-  utilization_rate: 0.01
+  utilization_rate: 0.7
   nbanks : 1
 
 spad_24byte :
@@ -17,7 +17,7 @@ spad_24byte :
     read_word: [16]
     write_word: [16]
   mem_type: dual_port_single_buffered
-  utilization_rate: 0.01
+  utilization_rate: 0.7
   nbanks : 1
 
 spad_48byte:
@@ -28,7 +28,7 @@ spad_48byte:
     read_word: [16]
     write_word: [16]
   mem_type: dual_port_double_buffered
-  utilization_rate: 0.01
+  utilization_rate: 0.7
   nbanks : 1
 
 buffer_108Kbyte:

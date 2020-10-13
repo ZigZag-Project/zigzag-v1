@@ -9,7 +9,7 @@ result_filename : Footer_test
 result_print_mode : complete
 
 # SEARCH SETTINGS
-# 'False' for searching the corresponding space.
+# 'False' for searching th corresponding space.
 fixed_architecture : True
 fixed_spatial_unrolling : False
 fixed_temporal_mapping : False

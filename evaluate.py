@@ -41,11 +41,13 @@ def mem_scheme_su_evaluate(input_settings, list_min_energy, list_min_en_output, 
 
     if input_settings.spatial_unrolling_mode != 4:
         layer_post = layer_spec.layer_info[layer_index]
+        spatial_loop = cls.SpatialLoop.extract_loop_info(mem_scheme.spatial_unrolling[ii_su], layer_post)
+        spatial_loop_comb = [spatial_loop, spatial_loop]
     else:
         layer_post = layer_spec.layer_info[layer_index][ii_su]
-
-    spatial_loop = cls.SpatialLoop.extract_loop_info(mem_scheme.spatial_unrolling[ii_su],layer_post)
-    spatial_loop_fractional = cls.SpatialLoop.extract_loop_info(mem_scheme.fraction_spatial_unrolling[ii_su],layer_post)
+        spatial_loop = cls.SpatialLoop.extract_loop_info(mem_scheme.spatial_unrolling[ii_su], layer_post)
+        spatial_loop_fractional = cls.SpatialLoop.extract_loop_info(mem_scheme.fraction_spatial_unrolling[ii_su],layer_post)
+        spatial_loop_comb = [spatial_loop, spatial_loop_fractional]
 
     active_mac_cost = cmf.get_active_mac_cost(layer, input_settings.mac_array_info['single_mac_energy'])
     layer_rounded = cls.Layer.extract_layer_info(layer_post)
@@ -130,7 +132,7 @@ def mem_scheme_su_evaluate(input_settings, list_min_energy, list_min_en_output, 
             mem_scheme_cost = copy.deepcopy(mem_scheme)
             msc_list = [mem_scheme_cost]
             for ii, msc in enumerate(msc_list):
-                utilization = cls.Utilization.get_utilization(layer, temporal_loop, spatial_loop, loop,
+                utilization = cls.Utilization.get_utilization(layer, temporal_loop, spatial_loop_comb, loop,
                                                               input_settings.mac_array_info, msc.mem_size,
                                                               msc.mem_share, msc.mem_type,
                                                               input_settings.mac_array_stall,

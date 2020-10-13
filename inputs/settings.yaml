@@ -12,7 +12,7 @@ result_print_mode : concise
 # 'False' for searching the corresponding space.
 fixed_architecture : True
 fixed_spatial_unrolling : True
-fixed_temporal_mapping : True
+fixed_temporal_mapping : False
 
 # RESULT SAVING SETTINGS
 # 'False' for only saving the best result.
@@ -39,8 +39,8 @@ spatial_unrolling_multiprocessing : 100
 temporal_mapping_search_method : heuristic_v1
 
 # SPATIAL MAPPING GENERATOR SETTINGS
-# search method : exhaustive / heuristic_v1 / heuristic_v2 / hint_driven
+# search method : exhaustive / heuristic_v1 / heuristic_v2 / hint_driven / hint_driven_with_greedy_mapping
 # If 'hint_driven' is chosen, 'spatial_mapping_list' in the mapping file will be used,
 # and 'spatial_utilization_threshold' below will be ignored.
-spatial_unrolling_search_method : hint_driven
+spatial_unrolling_search_method : hint_driven_with_greedy_mapping
 spatial_utilization_threshold : 0.75

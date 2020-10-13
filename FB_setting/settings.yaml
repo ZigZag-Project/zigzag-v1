@@ -1,6 +1,6 @@
 
 # OUTPUT FILE
-result_path : './results_FB_Oct/SU'
+result_path : './results_FB_Oct/SU_fix'
 #result_path : './test_multi_layer'
 result_filename : FB
 
@@ -12,7 +12,7 @@ result_print_mode : complete
 # SEARCH SETTINGS
 # 'False' for searching the corresponding space.
 fixed_architecture : True
-fixed_spatial_unrolling : False
+fixed_spatial_unrolling : True
 fixed_temporal_mapping : False
 
 # RESULT SAVING SETTINGS
