@@ -34,7 +34,7 @@ class TemporalLoop(object):
                    'O': [1, 2, 5]}
 
         temporal_loop_copy = copy.deepcopy(temporal_loop)
-
+    
         for operand in ['W', 'I', 'O']:
             temporal_loop_st[operand] = []
             for level, li in enumerate(temporal_loop[operand]):
@@ -50,6 +50,8 @@ class TemporalLoop(object):
                         else:
                             temporal_loop_st[operand][level] = copy.deepcopy(temporal_loop_copy[operand][level])
                             break
+        
+
 
 
 

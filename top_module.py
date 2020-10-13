@@ -10,7 +10,7 @@ import time
 from multiprocessing import Process, Value, Manager
 from datetime import datetime
 import evaluate
-from classes.multi_manager import Multimanager
+from classes.multi_manager import MultiManager
 
 if __name__ == "__main__":
 
@@ -76,7 +76,8 @@ if __name__ == "__main__":
         raise ValueError('The largest memory in the hierarchy is still too small for holding the required workload.')
 
     # Manages the variables passed to the multiple parallel processes
-    multi_manager = Multimanager(input_settings, mem_scheme_sim, layer_spec)
+    multi_manager = MultiManager(input_settings, mem_scheme_sim, layer_spec)
+
 
     # A list containing the chunks that will be processed sequentially
     # Each element within a chunk will be processed in parallel
@@ -85,8 +86,9 @@ if __name__ == "__main__":
     mem_scheme_sim_chunk_list = [mem_scheme_sim[i:i + input_settings.mem_scheme_parallel_processing] for i in
                                  range(0, len(mem_scheme_sim), input_settings.mem_scheme_parallel_processing)]
 
-    for ii_mem_scheme_chunk, mem_scheme_sim_chunk in enumerate(
-            mem_scheme_sim_chunk_list):  # serial processing of chunks
+
+    for ii_mem_scheme_chunk, mem_scheme_sim_chunk in enumerate(mem_scheme_sim_chunk_list): # serial processing of chunks
+
         procs = []
         for mem_scheme_index, mem_scheme in enumerate(mem_scheme_sim_chunk):  # parallel processing of one chunk
             current_mem_scheme_index = mem_scheme_index + input_settings.mem_scheme_parallel_processing * ii_mem_scheme_chunk

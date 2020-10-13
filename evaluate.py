@@ -19,11 +19,20 @@ from multiprocessing import Process, Value, Manager
 from datetime import datetime
 from pathlib import Path
 
+def mem_scheme_su_evaluate(input_settings, layer, layer_index, ii_layer_index, mem_scheme, mem_scheme_index, 
+                            ii_su, spatial_unrolling, spatial_unrolling_count, multi_manager):
 
-def mem_scheme_su_evaluate(input_settings, list_min_energy, list_min_en_output, list_max_utilization,
-                           list_max_ut_output, layer, layer_spec, layer_index, ii_layer_index, mem_scheme,
-                           mem_scheme_index, total_cost_mem_scheme, ii_su, spatial_unrolling, mem_scheme_count,
-                           spatial_unrolling_count, list_tm_count_en, list_tm_count_ut, list_sim_time):
+    mem_scheme_count = multi_manager.mem_scheme_count
+    list_min_energy = multi_manager.list_min_energy
+    list_min_en_output = multi_manager.list_min_en_output
+    list_max_utilization = multi_manager.list_max_utilization
+    list_max_ut_output = multi_manager.list_max_ut_output
+    list_tm_count_en = multi_manager.list_tm_count_en
+    list_tm_count_ut = multi_manager.list_tm_count_ut
+    layer_spec = multi_manager.layer_spec
+    list_sim_time = multi_manager.list_sim_time
+    list_su_count = multi_manager.list_su_count
+
     tl_list = []
     t1 = time.time()
     ''' for pickle file'''
@@ -123,6 +132,7 @@ def mem_scheme_su_evaluate(input_settings, list_min_energy, list_min_en_output, 
             temporal_loop = cls.TemporalLoop.extract_loop_info(layer, tl, spatial_loop)
             loop = cls.Loop.extract_loop_info(layer, temporal_loop, spatial_loop, input_settings.precision,
                                               input_settings.fixed_temporal_mapping)
+
             if input_settings.spatial_unrolling_mode == 4:
                 temporal_loop_fractional = cls.TemporalLoop.extract_loop_info(layer, tl, spatial_loop_fractional)
                 loop_fractional = cls.Loop.extract_loop_info(layer, temporal_loop_fractional, spatial_loop_fractional,
@@ -278,7 +288,7 @@ def mem_scheme_su_evaluate(input_settings, list_min_energy, list_min_en_output, 
                 # of.print_xml(rf, layer, msc_list[0], best_output_energy, common_settings, tm_count, t2,
                 #              input_settings.result_print_mode)
     else:
-        total_cost_mem_scheme.value += float('inf')
+        # total_cost_mem_scheme.value += float('inf')
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
         print()
@@ -288,39 +298,20 @@ def mem_scheme_su_evaluate(input_settings, list_min_energy, list_min_en_output, 
     layer_str = 'L_%d' % (layer_index)
     mem_scheme_su_str = 'M_%d_SU_%d_%d' % (mem_scheme_index + 1, spatial_unrolling_count, ii_su + 1)
 
-    a = list_min_energy[mem_scheme_str]
-    a[layer_str]['best_tm_each_su'] += [{mem_scheme_su_str: (min_energy, min_energy_utilization)}]
-    list_min_energy[mem_scheme_str] = a
+    list_min_energy[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: (min_energy, min_energy_utilization)})
+    list_min_en_output[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: best_output_energy})
+    list_max_utilization[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: (max_utilization_energy, max_utilization)})
+    list_max_ut_output[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: best_output_utilization})
+    list_tm_count_en[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: tm_count})
+    list_tm_count_ut[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: tm_count})
+    list_sim_time[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: t2})
 
-    b = list_min_en_output[mem_scheme_str]
-    b[layer_str]['best_tm_each_su'] += [{mem_scheme_su_str: best_output_energy}]
-    list_min_en_output[mem_scheme_str] = b
+    
+def mem_scheme_evaluate(input_settings, layer_index, ii_layer_index, mem_scheme, mem_scheme_index, multi_manager):
 
-    c = list_max_utilization[mem_scheme_str]
-    c[layer_str]['best_tm_each_su'] += [{mem_scheme_su_str: (max_utilization_energy, max_utilization)}]
-    list_max_utilization[mem_scheme_str] = c
+    mem_scheme_count = multi_manager.mem_scheme_count
+    layer_spec = multi_manager.layer_spec
 
-    d = list_max_ut_output[mem_scheme_str]
-    d[layer_str]['best_tm_each_su'] += [{mem_scheme_su_str: best_output_utilization}]
-    list_max_ut_output[mem_scheme_str] = d
-
-    t_en = list_tm_count_en[mem_scheme_str]
-    t_en[layer_str]['best_tm_each_su'] += [{mem_scheme_su_str: tm_count}]
-    list_tm_count_en[mem_scheme_str] = t_en
-
-    t_ut = list_tm_count_en[mem_scheme_str]
-    t_ut[layer_str]['best_tm_each_su'] += [{mem_scheme_su_str: tm_count}]
-    list_tm_count_ut[mem_scheme_str] = t_ut
-
-    e = list_sim_time[mem_scheme_str]
-    e[layer_str]['best_tm_each_su'] += [{mem_scheme_su_str: t2}]
-    list_sim_time[mem_scheme_str] = e
-
-
-def mem_scheme_evaluate(input_settings, list_min_energy, list_min_en_output, list_max_utilization,
-                        list_max_ut_output, layer_spec, layer_index, ii_layer_index, mem_scheme,
-                        mem_scheme_index, total_cost_mem_scheme, mem_scheme_count, list_tm_count_en,
-                        list_tm_count_ut, list_sim_time, list_su_count):
     t1 = time.time()
     layer = cls.Layer.extract_layer_info(layer_spec.layer_info[layer_index])
     min_energy_utilization = 0
@@ -379,10 +370,9 @@ def mem_scheme_evaluate(input_settings, list_min_energy, list_min_en_output, lis
         mem_scheme.spatial_unrolling = spatial_unrolling
         mem_scheme.flooring = flooring
 
-        print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, ', M',
-              mem_scheme_index + 1, '/', mem_scheme_count, ' SUG finished',
+        print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, ', M', mem_scheme_index + 1, '/', mem_scheme_count, ' SUG finished',
               '| Valid SU found:', len(spatial_unrolling))
-
+    
     if not mem_scheme.spatial_unrolling:
         discard_mem_scheme = True
         print('Layer', layer_index, ': no valid spatial unrolling found')
@@ -396,11 +386,8 @@ def mem_scheme_evaluate(input_settings, list_min_energy, list_min_en_output, lis
                      range(0, len(spatial_unrolling), input_settings.su_parallel_processing)]
     for su_chunk in su_chunk_list:
         procs = [Process(target=mem_scheme_su_evaluate,
-                         args=(input_settings, list_min_energy, list_min_en_output, list_max_utilization,
-                               list_max_ut_output, layer, layer_spec, layer_index, ii_layer_index, mem_scheme,
-                               mem_scheme_index, total_cost_mem_scheme, ii_su, spatial_unrolling[ii_su],
-                               mem_scheme_count,
-                               len(spatial_unrolling), list_tm_count_en, list_tm_count_ut, list_sim_time))
+                         args=(input_settings, layer, layer_index, ii_layer_index, mem_scheme, mem_scheme_index, 
+                         ii_su, spatial_unrolling[ii_su], len(spatial_unrolling), multi_manager))
                  for ii_su, su_x in zip(su_chunk, spatial_unrolling[su_chunk[0]:su_chunk[-1] + 1])]
         for p in procs: p.start()
         while time.time() - start <= TIMEOUT:  # and all([p.is_alive() for p in procs]):
@@ -414,82 +401,58 @@ def mem_scheme_evaluate(input_settings, list_min_energy, list_min_en_output, lis
                     p.join()
         for p in procs: p.join()
 
-    # if not input_settings.fixed_spatial_unrolling:
+    # Get the results from mem_scheme_su_evaluate
+    list_min_energy = multi_manager.list_min_energy
+    list_min_en_output = multi_manager.list_min_en_output
+    list_max_utilization = multi_manager.list_max_utilization
+    list_max_ut_output = multi_manager.list_max_ut_output
+    list_tm_count_en = multi_manager.list_tm_count_en
+    list_tm_count_ut = multi_manager.list_tm_count_ut
+    list_sim_time = multi_manager.list_sim_time
+    list_su_count = multi_manager.list_su_count
+
     mem_scheme_str = 'M_%d' % (mem_scheme_index + 1)
     layer_str = 'L_%d' % (layer_index)
     if len(list_min_energy[mem_scheme_str][layer_str]['best_tm_each_su']) != 0:
         t2 = time.time() - t1
-        ''' print the output to xml file '''
+
         best_en = sys.float_info.max
         best_en_ut = 0
-        for idd in range(len(list_min_energy[mem_scheme_str][layer_str]['best_tm_each_su'])):
-            for m_su_idx, (en, ut) in list_min_energy[mem_scheme_str][layer_str]['best_tm_each_su'][idd].items():
-                if (en < best_en) or (en == best_en and ut > best_en_ut):
-                    best_en = en
-                    best_en_ut = ut
-                    best_en_idx = m_su_idx
-                    best_ie = idd
+        for mem_su_str, (en, ut) in list_min_energy[mem_scheme_str][layer_str]['best_tm_each_su'].items():
+            if (en < best_en) or (en == best_en and ut > best_en_ut):
+                best_en = en
+                best_en_ut = ut
+                best_en_mem_su_str = mem_su_str
 
-        best_en_output = list_min_en_output[mem_scheme_str][layer_str]['best_tm_each_su'][best_ie].get(best_en_idx)
-        tm_count_en = list_tm_count_en[mem_scheme_str][layer_str]['best_tm_each_su'][best_ie].get(best_en_idx)
+        best_en_output = list_min_en_output[mem_scheme_str][layer_str]['best_tm_each_su'].get(best_en_mem_su_str)
+        tm_count_en = list_tm_count_en[mem_scheme_str][layer_str]['best_tm_each_su'].get(best_en_mem_su_str)
 
-        tt_en = list_tm_count_en[mem_scheme_str]
-        tt_en[layer_str]['best_su_each_mem'] += [{best_en_idx: tm_count_en}]
-        # del tt_en['best_tm_each_su']
-        list_tm_count_en[mem_scheme_str] = tt_en
-
-        aa = list_min_energy[mem_scheme_str]
-        aa[layer_str]['best_su_each_mem'] += [{best_en_idx: (best_en, best_en_ut)}]
-        # del aa['best_tm_each_su']
-        list_min_energy[mem_scheme_str] = aa
-
-        bb = list_min_en_output[mem_scheme_str]
-        bb[layer_str]['best_su_each_mem'] += [list_min_en_output[mem_scheme_str][layer_str]['best_tm_each_su'][best_ie]]
-        bb[layer_str]['su_count'] = len(spatial_unrolling)
-        # del bb['best_tm_each_su']
-        list_min_en_output[mem_scheme_str] = bb
-
-        ee = list_sim_time[mem_scheme_str]
-        ee[layer_str]['best_su_each_mem'] += [{best_en_idx: t2}]
-        list_sim_time[mem_scheme_str] = ee
-
-        ff = list_su_count[mem_scheme_str]
-        ff[layer_str] = len(spatial_unrolling)
-        list_su_count[mem_scheme_str] = ff
+        list_tm_count_en[mem_scheme_str][layer_str]['best_su_each_mem'].update({best_en_mem_su_str: tm_count_en})
+        list_min_energy[mem_scheme_str][layer_str]['best_su_each_mem'].update({best_en_mem_su_str: (best_en, best_en_ut)})
+        list_min_en_output[mem_scheme_str][layer_str]['best_su_each_mem'].update({best_en_mem_su_str: best_en_output})
+        list_min_en_output[mem_scheme_str][layer_str]['su_count'] = len(spatial_unrolling)
+        list_sim_time[mem_scheme_str][layer_str]['best_su_each_mem'].update({best_en_mem_su_str: t2})
+        list_su_count[mem_scheme_str][layer_str] = len(spatial_unrolling)
 
         best_ut = 0
         best_ut_en = sys.float_info.max
-        for idd in range(len(list_max_utilization[mem_scheme_str][layer_str]['best_tm_each_su'])):
-            for m_su_idx, (en, ut) in list_max_utilization[mem_scheme_str][layer_str]['best_tm_each_su'][
-                idd].items():
-                if ut > best_ut or (ut == best_ut and en < best_ut_en):
-                    best_ut = ut
-                    best_ut_en = en
-                    best_ut_idx = m_su_idx
-                    best_iu = idd
+        for mem_su_str, (en, ut) in list_max_utilization[mem_scheme_str][layer_str]['best_tm_each_su'].items():
+            if ut > best_ut or (ut == best_ut and en < best_ut_en):
+                best_ut = ut
+                best_ut_en = en
+                best_ut_mem_su_str = mem_su_str
 
-        best_ut_output = list_max_ut_output[mem_scheme_str][layer_str]['best_tm_each_su'][best_iu].get(
-            best_ut_idx)
-        tm_count_ut = list_tm_count_ut[mem_scheme_str][layer_str]['best_tm_each_su'][best_iu].get(best_ut_idx)
+        best_ut_output = list_max_ut_output[mem_scheme_str][layer_str]['best_tm_each_su'].get(best_ut_mem_su_str)
+        tm_count_ut = list_tm_count_ut[mem_scheme_str][layer_str]['best_tm_each_su'].get(best_ut_mem_su_str)
 
-        tt_ut = list_tm_count_ut[mem_scheme_str]
-        tt_ut[layer_str]['best_su_each_mem'] += [{best_ut_idx: tm_count_ut}]
-        # del tt_ut['best_tm_each_su']
-        list_tm_count_ut[mem_scheme_str] = tt_ut
+        list_tm_count_ut[mem_scheme_str][layer_str]['best_su_each_mem'].update({best_ut_mem_su_str: tm_count_ut})
 
-        cc = list_max_utilization[mem_scheme_str]
-        cc[layer_str]['best_su_each_mem'] += [{best_ut_idx: (best_ut_en, best_ut)}]
-        # del cc['best_tm_each_su']
-        list_max_utilization[mem_scheme_str] = cc
+        list_max_utilization[mem_scheme_str][layer_str]['best_su_each_mem'].update({best_ut_mem_su_str: (best_ut_en, best_ut)})
 
         dd = list_max_ut_output[mem_scheme_str]
-        dd[layer_str]['best_su_each_mem'] += [list_max_ut_output[mem_scheme_str][layer_str]['best_tm_each_su'][best_iu]]
-        # del dd['best_tm_each_su']
-        list_max_ut_output[mem_scheme_str] = dd
+        list_max_ut_output[mem_scheme_str][layer_str]['best_su_each_mem'].update({best_ut_mem_su_str: best_ut_output})
 
-        ee = list_sim_time[mem_scheme_str]
-        ee[layer_str]['best_su_each_mem'] += [{best_ut_idx: t2}]
-        list_sim_time[mem_scheme_str] = ee
+        list_sim_time[mem_scheme_str][layer_str]['best_su_each_mem'].update({best_ut_mem_su_str: t2})
 
         if not input_settings.fixed_spatial_unrolling:
 
@@ -499,67 +462,22 @@ def mem_scheme_evaluate(input_settings, list_min_energy, list_min_en_output, lis
             print(
                 '{0:s} {1:s} L {2:d},  M {3:d},  SU {4:s}  Min En: ({5:d}, {6:.2f}, {7:d}) in all SUs and TMs'.format(
                     current_time, str(input_settings.layer_filename.split('/')[-1]), layer_index, mem_scheme_index + 1,
-                    best_en_idx.split('_')[-1], int(best_en), best_en_ut, int(best_en_output.area)))
+                    best_en_mem_su_str.split('_')[-1], int(best_en), best_en_ut, int(best_en_output.area)))
             print(
                 '{0:s} {1:s} L {2:d},  M {3:d},  SU {4:s}  Max Ut: ({5:d}, {6:.2f}, {7:d}) in all SUs and TMs'.format(
                     current_time, str(input_settings.layer_filename.split('/')[-1]), layer_index, mem_scheme_index + 1,
-                    best_ut_idx.split('_')[-1], int(best_ut_en), best_ut, int(best_ut_output.area)))
-
-            if (
-                    input_settings.mem_hierarchy_single_simulation is False and input_settings.arch_search_result_saving is True) or \
-                    (input_settings.mem_hierarchy_single_simulation is True):
-                mem_scheme_count_ = str(mem_scheme_index + 1) + '/' + str(mem_scheme_count)
-
-                spatial_unrolling_count_en = str(best_en_idx.split('_')[-1]) + '/' + str(len(spatial_unrolling))
-                common_settings_en = of.CommonSetting(input_settings,
-                                                      ii_layer_index,
-                                                      mem_scheme_count_,
-                                                      spatial_unrolling_count_en,
-                                                      mem_scheme)
-                spatial_unrolling_count_ut = str(best_ut_idx) + '/' + str(len(spatial_unrolling))
-                common_settings_ut = of.CommonSetting(input_settings,
-                                                      ii_layer_index,
-                                                      mem_scheme_count_,
-                                                      spatial_unrolling_count_ut,
-                                                      mem_scheme)
-
-                # if input_settings.mem_hierarchy_single_simulation:
-                #     sub_path_name = '/best_su_for_fixed_mem/'
-                # else:
-                #     sub_path_name = '/best_su_for_each_mem/'
-
-                # rf = input_settings.results_path + sub_path_name + input_settings.results_filename + '_L' + str(
-                #     layer_index) + '_M' + str(
-                #     mem_scheme_index + 1) + '_SU' + best_en_idx.split('_')[-1] + '_min_en_in_all_su'
-                # of.print_xml(rf, layer, mem_scheme, best_en_output, common_settings_en, tm_count_en, t2,
-                #              input_settings.result_print_mode)
-
-                # rf = input_settings.results_path + sub_path_name + input_settings.results_filename + '_L' + str(
-                #     layer_index) + '_M' + str(
-                #     mem_scheme_index + 1) + '_SU' + best_ut_idx.split('_')[-1] + '_max_ut_in_all_su'
-                # of.print_xml(rf, layer, mem_scheme, best_ut_output, common_settings_ut, tm_count_ut, t2,
-                #              input_settings.result_print_mode)
+                    best_ut_mem_su_str.split('_')[-1], int(best_ut_en), best_ut, int(best_ut_output.area)))
 
 
 def mem_scheme_list_evaluate(mem_scheme, input_settings, mem_scheme_index, multi_manager):
+  
     mem_scheme_count = multi_manager.mem_scheme_count
-    new_best_mem_scheme_index = multi_manager.new_best_mem_scheme_index
-    min_cost_mem_scheme = multi_manager.min_cost_mem_scheme
-    list_min_energy = multi_manager.list_min_energy
-    list_min_en_output = multi_manager.list_min_en_output
-    list_max_utilization = multi_manager.list_max_utilization
-    list_max_ut_output = multi_manager.list_max_ut_output
-    list_tm_count_en = multi_manager.list_tm_count_en
-    list_tm_count_ut = multi_manager.list_tm_count_ut
-    layer_spec = multi_manager.layer_spec
-    list_sim_time = multi_manager.list_sim_time
-    list_su_count = multi_manager.list_su_count
 
     print('MEM HIERARCHY ', mem_scheme_index + 1, '/', mem_scheme_count)
     print(mem_scheme.mem_size)
     print(mem_scheme.mem_unroll)
 
-    total_cost_mem_scheme = Value('d', 0)
+    # total_cost_mem_scheme = Value('d', 0)
     discard_mem_scheme = False
 
     layer_chunk_list = [input_settings.layer_number[i:i + input_settings.layer_parallel_processing] for i in
@@ -569,22 +487,15 @@ def mem_scheme_list_evaluate(mem_scheme, input_settings, mem_scheme_index, multi
         procs = []
         for ii_layer_index, layer_index in enumerate(layer_chunk):
             procs.append(Process(target=mem_scheme_evaluate,
-                                 args=(input_settings, list_min_energy, list_min_en_output, list_max_utilization,
-                                       list_max_ut_output, layer_spec, layer_index, ii_layer_index, mem_scheme,
-                                       mem_scheme_index, total_cost_mem_scheme, mem_scheme_count, list_tm_count_en,
-                                       list_tm_count_ut, list_sim_time, list_su_count)))
-
+                            args=(input_settings, layer_index, ii_layer_index, mem_scheme, mem_scheme_index, multi_manager)))
         for p in procs: p.start()
         for p in procs: p.join()
-
-    if total_cost_mem_scheme.value < min_cost_mem_scheme.value:
-        min_cost_mem_scheme.value = total_cost_mem_scheme.value
-        new_best_mem_scheme_index.value = mem_scheme_index
 
 
 def optimal_su_evaluate(input_settings, multi_manager):
     ''' Collect the optimum spatial unrolling results for all memory schemes '''
 
+    # Get the results from multi_manager
     mem_scheme_sim = multi_manager.mem_scheme_sim
     list_tm_count_en = multi_manager.list_tm_count_en
     list_min_energy = multi_manager.list_min_energy
@@ -606,11 +517,13 @@ def optimal_su_evaluate(input_settings, multi_manager):
         en_output_best_su_each_mem = []
         ut_best_su_each_mem = []
         ut_output_best_su_each_mem = []
-        for ky in ['M_%d' % (i + 1) for i in range(len(mem_scheme_sim))]:
-            en_best_su_each_mem.extend(list_min_energy[ky][layer_str]['best_su_each_mem'])
-            en_output_best_su_each_mem.extend(list_min_en_output[ky][layer_str]['best_su_each_mem'])
-            ut_best_su_each_mem.extend(list_max_utilization[ky][layer_str]['best_su_each_mem'])
-            ut_output_best_su_each_mem.extend(list_max_ut_output[ky][layer_str]['best_su_each_mem'])
+
+        # Aggregate results for every memory scheme to a list
+        for mem_str in ['M_%d' % (i + 1) for i in range(len(mem_scheme_sim))]:
+            en_best_su_each_mem.append(list_min_energy[mem_str][layer_str]['best_su_each_mem'])
+            en_output_best_su_each_mem.append(list_min_en_output[mem_str][layer_str]['best_su_each_mem'])
+            ut_best_su_each_mem.append(list_max_utilization[mem_str][layer_str]['best_su_each_mem'])
+            ut_output_best_su_each_mem.append(list_max_ut_output[mem_str][layer_str]['best_su_each_mem'])
 
         if not en_best_su_each_mem:
             raise ValueError('No valid design point found. Please consider changing search method in the setting file.')
@@ -618,88 +531,56 @@ def optimal_su_evaluate(input_settings, multi_manager):
         best_en = sys.float_info.max
         best_en_ut = 0
         for idd, su_dict in enumerate(en_best_su_each_mem):
-            for m_su_idx, (en, ut) in su_dict.items():
-                if (en < best_en) or (en == best_en and ut > best_en_ut):
-                    best_en = en
-                    best_en_ut = ut
-                    best_en_idx = m_su_idx
-                    best_ie = idd
+            m_su_idx, (en, ut) = list(su_dict.items())[0]
+            if (en < best_en) or (en == best_en and ut > best_en_ut):
+                best_en = en
+                best_en_ut = ut
+                best_en_mem_su_str = m_su_idx
+                best_ie = idd
 
         best_en_output_dict = en_output_best_su_each_mem[best_ie]
-        mem_scheme_str_en = 'M_%s' % (best_en_idx.split('_')[1])
-        tm_count_en = list_tm_count_en[mem_scheme_str_en][layer_str]['best_su_each_mem'][0][best_en_idx]
+        mem_scheme_str_en = 'M_%s' % (best_en_mem_su_str.split('_')[1])
+        tm_count_en = list_tm_count_en[mem_scheme_str_en][layer_str]['best_su_each_mem'][best_en_mem_su_str]
 
-        # list_min_energy['best_mem_each_layer'][layer_str] = {best_en_idx: (best_en, best_en_ut)}
-        # list_min_en_output['best_mem_each_layer'][layer_str] = best_en_output_dict
-        # list_tm_count_en['best_mem_each_layer'][layer_str] = {best_en_idx: tm_count_en}
-        # list_sim_time_en['best_mem_each_layer'][layer_str] = list_sim_time[mem_scheme_str_en][layer_str]['best_su_each_mem'][0][best_en_idx]
-
-        tmp_a = list_min_energy['best_mem_each_layer']
-        tmp_a[layer_str] = {best_en_idx: (best_en, best_en_ut)}
-        list_min_energy['best_mem_each_layer'] = tmp_a
-
-        tmp_b = list_min_en_output['best_mem_each_layer']
-        tmp_b[layer_str] = best_en_output_dict
-        list_min_en_output['best_mem_each_layer'] = tmp_b
-
-        tmp_c = list_tm_count_en['best_mem_each_layer']
-        tmp_c[layer_str] = {best_en_idx: tm_count_en}
-        list_tm_count_en['best_mem_each_layer'] = tmp_c
-
-        tmp_d = list_sim_time_en['best_mem_each_layer']
-        tmp_d[layer_str] = list_sim_time[mem_scheme_str_en][layer_str]['best_su_each_mem'][0][best_en_idx]
-        list_sim_time_en['best_mem_each_layer'] = tmp_d
+        list_min_energy['best_mem_each_layer'][layer_str] = {best_en_mem_su_str: (best_en, best_en_ut)}
+        list_min_en_output['best_mem_each_layer'][layer_str] = best_en_output_dict
+        list_tm_count_en['best_mem_each_layer'][layer_str] = {best_en_mem_su_str: tm_count_en}
+        list_sim_time_en['best_mem_each_layer'][layer_str] = list_sim_time[mem_scheme_str_en][layer_str]['best_su_each_mem'][best_en_mem_su_str]
 
         best_ut = 0
         best_ut_en = sys.float_info.max
         for idd, su_dict in enumerate(ut_best_su_each_mem):
-            for m_su_idx, (en, ut) in su_dict.items():
-                if ut > best_ut or (ut == best_ut and en < best_ut_en):
-                    best_ut = ut
-                    best_ut_en = en
-                    best_ut_idx = m_su_idx
-                    best_iu = idd
+            m_su_idx, (en, ut) = list(su_dict.items())[0]
+            if ut > best_ut or (ut == best_ut and en < best_ut_en):
+                best_ut = ut
+                best_ut_en = en
+                best_ut_mem_su_str = m_su_idx
+                best_iu = idd
 
         best_ut_output_dict = ut_output_best_su_each_mem[best_iu]
-        mem_scheme_str_ut = 'M_%s' % (best_ut_idx.split('_')[1])
-        tm_count_ut = list_tm_count_ut[mem_scheme_str_ut][layer_str]['best_su_each_mem'][0][best_ut_idx]
+        mem_scheme_str_ut = 'M_%s' % (best_ut_mem_su_str.split('_')[1])
+        tm_count_ut = list_tm_count_ut[mem_scheme_str_ut][layer_str]['best_su_each_mem'][best_ut_mem_su_str]
 
-        # list_max_utilization['best_mem_each_layer'][layer_str] = {best_ut_idx: (best_ut_en, best_ut)}
-        # list_max_ut_output['best_mem_each_layer'][layer_str] = best_ut_output_dict
-        # list_tm_count_ut['best_mem_each_layer'][layer_str] = {best_ut_idx: tm_count_ut}
-        # list_sim_time_ut['best_mem_each_layer'][layer_str] = list_sim_time[mem_scheme_str_ut][layer_str]['best_su_each_mem'][0][best_ut_idx]
-
-        tmp_e = list_max_utilization['best_mem_each_layer']
-        tmp_e[layer_str] = {best_ut_idx: (best_ut_en, best_ut)}
-        list_max_utilization['best_mem_each_layer'] = tmp_e
-
-        tmp_f = list_max_ut_output['best_mem_each_layer']
-        tmp_f[layer_str] = best_ut_output_dict
-        list_max_ut_output['best_mem_each_layer'] = tmp_f
-
-        tmp_g = list_tm_count_ut['best_mem_each_layer']
-        tmp_g[layer_str] = {best_ut_idx: tm_count_ut}
-        list_tm_count_ut['best_mem_each_layer'] = tmp_g
-
-        tmp_h = list_sim_time_ut['best_mem_each_layer']
-        tmp_h[layer_str] = list_sim_time[mem_scheme_str_ut][layer_str]['best_su_each_mem'][0][best_ut_idx]
-        list_sim_time_ut['best_mem_each_layer'] = tmp_h
+        list_max_utilization['best_mem_each_layer'][layer_str] = {best_ut_mem_su_str: (best_ut_en, best_ut)}
+        list_max_ut_output['best_mem_each_layer'][layer_str] = best_ut_output_dict
+        list_tm_count_ut['best_mem_each_layer'][layer_str] = {best_ut_mem_su_str: tm_count_ut}
+        list_sim_time_ut['best_mem_each_layer'][layer_str] = list_sim_time[mem_scheme_str_ut][layer_str]['best_su_each_mem'][best_ut_mem_su_str]
 
     # If multiple layers, iterate through all the memory hierarchies
     # to find the best hierarchy for the network of layers
     if len(input_settings.layer_number) > 1:
 
-        best_network_energy = sys.float_info.max  # energy of minimal energy network
-        best_network_energy_latency = sys.float_info.max  # latency of minimal energy network
-        best_network_latency_energy = sys.float_info.max  # energy of minimal latency network
-        best_network_latency = sys.float_info.max  # latency of minimal latency network
+        best_network_energy = sys.float_info.max # energy of minimal energy network
+        best_network_energy_latency = sys.float_info.max # latency of minimal energy network
+        best_network_latency_energy = sys.float_info.max # energy of minimal latency network
+        best_network_latency = sys.float_info.max # latency of minimal latency network
         best_mem_scheme_index_en = None
         best_mem_scheme_index_ut = None
 
         for mem_scheme_index in range(len(mem_scheme_sim)):
 
             mem_scheme_str = 'M_%d' % (mem_scheme_index + 1)
-
+          
             tot_min_en_energy = 0
             tot_min_en_latency = 0
 
@@ -710,36 +591,35 @@ def optimal_su_evaluate(input_settings, multi_manager):
                 layer_str = 'L_%d' % layer_index
 
                 # Energy part
-                su_dict_en = list_min_energy[mem_scheme_str][layer_str]['best_su_each_mem'][0]
-                mem_scheme_su_str_en = list(su_dict_en.keys())[0]  # casts dict_keys type to list
-                (min_en_en, min_en_ut) = list(su_dict_en.values())[0]  # casts dict_values type to list
-                min_en_output = list_min_en_output[mem_scheme_str][layer_str]['best_su_each_mem'][0][
-                    mem_scheme_su_str_en]
+                su_dict_en = list_min_energy[mem_scheme_str][layer_str]['best_su_each_mem']
+                mem_scheme_su_str_en = list(su_dict_en.keys())[0] # casts dict_keys type to list
+                (min_en_en, min_en_ut) = list(su_dict_en.values())[0] # casts dict_values type to list
+                min_en_output = list_min_en_output[mem_scheme_str][layer_str]['best_su_each_mem'][mem_scheme_su_str_en]
                 min_en_latency = min_en_output.utilization.latency_tot
 
                 tot_min_en_energy += min_en_en
                 tot_min_en_latency += min_en_latency
 
                 # Utilization (latency) part
-                su_dict_ut = list_max_utilization[mem_scheme_str][layer_str]['best_su_each_mem'][0]
-                mem_scheme_su_str_ut = list(su_dict_ut.keys())[0]  # casts dict_keys type to list
-                (max_ut_en, max_ut_ut) = list(su_dict_ut.values())[0]  # cast dict_values type to list
-                max_ut_output = list_max_ut_output[mem_scheme_str][layer_str]['best_su_each_mem'][0][
-                    mem_scheme_su_str_ut]
+                su_dict_ut = list_max_utilization[mem_scheme_str][layer_str]['best_su_each_mem']
+                mem_scheme_su_str_ut = list(su_dict_ut.keys())[0] # casts dict_keys type to list
+                (max_ut_en, max_ut_ut) = list(su_dict_ut.values())[0] # cast dict_values type to list
+                max_ut_output = list_max_ut_output[mem_scheme_str][layer_str]['best_su_each_mem'][mem_scheme_su_str_ut]
                 max_ut_latency = max_ut_output.utilization.latency_tot
 
                 tot_max_ut_energy += max_ut_en
                 tot_max_ut_latency += max_ut_latency
 
             # Check if total energy for this memory scheme is best so far
-            if ((tot_min_en_energy < best_network_energy) or
-                    (tot_min_en_energy == best_network_energy and tot_min_en_latency < best_network_energy_latency)):
+            if ((tot_min_en_energy < best_network_energy) or 
+            (tot_min_en_energy == best_network_energy and tot_min_en_latency < best_network_energy_latency)):
                 best_network_energy = tot_min_en_energy
                 best_network_energy_latency = tot_min_en_latency
                 best_mem_scheme_index_en = mem_scheme_index
 
-            if ((tot_max_ut_latency < best_network_latency) or
-                    (tot_max_ut_latency == best_network_latency and tot_max_ut_energy < best_network_latency_energy)):
+            # Check if total latency for this memory scheme is best so far
+            if ((tot_max_ut_latency < best_network_latency) or 
+            (tot_max_ut_latency == best_network_latency and tot_max_ut_energy < best_network_latency_energy)):
                 best_network_latency = tot_max_ut_latency
                 best_network_latency_energy = tot_max_ut_energy
                 best_mem_scheme_index_ut = mem_scheme_index
@@ -748,13 +628,12 @@ def optimal_su_evaluate(input_settings, multi_manager):
             current_time = now.strftime("%H:%M:%S")
 
             network_name = str(input_settings.layer_filename.split('/')[-1])
-            # print()
+
             print('{0:s} {1:s} M {2:d}: Minimal energy for all layers:      (energy, latency) = ({3:d}, {4:d})'.format(
                 current_time, network_name, mem_scheme_index + 1, int(tot_min_en_energy), int(tot_min_en_latency)))
             print('{0:s} {1:s} M {2:d}: Maximal utilization for all layers: (energy, latency) = ({3:d}, {4:d})'.format(
-                current_time, network_name, mem_scheme_index + 1, int(tot_max_ut_energy), int(tot_max_ut_latency)))
+                current_time, network_name, mem_scheme_index + 1, int(tot_max_ut_energy), int(tot_max_ut_latency)))                
 
-            # print()
         # Set the multi_manager's parameter with the correct mem_scheme_index
         multi_manager.best_mem_scheme_index_en = best_mem_scheme_index_en
         multi_manager.best_mem_scheme_index_ut = best_mem_scheme_index_ut

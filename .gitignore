@@ -1,4 +1,4 @@
-results/
+results*/
 figures/
 case_studies/
 *.pyc
@@ -7,3 +7,4 @@ bsg_c++/*
 pycache/
 *.pickle
 .idea
+.vscode/

@@ -61,9 +61,9 @@ def check_node(blocking_node, mem_size, operand_irrelevant, mem_share, precision
             tot_size = 0
             for i in range(0, len(shared_min_roof_levels)):
                 if shared_min_roof_levels[i][0] == 'I':
-                    rel_loop_size = input_relevant_size_below(blocking_node, shared_min_roof_levels[i][1],
-                                                              layer_loop_info) * precision[
-                                        shared_min_roof_levels[i][0]]
+                    rel_loop_size = input_relevant_size_below(blocking_node, shared_min_roof_levels[i][1], layer_loop_info) * precision[
+                        shared_min_roof_levels[i][0]]
+
                 else:
                     rel_loop_size = precision[shared_min_roof_levels[i][0]]
                     for lev_below in range(0, shared_min_roof_levels[i][1] + 1):
@@ -82,7 +82,6 @@ def check_node(blocking_node, mem_size, operand_irrelevant, mem_share, precision
                 # print(op, lev, utilization_rate[op][lev], tot_size)
                 good = False
     return good
-
 
 def cleaner(LPF_schemes_list):
     # Given a list of SchedulerNodes, delete all the duplicate ones
@@ -105,7 +104,7 @@ def check_comb_fit(LPF_scheme, spatial_unrolling, comb, min_roof, mem_size, mem_
     # Given a LPF_scheme and a combination of LPFs check whether they fit in the roof provided
     total_size = 0
     is_fit = True
-
+    
     # Find set of levels that are shared with the min_roof
     shared_min_roof_levels = [tuple([min_roof[0], min_roof[1]])]
     for shared_set in mem_share:
@@ -158,6 +157,7 @@ def check_comb_fit(LPF_scheme, spatial_unrolling, comb, min_roof, mem_size, mem_
     #     print('total size', total_size)
     # print(mem_size)
     # print('ur ', total_size / mem_size[min_roof[0]][min_roof[1]] < utilization_rate[min_roof[0]][min_roof[1]])
+
     return is_fit
 
 
