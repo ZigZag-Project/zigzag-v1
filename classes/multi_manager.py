@@ -56,8 +56,6 @@ class MultiManager(object):
 
             self.list_su_count[mem_str] = manager.dict()
 
-
-
             for layer_idx, layer_number in enumerate(input_settings.layer_number):
 
                 layer_str = 'L_%d' % layer_number
@@ -105,6 +103,5 @@ class MultiManager(object):
                         ('best_tm_each_su', manager.dict())]
                     )
                     self.list_su_count[mem_str][layer_str] = None
-
 
 

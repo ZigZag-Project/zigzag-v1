@@ -260,23 +260,23 @@ def print_good_tm_format(tm, mem_name, file_path_name):
                 max_mem_name_len = len(mem_name[operand][lv])
     interval = max_mem_name_len + 10
 
-    tot_row = 2*(len(tm_list)+1) + 8
-    tot_col = int(2*(len(tm_list)+1) + 3.75*interval)
-    tot_col_cut = 2*(len(tm_list)+1) + interval
+    tot_row = 2 * (len(tm_list) + 1) + 8
+    tot_col = int(2 * (len(tm_list) + 1) + 3.75 * interval)
+    tot_col_cut = 2 * (len(tm_list) + 1) + interval
     tm_block = create_printing_block(tot_row, tot_col)
     dash = '*' * int((tot_col - len(' Temporal Mapping Visualization ')) / 2)
-    tm_block = modify_printing_block(tm_block, 1, 0, dash+' Temporal Mapping Visualization '+dash)
+    tm_block = modify_printing_block(tm_block, 1, 0, dash + ' Temporal Mapping Visualization ' + dash)
     tm_block = modify_printing_block(tm_block, 2, 1, 'W: ' + str(t_loop_name_transfer(tm['W'])))
     tm_block = modify_printing_block(tm_block, 3, 1, 'I: ' + str(t_loop_name_transfer(tm['I'])))
     tm_block = modify_printing_block(tm_block, 4, 1, 'O: ' + str(t_loop_name_transfer(tm['O'])))
     tm_block = modify_printing_block(tm_block, 6, 0, '-' * tot_col)
     tm_block = modify_printing_block(tm_block, 7, 1, 'Temporal Loops')
     tm_block = modify_printing_block(tm_block, 8, 0, '-' * tot_col)
-    finish_row = 2 * len(tm_list) +7
+    finish_row = 2 * len(tm_list) + 7
     for i, li in enumerate(tm_list):
         tm_block = modify_printing_block(tm_block, finish_row - 2 * i, len(tm_list) - i,
                                          'for ' + str(lp_name[li[0]]) + ' in ' + '[0:' + str(li[1]) + ')')
-        tm_block = modify_printing_block(tm_block, 2 * (i + 1) + 1 +7, 0, '-' * tot_col)
+        tm_block = modify_printing_block(tm_block, 2 * (i + 1) + 1 + 7, 0, '-' * tot_col)
 
     # print mem name to each level
     for idx, operand in enumerate(['W', 'I', 'O']):
@@ -296,7 +296,7 @@ def print_good_tm_format(tm, mem_name, file_path_name):
 def print_good_su_format(su, mem_name, file_path_name):
     lp_name = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B'}
     su_list = [sp for lv_li in su['W'] for xy_li in lv_li for sp in xy_li]
-    mem_name = {'W': ['MAC']+mem_name['W'], 'I': ['MAC']+mem_name['I'], 'O': ['MAC']+mem_name['O']}
+    mem_name = {'W': ['MAC'] + mem_name['W'], 'I': ['MAC'] + mem_name['I'], 'O': ['MAC'] + mem_name['O']}
     # get required interval between 'W', 'I', 'O', based on actual mem name length
     max_mem_name_len = 0
     for operand in ['W', 'I', 'O']:
@@ -305,17 +305,17 @@ def print_good_su_format(su, mem_name, file_path_name):
                 max_mem_name_len = len(mem_name[operand][lv])
     interval = max_mem_name_len + 13
 
-    tot_row = 2*(len(su_list)+1) + 13
-    tot_col = int(2*(len(su_list)+1) + 3.75*interval)
-    tot_col_cut = 2*(len(su_list)+1) + interval
+    tot_row = 2 * (len(su_list) + 1) + 13
+    tot_col = int(2 * (len(su_list) + 1) + 3.75 * interval)
+    tot_col_cut = 2 * (len(su_list) + 1) + interval
     su_block = create_printing_block(tot_row, tot_col)
-    dash = '*'*int((tot_col-len( ' Levels In The System' ))/2)
+    dash = '*' * int((tot_col - len(' Levels In The System')) / 2)
     su_block = modify_printing_block(su_block, 0, 0, dash + ' Levels In The System ' + dash)
     su_block = modify_printing_block(su_block, 1, 1, 'W: ' + str(mem_name['W']))
     su_block = modify_printing_block(su_block, 2, 1, 'I: ' + str(mem_name['I']))
     su_block = modify_printing_block(su_block, 3, 1, 'O: ' + str(mem_name['O']))
     dash = '*' * int((tot_col - len(' Spatial Unrolling Visualization ')) / 2)
-    su_block = modify_printing_block(su_block, 6, 0, dash+' Spatial Unrolling Visualization '+dash)
+    su_block = modify_printing_block(su_block, 6, 0, dash + ' Spatial Unrolling Visualization ' + dash)
     su_block = modify_printing_block(su_block, 7, 1, 'W: ' + str(s_loop_name_transfer(su['W'])))
     su_block = modify_printing_block(su_block, 8, 1, 'I: ' + str(s_loop_name_transfer(su['I'])))
     su_block = modify_printing_block(su_block, 9, 1, 'O: ' + str(s_loop_name_transfer(su['O'])))
@@ -328,7 +328,8 @@ def print_good_su_format(su, mem_name, file_path_name):
                                          'unroll ' + str(lp_name[li[0]]) + ' in ' + '[0:' + str(li[1]) + ')')
         su_block = modify_printing_block(su_block, 2 * (i + 1) + 1 + 12, 0, '-' * tot_col)
 
-    su_block = modify_printing_block(su_block, finish_row+2, 1, "(Notes: Unrolled loops' order doesn't matters; D1 and D2 indicate 2 PE array dimensions.)")
+    su_block = modify_printing_block(su_block, finish_row + 2, 1,
+                                     "(Notes: Unrolled loops' order doesn't matters; D1 and D2 indicate 2 PE array dimensions.)")
     # print mem name to each level
     XY_name = {0: 'D1', 1: 'D2'}
     for idx, operand in enumerate(['W', 'I', 'O']):
@@ -339,7 +340,7 @@ def print_good_su_format(su, mem_name, file_path_name):
             for xy, xy_li in enumerate(lv_li):
                 for _ in enumerate(xy_li):
                     su_block = modify_printing_block(su_block, finish_row - 2 * i, column_position,
-                                                     str(mem_name[operand][level])+' ('+XY_name[xy]+')')
+                                                     str(mem_name[operand][level]) + ' (' + XY_name[xy] + ')')
                     i += 1
     print_printing_block(file_path_name, su_block, 'w+')
 
@@ -553,7 +554,8 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
             energy_breakdown_O.tail = str(cost_model_output.operand_cost['O'])
 
             mac_cost = ET.SubElement(energy, 'mac_energy')
-            mac_cost.tail = str(round(cost_model_output.mac_cost, 1))
+            mac_cost.tail = 'active: ' + str(round(cost_model_output.mac_cost[0], 1)) + \
+                            ', idle: ' + str(round(cost_model_output.mac_cost[1], 1))
 
             performance = ET.SubElement(results, 'performance')
             utilization = ET.SubElement(performance, 'mac_array_utilization')
@@ -695,7 +697,8 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
             energy_breakdown_O.tail = str(cost_model_output.operand_cost['O'])
 
             mac_cost = ET.SubElement(energy, 'mac_energy')
-            mac_cost.tail = str(round(cost_model_output.mac_cost, 1))
+            mac_cost.tail = 'active: ' + str(round(cost_model_output.mac_cost[0], 1)) + \
+                            ', idle: ' + str(round(cost_model_output.mac_cost[1], 1))
 
             performance = ET.SubElement(results, 'performance')
             utilization = ET.SubElement(performance, 'mac_array_utilization')
@@ -731,8 +734,8 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
               ' SU: ', common_settings.spatial_count, ' cost model output', cost_model_output)
         return
     else:
-        print_good_su_format(cost_model_output.spatial_scheme, mem_scheme.mem_name, results_filename+'.mapping')
-        print_good_tm_format(cost_model_output.temporal_scheme, mem_scheme.mem_name, results_filename+'.mapping')
+        print_good_su_format(cost_model_output.spatial_scheme, mem_scheme.mem_name, results_filename + '.mapping')
+        print_good_tm_format(cost_model_output.temporal_scheme, mem_scheme.mem_name, results_filename + '.mapping')
 
 def print_helper(input_settings, layers_dict, multi_manager):
 
@@ -757,7 +760,6 @@ def print_helper(input_settings, layers_dict, multi_manager):
         mode = 4
     elif (not fixed_mem and not fixed_su and not fixed_tm):
         mode = 5
-
 
     rf_base = input_settings.results_path + '%s' + input_settings.results_filename
     rf_ending_en = '_min_en'
@@ -862,6 +864,7 @@ def print_helper(input_settings, layers_dict, multi_manager):
             sim_time_en = list_sim_time_en['best_mem_each_layer'][layer_idx_str]
 
             [[mem_scheme_su_str_ut, best_output_utilization]] = list_max_ut_output['best_mem_each_layer'][layer_idx_str].items()
+
             [[mem_scheme_su_str_ut, tm_count_ut]] = list_tm_count_ut['best_mem_each_layer'][layer_idx_str].items()
             sim_time_ut = list_sim_time_ut['best_mem_each_layer'][layer_idx_str]
 
@@ -873,6 +876,7 @@ def print_helper(input_settings, layers_dict, multi_manager):
 
             mem_scheme_count_str_en = '%d/%d' % (mem_scheme_index_en + 1, multi_manager.mem_scheme_count)
             mem_scheme_count_str_ut = '%d/%d' % (mem_scheme_index_ut + 1, multi_manager.mem_scheme_count)
+
             spatial_unrolling_count_en = str(mem_scheme_su_str_en.split('_')[-1]) + '/' + str(mem_scheme_su_str_en.split('_')[-2])
             spatial_unrolling_count_ut = str(mem_scheme_su_str_ut.split('_')[-1]) + '/' + str(mem_scheme_su_str_ut.split('_')[-2])
             common_settings_en = CommonSetting(input_settings, layer_index, mem_scheme_count_str_en, spatial_unrolling_count_en, msc_en)
@@ -911,6 +915,7 @@ def print_helper(input_settings, layers_dict, multi_manager):
 
             mem_scheme_count_str_en = '%d/%d' % (best_mem_scheme_idx_en + 1, multi_manager.mem_scheme_count)
             mem_scheme_count_str_ut = '%d/%d' % (best_mem_scheme_idx_ut + 1, multi_manager.mem_scheme_count)
+
             spatial_unrolling_count_en = str(mem_scheme_su_str_en.split('_')[-1]) + '/' + str(mem_scheme_su_str_en.split('_')[-2])
             spatial_unrolling_count_ut = str(mem_scheme_su_str_ut.split('_')[-1]) + '/' + str(mem_scheme_su_str_ut.split('_')[-2])
             common_settings_en = CommonSetting(input_settings, layer_index, mem_scheme_count_str_en, spatial_unrolling_count_en, msc_en)
@@ -927,7 +932,6 @@ def print_helper(input_settings, layers_dict, multi_manager):
             print_xml(rf_en, layer, msc_en, best_output_energy, common_settings_en, tm_count_en, sim_time_en, input_settings.result_print_mode)
             print_xml(rf_ut, layer, msc_ut, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut, input_settings.result_print_mode)
 
-            
 
 
 class CostModelOutput:

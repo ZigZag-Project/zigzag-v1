@@ -7,7 +7,8 @@ import copy
 import bsgutils as su
 import classes as cls
 from msg import update_mem_scheme_bw
-from cost_model_funcs import get_operand_level_dynamic_mem_cost, get_mac_cost
+from cost_model_funcs import get_operand_level_dynamic_mem_cost
+from cost_model_funcs import get_active_mac_cost as get_mac_cost
 import cost_model_funcs as cmf
 import output_funcs as of
 from copy import deepcopy

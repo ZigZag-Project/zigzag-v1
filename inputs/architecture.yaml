@@ -9,6 +9,7 @@ precision:
   O_final : 16
 
 single_mac_energy : 16
+idle_mac_energy : 0.05
 
 mac_array_stall :
   systolic: 1

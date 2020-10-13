@@ -143,6 +143,7 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
     precision = {'W': fl['precision']['W'], 'I': fl['precision']['I'], 'O': fl['precision']['O_partial'],
                  'O_final': fl['precision']['O_final']}
     mac_array_info['single_mac_energy'] = fl['single_mac_energy']
+    mac_array_info['idle_mac_energy'] = fl['idle_mac_energy']
     p_aux = [precision['W'], precision['I']]
     mac_array_info['precision'] = max(p_aux)
     mac_array_info['headroom'] = precision['O'] - precision['O_final']
@@ -225,8 +226,11 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
     else:
         raise ValueError('temporal_mapping_search_method is not correctly set. Please check the setting file.')
 
-    sumode = ['exhaustive', 'heuristic_v1', 'heuristic_v2', 'hint_driven']
-    sumx = sumode.index(fl['spatial_unrolling_search_method'])
+    sumode = ['exhaustive', 'heuristic_v1', 'heuristic_v2', 'hint_driven', 'hint_driven_with_greedy_mapping']
+    if not fl['fixed_spatial_unrolling']:
+        sumx = sumode.index(fl['spatial_unrolling_search_method'])
+    else:
+        sumx = 0
     input_settings = InputSettings(fl['result_path'], fl['result_filename'], fl['layer_filename'],
                                    fl['layer_indices'], fl['layer_multiprocessing'], precision,
                                    mac_array_info, mac_array_stall, fl['fixed_architecture'],
