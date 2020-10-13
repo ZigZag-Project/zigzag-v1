@@ -1,7 +1,7 @@
 
 # OUTPUT FILE
-result_path : './results/DIANA/L2_512kB/DarkNet19'
-result_filename : D19
+result_path : './results'
+result_filename : AlexNet
 
 # OUTPUT FILE PRINTING MODE
 # 'concise' for printing the basic information for each optimal design point found, i.e. energy and performance.
@@ -24,8 +24,8 @@ save_all_temporal_mapping_result : False
 # WORKLOAD
 # layer_indices can be a single-element list or a multiple-element list.
 # For now, multi-layer parallel search is supported if only doing temporal mapping search, e.g. layer_indices : [3,4,5].
-layer_filename : './NN_layers/DarkNet19'
-layer_indices : [1]
+layer_filename : './NN_layers/AlexNet'
+layer_indices : [5]
 
 # MULTIPROCESSING
 # run the framework in multiprocessing mode to speedup the search procedure.
