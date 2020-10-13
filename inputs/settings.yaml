@@ -10,22 +10,21 @@ result_print_mode : concise
 
 # SEARCH SETTINGS
 # 'False' for searching the corresponding space.
-fixed_architecture : True
-fixed_spatial_unrolling : True
+fixed_architecture : False
+fixed_spatial_unrolling : False
 fixed_temporal_mapping : False
 
 # RESULT SAVING SETTINGS
 # 'False' for only saving the best result.
 # Be careful to put they to True, because it can generate large result files.
-save_all_architecture_result : False
-save_all_spatial_unrolling_result : False
-save_all_temporal_mapping_result : False
+save_all_architecture_result : True
+save_all_spatial_unrolling_result : True
+save_all_temporal_mapping_result : True
 
 # WORKLOAD
 # layer_indices can be a single-element list or a multiple-element list.
-# For now, multi-layer parallel search is supported if only doing temporal mapping search, e.g. layer_indices : [3,4,5].
 layer_filename : './NN_layers/AlexNet'
-layer_indices : [5]
+layer_indices : [3,5]
 
 # MULTIPROCESSING
 # run the framework in multiprocessing mode to speedup the search procedure.

@@ -76,7 +76,7 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, ii_layer_index, m
         print('Utilization pruning active. Mem scheme sub-optimal')
         discard_mem_scheme = True
     if good_scheme:
-        print('SU', ii_su + 1, '/', len(mem_scheme.spatial_unrolling), mem_scheme.spatial_unrolling[ii_su])
+        # print('SU', ii_su + 1, '/', len(mem_scheme.spatial_unrolling), mem_scheme.spatial_unrolling[ii_su])
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
         print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, ', M',
