@@ -15,9 +15,103 @@ import copy
 import input_funcs
 import bsg_exh
 import time
-from multiprocessing import Process, Value, Manager
+from multiprocessing import Pool
 from datetime import datetime
 from pathlib import Path
+from itertools import repeat
+
+def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_loop_fractional, spatial_loop_comb, ii_su,
+            active_mac_cost, idle_mac_cost):
+
+    pickle_enable = input_settings.tm_search_result_saving
+    if pickle_enable:
+        energy_collect = []
+        utilization_collect = []
+    min_energy = float('inf')
+    min_energy_utilization = 0
+    max_utilization = 0
+    max_utilization_energy = float('inf')
+
+    for idx, tl in enumerate(tl_list):
+        temporal_loop = cls.TemporalLoop.extract_loop_info(layer, tl, spatial_loop)
+        loop = cls.Loop.extract_loop_info(layer, temporal_loop, spatial_loop, input_settings.precision,
+                                            input_settings.fixed_temporal_mapping)
+
+        if input_settings.spatial_unrolling_mode == 4:
+            temporal_loop_fractional = cls.TemporalLoop.extract_loop_info(layer, tl, spatial_loop_fractional)
+            loop_fractional = cls.Loop.extract_loop_info(layer, temporal_loop_fractional, spatial_loop_fractional,
+                                                            input_settings.precision, input_settings.fixed_temporal_mapping)
+        else:
+            loop_fractional = loop
+            
+        msc = copy.deepcopy(mem_scheme)
+        ii = 0
+        utilization = cls.Utilization.get_utilization(layer, temporal_loop, spatial_loop_comb, loop,
+                                                        input_settings.mac_array_info, msc.mem_size,
+                                                        msc.mem_share, msc.mem_type,
+                                                        input_settings.mac_array_stall,
+                                                        input_settings.precision, msc.mem_bw)
+
+        occupied_area = msg.get_mem_scheme_area(msc)
+
+        total_cost_layer = 0
+        # loop.array_wire_distance = {'W': [], 'I': [], 'O': []}
+        operand_cost = {'W': [], 'I': [], 'O': []}
+        schedule_info = {
+            'temporal': tl,
+            'spatial': mem_scheme.spatial_unrolling[ii_su],
+            'flooring': mem_scheme.flooring[ii_su]
+        }
+
+        for operand in ['W', 'I', 'O']:
+            for level in range(0, len(tl[operand])):
+                operand_cost[operand].append(
+                    cmf.get_operand_level_energy_cost(operand, level, msc.mem_cost,
+                                                        input_settings.mac_array_info,
+                                                        schedule_info, loop_fractional,
+                                                        msc.mem_fifo, msc, input_settings.precision,
+                                                        utilization, ii))
+                # loop.array_wire_distance[operand].append(
+                #     cmf.get_operand_level_wire_distance(operand, level,
+                #                                         schedule_info,
+                #                                         input_settings.mac_array_info, loop,
+                #                                         msc.mem_fifo))
+            total_cost_layer += np.sum(operand_cost[operand])
+        total_cost_layer += active_mac_cost + idle_mac_cost
+        ''' for pickle file (collecting all temporal mappings' energy and array utilization)'''
+        if pickle_enable:
+            energy_collect.append(int(total_cost_layer))
+            utilization_collect.append(utilization.mac_utilize_no_load)
+
+        if (total_cost_layer < min_energy) or (
+                total_cost_layer == min_energy and utilization.mac_utilize_no_load > min_energy_utilization):
+            min_energy_utilization = utilization.mac_utilize_no_load
+            min_energy = total_cost_layer
+            output_result = of.CostModelOutput(total_cost_layer, deepcopy(operand_cost),
+                                                (active_mac_cost, idle_mac_cost),
+                                                deepcopy(temporal_loop.temporal_loop),
+                                                deepcopy(mem_scheme.spatial_unrolling[ii_su]),
+                                                deepcopy(mem_scheme.flooring[ii_su]),
+                                                deepcopy(loop_fractional), deepcopy(spatial_loop),
+                                                deepcopy(temporal_loop), occupied_area,
+                                                utilization, ii)
+            best_output_energy = output_result
+
+        if (utilization.mac_utilize_no_load > max_utilization) or (
+                utilization.mac_utilize_no_load == max_utilization and total_cost_layer < max_utilization_energy):
+            max_utilization = utilization.mac_utilize_no_load
+            max_utilization_energy = total_cost_layer
+            output_result = of.CostModelOutput(total_cost_layer, deepcopy(operand_cost),
+                                                (active_mac_cost, idle_mac_cost),
+                                                deepcopy(temporal_loop.temporal_loop),
+                                                deepcopy(mem_scheme.spatial_unrolling[ii_su]),
+                                                deepcopy(mem_scheme.flooring[ii_su]),
+                                                deepcopy(loop_fractional), deepcopy(spatial_loop),
+                                                deepcopy(temporal_loop), occupied_area,
+                                                utilization, ii)
+            best_output_utilization = output_result
+
+    return (min_energy, min_energy_utilization, best_output_energy, max_utilization_energy, max_utilization, best_output_utilization)
 
 def mem_scheme_su_evaluate(input_settings, layer, layer_index, mem_scheme, mem_scheme_index, 
                             ii_su, spatial_unrolling, spatial_unrolling_count, multi_manager):
@@ -39,11 +133,7 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, mem_scheme, mem_s
     if pickle_enable:
         energy_collect = []
         utilization_collect = []
-    min_energy = float('inf')
-    max_utilization = 0
-    max_utilization_energy = float('inf')
-    best_output_energy = None
-    best_output_utilization = None
+
     if input_settings.fixed_spatial_unrolling is True and input_settings.mem_hierarchy_single_simulation is False:
         mem_scheme = cmf.su_correction(mem_scheme)
 
@@ -75,7 +165,6 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, mem_scheme, mem_s
         print('Utilization pruning active. Mem scheme sub-optimal')
         discard_mem_scheme = True
     if good_scheme:
-        # print('SU', ii_su + 1, '/', len(mem_scheme.spatial_unrolling), mem_scheme.spatial_unrolling[ii_su])
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
         print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, ', M',
@@ -100,19 +189,22 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, mem_scheme, mem_s
         if input_settings.fixed_temporal_mapping:
             tl_list.append(input_settings.temporal_mapping_single)
             tl_combinations = 1
+        
+        t2 = time.time()
+        t_tmg = int(t2 - t1)
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
         if tl_list:
             if (not input_settings.fixed_temporal_mapping) and (input_settings.tmg_search_method == 0):
                 print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, ', M',
-                      mem_scheme_index + 1, '/', mem_scheme_count, ', SU',
-                      ii_su + 1, '/', len(mem_scheme.spatial_unrolling), ' TMG finished', '| Valid TM found ( partial:',
-                      tl_combinations, ', final:', len(tl_list), ')')
+                      mem_scheme_index + 1, '/', mem_scheme_count, ', SU', ii_su + 1, 
+                      '/', len(mem_scheme.spatial_unrolling), ' TMG finished', '| Elapsed time:', t_tmg, 'sec',
+                      '| Valid TMs found: ( partial:', tl_combinations, ', final:', len(tl_list), ')')
             else:
                 print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, ', M',
-                      mem_scheme_index + 1, '/', mem_scheme_count, ', SU',
-                      ii_su + 1, '/', len(mem_scheme.spatial_unrolling), ' TMG Finished', '| Valid TM found',
-                      len(tl_list))
+                      mem_scheme_index + 1, '/', mem_scheme_count, ', SU', ii_su + 1, 
+                      '/', len(mem_scheme.spatial_unrolling), ' TMG Finished', '| Elapsed time:', t_tmg, 'sec',
+                      '| Valid TMs found:', len(tl_list))
         else:
             now = datetime.now()
             current_time = now.strftime("%H:%M:%S")
@@ -127,85 +219,41 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, mem_scheme, mem_s
               mem_scheme_index + 1, '/', mem_scheme_count, ', SU', ii_su + 1,
               '/', len(mem_scheme.spatial_unrolling), ' CM  started')
 
-        for tl_index, tl in enumerate(tl_list):
-            temporal_loop = cls.TemporalLoop.extract_loop_info(layer, tl, spatial_loop)
-            loop = cls.Loop.extract_loop_info(layer, temporal_loop, spatial_loop, input_settings.precision,
-                                              input_settings.fixed_temporal_mapping)
 
-            if input_settings.spatial_unrolling_mode == 4:
-                temporal_loop_fractional = cls.TemporalLoop.extract_loop_info(layer, tl, spatial_loop_fractional)
-                loop_fractional = cls.Loop.extract_loop_info(layer, temporal_loop_fractional, spatial_loop_fractional,
-                                                             input_settings.precision, input_settings.fixed_temporal_mapping)
-            else:
-                loop_fractional = loop
-            mem_scheme_cost = copy.deepcopy(mem_scheme)
-            msc_list = [mem_scheme_cost]
-            for ii, msc in enumerate(msc_list):
-                utilization = cls.Utilization.get_utilization(layer, temporal_loop, spatial_loop_comb, loop,
-                                                              input_settings.mac_array_info, msc.mem_size,
-                                                              msc.mem_share, msc.mem_type,
-                                                              input_settings.mac_array_stall,
-                                                              input_settings.precision, msc.mem_bw)
+        # Convert tl_list to chunked list to pass to parallel cores
+        n_cores = 8
+        chunk_size = int(tl_combinations / n_cores) + (tl_combinations % n_cores > 0) # avoids importing math lib
+        tl_list = [tl_list[i:i + chunk_size] for i in range(0, tl_combinations, chunk_size)]
 
-                occupied_area = msg.get_mem_scheme_area(msc)
+        # Create list of repeated arguments passed to parallel tl_worker functions
+        fixed_args = [input_settings, mem_scheme, layer, spatial_loop, spatial_loop_fractional, spatial_loop_comb, 
+                    ii_su, active_mac_cost, idle_mac_cost[ii_su]]
 
-                total_cost_layer = 0
-                # loop.array_wire_distance = {'W': [], 'I': [], 'O': []}
-                operand_cost = {'W': [], 'I': [], 'O': []}
-                schedule_info = {
-                    'temporal': tl,
-                    'spatial': mem_scheme.spatial_unrolling[ii_su],
-                    'flooring': mem_scheme.flooring[ii_su]
-                }
+        # Call the worker function for each chunk 
+        pool = Pool(n_cores)
+        results = pool.starmap(tl_worker, [[tl_chunk] + fixed_args for tl_chunk in tl_list])
 
-                for operand in ['W', 'I', 'O']:
-                    for level in range(0, len(tl[operand])):
-                        operand_cost[operand].append(
-                            cmf.get_operand_level_energy_cost(operand, level, msc.mem_cost,
-                                                              input_settings.mac_array_info,
-                                                              schedule_info, loop_fractional,
-                                                              msc.mem_fifo, msc, input_settings.precision,
-                                                              utilization, ii))
-                        # loop.array_wire_distance[operand].append(
-                        #     cmf.get_operand_level_wire_distance(operand, level,
-                        #                                         schedule_info,
-                        #                                         input_settings.mac_array_info, loop,
-                        #                                         msc.mem_fifo))
-                    total_cost_layer += np.sum(operand_cost[operand])
-                total_cost_layer += active_mac_cost + idle_mac_cost[ii_su]
-                ''' for pickle file (collecting all temporal mappings' energy and array utilization)'''
-                if pickle_enable:
-                    energy_collect.append(int(total_cost_layer))
-                    utilization_collect.append(utilization.mac_utilize_no_load)
+        best_output_energy = None
+        best_output_utilization = None
+        best_energy = float('inf')
+        best_energy_utilization = 0
+        best_utilization = 0
+        best_utilization_energy = float('inf')
 
-                if (total_cost_layer < min_energy) or (
-                        total_cost_layer == min_energy and utilization.mac_utilize_no_load > min_energy_utilization):
-                    min_energy_utilization = utilization.mac_utilize_no_load
-                    min_energy = total_cost_layer
-                    output_result = of.CostModelOutput(total_cost_layer, deepcopy(operand_cost),
-                                                       (active_mac_cost, idle_mac_cost[ii_su]),
-                                                       deepcopy(temporal_loop.temporal_loop),
-                                                       deepcopy(mem_scheme.spatial_unrolling[ii_su]),
-                                                       deepcopy(mem_scheme.flooring[ii_su]),
-                                                       deepcopy(loop_fractional), deepcopy(spatial_loop),
-                                                       deepcopy(temporal_loop), occupied_area,
-                                                       utilization, ii)
-                    best_output_energy = output_result
+        # Loop through the best energy/ut found by the parallel processes to find the overall best one
+        for (min_en, min_en_ut, min_en_output, max_ut_en, max_ut, max_ut_output) in results:
+            if (min_en < best_energy or (min_en == best_energy and min_en_ut > best_energy_utilization)):
+                best_energy = min_en
+                best_energy_utilization = min_en_ut
+                best_output_energy = min_en_output
+            if (max_ut > best_utilization or (max_ut == best_utilization and max_ut_en < best_utilization_energy)):
+                best_utilization_energy = max_ut_en
+                best_utilization = max_ut
+                best_output_utilization = max_ut_output
 
-                if (utilization.mac_utilize_no_load > max_utilization) or (
-                        utilization.mac_utilize_no_load == max_utilization and total_cost_layer < max_utilization_energy):
-                    max_utilization = utilization.mac_utilize_no_load
-                    max_utilization_energy = total_cost_layer
-                    output_result = of.CostModelOutput(total_cost_layer, deepcopy(operand_cost),
-                                                       (active_mac_cost, idle_mac_cost[ii_su]),
-                                                       deepcopy(temporal_loop.temporal_loop),
-                                                       deepcopy(mem_scheme.spatial_unrolling[ii_su]),
-                                                       deepcopy(mem_scheme.flooring[ii_su]),
-                                                       deepcopy(loop_fractional), deepcopy(spatial_loop),
-                                                       deepcopy(temporal_loop), occupied_area,
-                                                       utilization, ii)
-                    best_output_utilization = output_result
 
+            
+    # TODO: Fix writing all the tm's energy and utilization from parallel processes to pickle if required
     if pickle_enable:
         rf = input_settings.results_path + '/all_tm_results/' + input_settings.results_filename + '_L_' + str(
             layer_index) + '_SU_' + str(ii_su + 1)
@@ -225,21 +273,28 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, mem_scheme, mem_s
           spatial_unrolling_count, ' CM  finished', end='')
     discard_mem_scheme = False
     if tl_list and not discard_mem_scheme:
-        t2 = time.time() - t1
+        t3 = time.time()
+        t_cm = int(t3 - t2)
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
         if input_settings.fixed_temporal_mapping:
             print(
                 ' | Elapsed time: {0:d} sec | (energy, mac_utilization, area): ({1:d}, {2:.2f}, {3:d})'.format(
-                    int(t2), int(round(min_energy)), min_energy_utilization, int(best_output_energy.area)))
+                    int(t_cm), int(round(best_energy)), best_energy_utilization, int(best_output_energy.area)))
         else:
             print(
                 ' | Elapsed time: {0:d} sec | [min en: ({1:d}, {2:.2f}, {3:d}) max ut: ({4:d}, {5:.2f}, {6:d})] in all TMs'.format(
-                    int(t2), int(round(min_energy)), min_energy_utilization, int(best_output_energy.area),
-                    int(round(max_utilization_energy)), max_utilization, int(best_output_utilization.area)))
+                    int(t_cm), int(round(best_energy)), best_energy_utilization, int(best_output_energy.area),
+                    int(round(best_utilization_energy)), best_utilization, int(best_output_utilization.area)))
+
+
+        if input_settings.fixed_temporal_mapping or input_settings.tmg_search_method != 0:
+            tm_count = len(tl_list)
+        else:
+            tm_count = {'partial': tl_combinations, 'final': len(tl_list)}
 
         '''
-        Append common terms to the result list.
+        Write to xml on the fly. Beware of using (outdated code)
         '''
         # spatial_unrolling_index = str(ii_su + 1) + '/' + str(spatial_unrolling_count)
         # mem_scheme_count = str(mem_scheme_index + 1) + '/' + str(mem_scheme_count)
@@ -248,12 +303,6 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, mem_scheme, mem_s
         #                                    mem_scheme_count,
         #                                    spatial_unrolling_index,
         #                                    msc_list[0])
-
-        if input_settings.fixed_temporal_mapping or input_settings.tmg_search_method != 0:
-            tm_count = len(tl_list)
-        else:
-            tm_count = {'partial': tl_combinations, 'final': len(tl_list)}
-
         # if input_settings.fixed_spatial_unrolling and input_settings.fixed_temporal_mapping:
         #     sub_path = '/fixed_tm_for_fixed_su/'
         # elif input_settings.fixed_spatial_unrolling:
@@ -295,9 +344,9 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, mem_scheme, mem_s
     layer_str = 'L_%d' % (layer_index)
     mem_scheme_su_str = 'M_%d_SU_%d_%d' % (mem_scheme_index + 1, spatial_unrolling_count, ii_su + 1)
 
-    list_min_energy[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: (min_energy, min_energy_utilization)})
+    list_min_energy[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: (best_energy, best_energy_utilization)})
     list_min_en_output[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: best_output_energy})
-    list_max_utilization[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: (max_utilization_energy, max_utilization)})
+    list_max_utilization[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: (best_utilization_energy, best_utilization)})
     list_max_ut_output[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: best_output_utilization})
     list_tm_count_en[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: tm_count})
     list_tm_count_ut[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: tm_count})
@@ -384,25 +433,33 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, mem_scheme, mem_sche
     ''' input_settings.su_parallel_processing SU parallel '''
     TIMEOUT = 36000
     start = time.time()
-    su_number = list(range(0, len(spatial_unrolling), 1))
-    su_chunk_list = [su_number[i:i + input_settings.su_parallel_processing] for i in
-                     range(0, len(spatial_unrolling), input_settings.su_parallel_processing)]
-    for su_chunk in su_chunk_list:
-        procs = [Process(target=mem_scheme_su_evaluate,
-                         args=(input_settings, layer, layer_index, mem_scheme, mem_scheme_index, 
-                         ii_su, spatial_unrolling[ii_su], len(spatial_unrolling), multi_manager))
-                 for ii_su, su_x in zip(su_chunk, spatial_unrolling[su_chunk[0]:su_chunk[-1] + 1])]
-        for p in procs: p.start()
-        while time.time() - start <= TIMEOUT:  # and all([p.is_alive() for p in procs]):
-            if any(p.is_alive() for p in procs):
-                break
-                time.sleep(1)
-            else:
-                print('MEM SCHEME EVALUATE : TIMED OUT - KILLING ALL PROCESSES')
-                for p in procs:
-                    p.terminate()
-                    p.join()
-        for p in procs: p.join()
+
+    # su_number = list(range(0, len(spatial_unrolling), 1))
+    # su_chunk_list = [su_number[i:i + input_settings.su_parallel_processing] for i in
+    #                  range(0, len(spatial_unrolling), input_settings.su_parallel_processing)]
+    # for su_chunk in su_chunk_list:
+    #     su_zipped = [(idx, spatial_unrolling[idx]) for idx in su_chunk]
+    #     for ii_su, su_x in su_zipped:
+    #         procs.append(Process(target=mem_scheme_su_evaluate,
+    #                         args=(input_settings, layer, layer_index, mem_scheme, mem_scheme_index, 
+    #                         ii_su, spatial_unrolling[ii_su], len(spatial_unrolling), multi_manager)))
+    #     for p in procs: p.start()
+    #     while time.time() - start <= TIMEOUT:  # and all([p.is_alive() for p in procs]):
+    #         if any(p.is_alive() for p in procs):
+    #             break
+    #             time.sleep(1)
+    #         else:
+    #             print('MEM SCHEME EVALUATE : TIMED OUT - KILLING ALL PROCESSES')
+    #             for p in procs:
+    #                 p.terminate()
+    #                 p.join()
+    #     for p in procs: p.join()
+
+    # Loop over the spatial unrollings
+    su_count = len(spatial_unrolling)
+    for ii_su, su in enumerate(spatial_unrolling):
+        mem_scheme_su_evaluate(input_settings, layer, layer_index, mem_scheme, mem_scheme_index,
+                            ii_su, su, su_count, multi_manager)
 
     # Get the results from mem_scheme_su_evaluate
     list_min_energy = multi_manager.list_min_energy
@@ -482,7 +539,7 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, mem_scheme, mem_sche
                     best_ut_mem_su_str.split('_')[-1], int(best_ut_en), best_ut, int(best_ut_output.area)))
 
 
-def mem_scheme_list_evaluate(mem_scheme, input_settings, mem_scheme_index, layers_dict, multi_manager):
+def mem_scheme_list_evaluate(mem_scheme, input_settings, mem_scheme_index, layers, multi_manager):
     
     mem_scheme_count = multi_manager.mem_scheme_count
 
@@ -490,17 +547,21 @@ def mem_scheme_list_evaluate(mem_scheme, input_settings, mem_scheme_index, layer
     print(mem_scheme.mem_size)
     print(mem_scheme.mem_unroll)
 
-    layer_chunk_list = [input_settings.layer_number[i:i + input_settings.layer_parallel_processing] for i in
-                        range(0, len(input_settings.layer_number), input_settings.layer_parallel_processing)]
+    # layer_chunk_list = [input_settings.layer_number[i:i + input_settings.layer_parallel_processing] for i in
+    #                     range(0, len(input_settings.layer_number), input_settings.layer_parallel_processing)]
 
-    for ii_layer_chunk, layer_chunk in enumerate(layer_chunk_list):
-        procs = []
-        for ii_layer_index, layer_number in enumerate(layer_chunk):
-            procs.append(Process(target=mem_scheme_evaluate,
-                        args=(input_settings, layer_number, layers_dict[layer_number], mem_scheme, mem_scheme_index, multi_manager)))
-        for p in procs: p.start()
-        for p in procs: p.join()
+    # for ii_layer_chunk, layer_chunk in enumerate(layer_chunk_list):
+    #     procs = []
+    #     for ii_layer_index, layer_number in enumerate(layer_chunk):
+    #         procs.append(Process(target=mem_scheme_evaluate,
+    #                     args=(input_settings, layer_number, layers_dict[layer_number], mem_scheme, mem_scheme_index, multi_manager)))
+    #     for p in procs: p.start()
+    #     for p in procs: p.join()
 
+    # Loop through all the layers
+    for idx, layer in enumerate(layers):
+        layer_number = input_settings.layer_number[idx]
+        mem_scheme_evaluate(input_settings, layer_number, layer, mem_scheme, mem_scheme_index, multi_manager)
 
 def optimal_su_evaluate(input_settings, multi_manager):
     ''' Collect the optimum spatial unrolling results for all memory schemes '''
