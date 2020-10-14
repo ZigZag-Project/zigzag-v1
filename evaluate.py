@@ -140,6 +140,7 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, mem_scheme, mem_s
     if input_settings.spatial_unrolling_mode != 4:
         layer_post = layer_spec.layer_info[layer_index]
         spatial_loop = cls.SpatialLoop.extract_loop_info(mem_scheme.spatial_unrolling[ii_su], layer_post)
+        spatial_loop_fractional = None
         spatial_loop_comb = [spatial_loop, spatial_loop]
     else:
         layer_post = layer_spec.layer_info[layer_index][ii_su]

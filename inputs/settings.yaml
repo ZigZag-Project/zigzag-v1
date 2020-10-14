@@ -19,7 +19,7 @@ fixed_temporal_mapping : False
 # Be careful to put they to True, because it can generate large result files.
 save_all_architecture_result : True
 save_all_spatial_unrolling_result : True
-save_all_temporal_mapping_result : True
+save_all_temporal_mapping_result : False
 
 # WORKLOAD
 # layer_indices can be a single-element list or a multiple-element list.
