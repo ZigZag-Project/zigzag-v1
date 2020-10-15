@@ -5,13 +5,15 @@ from msg import MemoryNode, MemorySchemeNode, MemoryScheme
 
 class InputSettings:
 
-    def __init__(self, results_path, results_filename, layer_filename, layer_number, layer_parallel_processing, precision, mac_array_info, \
-                 mac_array_stall, mem_hierarchy_single_simulation, mem_scheme_parallel_processing, mem_scheme_single, fixed_spatial_unrolling, spatial_unrolling_single, \
-                 flooring_single, fixed_temporal_mapping, temporal_mapping_single, tmg_search_method, drc_enabled, PE_RF_size_threshold, PE_RF_depth, CHIP_depth, \
-                 max_area, utilization_rate_area, memory_hierarchy_ratio, mem_pool, banking, L1_size, L2_size, \
-                 unrolling_size_list, unrolling_scheme_list, unrolling_scheme_list_text, memory_scheme_hint, \
-                 spatial_utilization_threshold, spatial_unrolling_mode, stationary_optimization_enable, su_parallel_processing,
-                 arch_search_result_saving, su_search_result_saving, tm_search_result_saving, result_print_mode):
+    def __init__(self, results_path, results_filename, layer_filename, layer_number, layer_parallel_processing, precision,
+                 mac_array_info, mac_array_stall, mem_hierarchy_single_simulation, mem_scheme_parallel_processing,
+                 mem_scheme_single, fixed_spatial_unrolling, spatial_unrolling_single, flooring_single,
+                 fixed_temporal_mapping, temporal_mapping_single, tmg_search_method, temporal_mapping_multiprocessing,
+                 drc_enabled, PE_RF_size_threshold, PE_RF_depth, CHIP_depth, max_area, utilization_rate_area,
+                 memory_hierarchy_ratio, mem_pool, banking, L1_size, L2_size, unrolling_size_list, unrolling_scheme_list,
+                 unrolling_scheme_list_text, memory_scheme_hint, spatial_utilization_threshold, spatial_unrolling_mode,
+                 stationary_optimization_enable, su_parallel_processing, arch_search_result_saving, su_search_result_saving,
+                 tm_search_result_saving, result_print_mode):
         self.results_path = results_path
         self.results_filename = results_filename
         self.layer_filename = layer_filename

@@ -116,10 +116,6 @@ def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_
 
 
 def mem_scheme_su_evaluate(input_settings, layer, layer_index, layer_info, mem_scheme, mem_scheme_index,
-                            ii_su, spatial_unrolling, spatial_unrolling_count, multi_manager):
-
-  
-def mem_scheme_su_evaluate(input_settings, layer, layer_index, layer_info, mem_scheme, mem_scheme_index,
                            ii_su, spatial_unrolling, spatial_unrolling_count, multi_manager):
     mem_scheme_count = multi_manager.mem_scheme_count
     list_min_energy = multi_manager.list_min_energy
