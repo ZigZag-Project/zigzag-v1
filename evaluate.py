@@ -20,7 +20,7 @@ from datetime import datetime
 from pathlib import Path
 
 
-def mem_scheme_su_evaluate(input_settings, layer, layer_index, mem_scheme, mem_scheme_index,
+def mem_scheme_su_evaluate(input_settings, layer, layer_index, layer_info, mem_scheme, mem_scheme_index,
                            ii_su, spatial_unrolling, spatial_unrolling_count, multi_manager):
     mem_scheme_count = multi_manager.mem_scheme_count
     list_min_energy = multi_manager.list_min_energy
@@ -48,11 +48,11 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, mem_scheme, mem_s
         mem_scheme = cmf.su_correction(mem_scheme)
 
     if input_settings.spatial_unrolling_mode != 4:
-        layer_post = layer_spec.layer_info[layer_index]
+        layer_post = layer_info[layer_index]
         spatial_loop = cls.SpatialLoop.extract_loop_info(mem_scheme.spatial_unrolling[ii_su], layer_post)
         spatial_loop_comb = [spatial_loop, spatial_loop]
     else:
-        layer_post = layer_spec.layer_info[layer_index][ii_su]
+        layer_post = layer_info[layer_index][ii_su]
         spatial_loop = cls.SpatialLoop.extract_loop_info(mem_scheme.spatial_unrolling[ii_su], layer_post)
         spatial_loop_fractional = cls.SpatialLoop.extract_loop_info(mem_scheme.fraction_spatial_unrolling[ii_su],layer_post)
         spatial_loop_comb = [spatial_loop, spatial_loop_fractional]
@@ -310,7 +310,7 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, mem_scheme, mem_s
 
 def mem_scheme_evaluate(input_settings, layer_index, layer, mem_scheme, mem_scheme_index, multi_manager):
     mem_scheme_count = multi_manager.mem_scheme_count
-    layer_spec = multi_manager.layer_spec
+    layer_info = deepcopy(multi_manager.layer_spec.layer_info)
 
     # Check if this is a duplicate layer
     if layer.is_duplicate:
@@ -337,21 +337,22 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, mem_scheme, mem_sche
 
         # hint_driven_with_greedy_mapping
         if input_settings.spatial_unrolling_mode == 4:
-            layer_rounded = cls.layer_rounding.LayerRound(layer_spec.layer_info[layer_index],
+            layer_rounded = cls.layer_rounding.LayerRound(layer_info[layer_index],
                                                           input_settings.mac_array_info['array_size'],
-                                                          input_settings.unrolling_scheme_list)
-            layer_spec.layer_info[layer_index] = layer_rounded.round_layer_info
+                                                          input_settings.unrolling_scheme_list,
+                                                          input_settings.unrolling_size_list)
+            layer_info[layer_index] = layer_rounded.round_layer_info
             aux_layer_to_su_hint_table = layer_rounded.aux_layer_to_su_hint_table
             fraction_su = layer_rounded.fraction_su
             ideal_su = layer_rounded.ideal_su
             spatial_unrolling = []
             flooring = []
             fraction_spatial_unrolling = []
-            for aux_layer_idx in range(len(layer_spec.layer_info[layer_index])):
+            for aux_layer_idx in range(len(layer_info[layer_index])):
                 su_hint_idx = aux_layer_to_su_hint_table[aux_layer_idx]
                 spatial_unrolling_, flooring_, mem_scheme, not_good = msg.spatial_unrolling_generator_with_hint(
                     mem_scheme, input_settings.mac_array_info['array_size'],
-                    layer_spec.layer_info[layer_index][su_hint_idx],
+                    layer_info[layer_index][su_hint_idx],
                     [input_settings.unrolling_scheme_list[su_hint_idx]])
                 spatial_unrolling_, fraction_spatial_unrolling_ = \
                     msg.su_reformat(spatial_unrolling_, ideal_su[aux_layer_idx], fraction_su[aux_layer_idx])
@@ -363,14 +364,14 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, mem_scheme, mem_sche
         # hint_driven (prime factor factorization based)
         elif input_settings.spatial_unrolling_mode == 3:
             spatial_unrolling, flooring, mem_scheme, not_good = msg.spatial_unrolling_generator_with_hint(
-                mem_scheme, input_settings.mac_array_info['array_size'], layer_spec.layer_info[layer_index],
+                mem_scheme, input_settings.mac_array_info['array_size'], layer_info[layer_index],
                 input_settings.unrolling_scheme_list)
             mem_scheme.fraction_spatial_unrolling = spatial_unrolling
 
         # spatial unrolling full search based on user-defined spatial_utilization_threshold
         else:
             spatial_unrolling, flooring, mem_scheme, not_good = msg.spatial_unrolling_generator(
-                mem_scheme, input_settings.mac_array_info['array_size'], layer_spec.layer_info[layer_index],
+                mem_scheme, input_settings.mac_array_info['array_size'], layer_info[layer_index],
                 input_settings.precision, input_settings.spatial_utilization_threshold,
                 input_settings.spatial_unrolling_mode)
             mem_scheme.fraction_spatial_unrolling = spatial_unrolling
@@ -395,7 +396,7 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, mem_scheme, mem_sche
                      range(0, len(spatial_unrolling), input_settings.su_parallel_processing)]
     for su_chunk in su_chunk_list:
         procs = [Process(target=mem_scheme_su_evaluate,
-                         args=(input_settings, layer, layer_index, mem_scheme, mem_scheme_index,
+                         args=(input_settings, layer, layer_index, layer_info, mem_scheme, mem_scheme_index,
                                ii_su, spatial_unrolling[ii_su], len(spatial_unrolling), multi_manager))
                  for ii_su, su_x in zip(su_chunk, spatial_unrolling[su_chunk[0]:su_chunk[-1] + 1])]
         for p in procs: p.start()

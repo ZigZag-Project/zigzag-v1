@@ -1,6 +1,6 @@
 
 # OUTPUT FILE
-result_path : './results_FB_Oct/SU_fix'
+result_path : './results_FB_test/2'
 #result_path : './test_multi_layer'
 result_filename : FB
 
@@ -12,7 +12,7 @@ result_print_mode : complete
 # SEARCH SETTINGS
 # 'False' for searching the corresponding space.
 fixed_architecture : True
-fixed_spatial_unrolling : True
+fixed_spatial_unrolling : False
 fixed_temporal_mapping : False
 
 # RESULT SAVING SETTINGS
@@ -25,7 +25,7 @@ save_all_temporal_mapping_result : False
 # WORKLOAD
 # layer_indices can be a single-element list or a multiple-element list.
 layer_filename : './NN_layers/FB'
-layer_indices : [1]
+layer_indices : [11]
 
 # MULTIPROCESSING
 # run the framework in multiprocessing mode to speedup the search procedure.
