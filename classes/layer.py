@@ -22,9 +22,8 @@ class Layer(object):
     PX:  Padding on input feature map, X dimension
     G:   Number of groups for grouped convolution
 
-    If the number of groups G is specified for a layer,
-    the supplied C and K should be the total size of all the groups.
-    Additionally they should be divisible by the number of groups.
+    For multiple groups, the K and C of this object is for one group.
+    When printing to the output file, it will be scaled up accordingly.
 
     """
 
@@ -46,15 +45,7 @@ class Layer(object):
         self.PX = PX
         self.G = G
 
-        if G != 1:
-            div_C, mod_C = divmod(C, G)
-            div_K, mod_K = divmod(K, G)
-
-            assert (mod_C == 0 and mod_K == 0), "C and/or K not divisible by group size"
-            self.C = div_C
-            self.K = div_K
-
-        # Use provided (total) K and C in case of G != 1
+        # Use individual group K and C (in case of G != 1)
         self.total_MAC_op = B * K * C * OY * OX * FY * FX
 
         # Use provided (total) K and C in case of G != 1
@@ -77,6 +68,8 @@ class Layer(object):
                                  'O': C * FY * FX}
 
         self.size_list = [[SY, SX, SFY, SFX, PY, PX, G], FX, FY, OX, OY, C, K, B]
+
+        # Only used for printing to xml, so keep as total dimensions (for grouped convolution)
         self.size_list_output_print = {'B': B,
                                        'K': K,
                                        'C': C,

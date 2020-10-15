@@ -1,6 +1,8 @@
 import yaml
 import sys
 from msg import MemoryNode, MemorySchemeNode, MemoryScheme
+import importlib.machinery
+
 class InputSettings:
 
     def __init__(self, results_path, results_filename, layer_filename, layer_number, layer_parallel_processing, precision, mac_array_info, \
@@ -249,3 +251,28 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
                                    fl['result_print_mode'])
 
     return input_settings
+
+
+def get_layer_spec(input_settings):
+    print()
+    layer_filename = input_settings.layer_filename
+    layer_spec = importlib.machinery.SourceFileLoader('%s' % (layer_filename), '%s.py' % (layer_filename)).load_module()
+    for layer_number, specs in layer_spec.layer_info.items():
+
+        if layer_number in input_settings.layer_number: # Only care about layers we have to process
+            G = specs.get('G',1)
+            C = specs['C']
+            K = specs['K']
+
+            if G != 1:
+                div_C, mod_C = divmod(C, G)
+                div_K, mod_K = divmod(K, G)
+
+                assert (mod_C == 0 and mod_K == 0), "C and/or K not divisible by number of groups for layer %d" % layer_number
+                layer_spec.layer_info[layer_number]['C'] = div_C
+                layer_spec.layer_info[layer_number]['K']= div_K
+
+                print("Grouped convolution detected for Layer %d. Terminal prints will show total energy of all groups combined."
+                    % layer_number)
+    print()
+    return layer_spec

@@ -1,6 +1,6 @@
 import output_funcs as of
 import classes as cls
-import importlib.machinery
+
 import sys
 import msg
 from msg import mem_scheme_fit_check
@@ -22,8 +22,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     input_settings = input_funcs.get_input_settings(args.set, args.map, args.mempool, args.arch)
-    layer_spec = importlib.machinery.SourceFileLoader('%s' % (input_settings.layer_filename),
-                                                      '%s.py' % (input_settings.layer_filename)).load_module()
+    layer_spec = input_funcs.get_layer_spec(input_settings)
+
 
     # Extract the layer information from the layer_spec
     layers = [cls.Layer.extract_layer_info(layer_spec.layer_info[layer_number]) 
