@@ -104,7 +104,7 @@ class Layer(object):
             return self.size_list == other.size_list
         return NotImplemented
 
-    
+
     def set_duplicate(self, other_layer_number):
         """
         Set the layer as a duplicate layer.

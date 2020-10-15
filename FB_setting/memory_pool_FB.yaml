@@ -1,0 +1,65 @@
+reg_BW8_1_Byte:
+  area: [0]
+  cost:
+    read_word: [0]
+    write_word: [0]
+  mem_bw: [8]
+  mem_type: dual_port_single_buffered
+  size_bit: 8
+  utilization_rate: 0.7
+  nbanks : 1
+
+reg_BW24_3_Byte:
+  area: [0]
+  cost:
+    read_word: [0]
+    write_word: [0]
+  mem_bw: [24]
+  mem_type: dual_port_single_buffered
+  size_bit: 24
+  utilization_rate: 0.7
+  nbanks : 1
+
+sram_BW512_32KB:
+  area: [0]
+  cost:
+    read_word: [25.5]
+    write_word: [25.5]
+  mem_bw: [512]
+  mem_type: single_port_double_buffered
+  size_bit: 262144
+  utilization_rate: 0.1
+  nbanks : 1
+
+#sram_BW512_32KB:
+#  area: [0]
+#  cost:
+#    read_word: [25.5]
+#    write_word: [25.5]
+#  mem_bw: [512]
+#  mem_type: single_port_double_buffered
+#  size_bit: 1228800 #fake one
+#  utilization_rate: 0.7
+#  nbanks : 1
+
+sram_BW256_16KB:
+  area: [0]
+  cost:
+    read_word: [12.75]
+    write_word: [12.75]
+  mem_bw: [256]
+  mem_type: single_port_double_buffered
+  size_bit: 131072
+  utilization_rate: 0.1
+  nbanks: 1
+
+sram_BW2048_1MB:
+  area: [0]
+  cost:
+    read_word: [208.8]
+    write_word: [208.8]
+  mem_bw: [2048]
+  mem_type: dual_port_single_buffered
+  size_bit: 8388608
+  utilization_rate: 0.7
+  nbanks: 1

@@ -26,8 +26,8 @@ if __name__ == "__main__":
                                                       '%s.py' % (input_settings.layer_filename)).load_module()
 
     # Extract the layer information from the layer_spec
-    layers = [cls.Layer.extract_layer_info(layer_spec.layer_info[layer_number]) 
-            for layer_number in input_settings.layer_number]
+    layers = [cls.Layer.extract_layer_info(layer_spec.layer_info[layer_number])
+              for layer_number in input_settings.layer_number]
 
     # If there are duplicate layers, set flag for the latter ones.
     # This flag will prevent the layer from being evaluated later on to speed up run.
@@ -40,6 +40,7 @@ if __name__ == "__main__":
     # Setup a layer dictionary of following format for easy access
     # key: layer number
     # value: Layer class
+
     # layers_dict = {input_settings.layer_number[i]: layers[i]
     #             for i in range(len(layers))}
 
@@ -97,7 +98,6 @@ if __name__ == "__main__":
     # Manages the variables passed to the multiple parallel processes
     multi_manager = MultiManager(input_settings, mem_scheme_sim, layer_spec, layers)
 
-
     # A list containing the chunks that will be processed sequentially
     # Each element within a chunk will be processed in parallel
     # inter-chunk = serial
@@ -105,8 +105,8 @@ if __name__ == "__main__":
     mem_scheme_sim_chunk_list = [mem_scheme_sim[i:i + input_settings.mem_scheme_parallel_processing] for i in
                                  range(0, len(mem_scheme_sim), input_settings.mem_scheme_parallel_processing)]
 
-
     for ii_mem_scheme_chunk, mem_scheme_sim_chunk in enumerate(mem_scheme_sim_chunk_list): # serial processing of chunks
+
         procs = []
         for mem_scheme_index, mem_scheme in enumerate(mem_scheme_sim_chunk):  # parallel processing of one chunk
             current_mem_scheme_index = mem_scheme_index + input_settings.mem_scheme_parallel_processing * ii_mem_scheme_chunk
@@ -119,9 +119,7 @@ if __name__ == "__main__":
     if not input_settings.mem_hierarchy_single_simulation:
         evaluate.optimal_su_evaluate(input_settings, multi_manager)
 
-
     of.print_helper(input_settings, layers, multi_manager)
-        
 
     total_time = int(time.time() - t1)
     print('ZigZag finished running. Total elapsed time: %d seconds.' % total_time)

@@ -1,12 +1,15 @@
 import yaml
 import sys
 from msg import MemoryNode, MemorySchemeNode, MemoryScheme
+
+
 class InputSettings:
 
     def __init__(self, results_path, results_filename, layer_filename, layer_number, layer_parallel_processing, precision, mac_array_info, \
                  mac_array_stall, mem_hierarchy_single_simulation, mem_scheme_parallel_processing, mem_scheme_single, fixed_spatial_unrolling, spatial_unrolling_single, \
-                 flooring_single, fixed_temporal_mapping, temporal_mapping_single, tmg_search_method, temporal_mapping_multiprocessing, drc_enabled, PE_RF_size_threshold, PE_RF_depth, CHIP_depth, \
-                 max_area, utilization_rate_area, memory_hierarchy_ratio, mem_pool, banking, L1_size, L2_size, unrolling_scheme_list, unrolling_scheme_list_text, memory_scheme_hint, \
+                 flooring_single, fixed_temporal_mapping, temporal_mapping_single, tmg_search_method, drc_enabled, PE_RF_size_threshold, PE_RF_depth, CHIP_depth, \
+                 max_area, utilization_rate_area, memory_hierarchy_ratio, mem_pool, banking, L1_size, L2_size, \
+                 unrolling_size_list, unrolling_scheme_list, unrolling_scheme_list_text, memory_scheme_hint, \
                  spatial_utilization_threshold, spatial_unrolling_mode, stationary_optimization_enable, su_parallel_processing,
                  arch_search_result_saving, su_search_result_saving, tm_search_result_saving, result_print_mode):
         self.results_path = results_path
@@ -31,6 +34,7 @@ class InputSettings:
         self.drc_enabled = drc_enabled
         self.prune_PE_RF = True
         self.mem_hierarchy_iterative_search = False
+        self.unrolling_size_list = unrolling_size_list
         self.unrolling_scheme_list = unrolling_scheme_list
         self.unrolling_scheme_list_text = unrolling_scheme_list_text
         self.PE_RF_size_threshold = PE_RF_size_threshold
@@ -159,6 +163,7 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
     sm_fixed = {'W': [], 'I': [], 'O': []}
     flooring_fixed = {'W': [], 'I': [], 'O': []}
     unrolling_scheme_list = []
+    unrolling_size_list = []
     i2a = {'B': 7, 'K': 6, 'C': 5, 'OY': 4, 'OX': 3, 'FY': 2, 'FX': 1}
     unrolling_scheme_list_text = []
     if tm_fixed_flag:
@@ -195,13 +200,23 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
         for us in fl['spatial_mapping_list']:
             unrolling_scheme_list.append([])
             unrolling_scheme_list[-1] = [[] for x in us]
+            unrolling_size_list.append([])
+            unrolling_size_list[-1] = [[] for x in us]
             for dim in us:
                 ii_dim = 0
                 dimx = next(iter(dim))
                 if dimx == 'Col': ii_dim = 0
                 if dimx == 'Row': ii_dim = 1
                 for pf in dim[dimx]:
-                    unrolling_scheme_list[-1][ii_dim].append(i2a[pf])
+                    pf_type = list(pf.split('_'))[0]
+                    unrolling_scheme_list[-1][ii_dim].append(i2a[pf_type])
+                    try:
+                        pf_size = list(pf.split('_'))[1]
+                        unrolling_size_list[-1][ii_dim].append(int(pf_size))
+                    except:
+                        pf_size = None
+                        unrolling_size_list[-1][ii_dim].append(pf_size)
+
     settings_file = open(setting_path)
     fl = yaml.full_load(settings_file)
     if fl['temporal_mapping_search_method'] == 'exhaustive':
@@ -241,7 +256,7 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
                                    fl['temporal_mapping_multiprocessing'],
                                    data_reuse_threshold, PE_RF_size_threshold, PE_depth,
                                    CHIP_depth, area_max_arch, area_utilization_arch,
-                                   mem_ratio, memory_pool, banking, L1_size, L2_size, 
+                                   mem_ratio, memory_pool, banking, L1_size, L2_size, unrolling_size_list,
                                    unrolling_scheme_list, unrolling_scheme_list_text, memory_scheme_hint,
                                    fl['spatial_utilization_threshold'], sumx, stationary_optimization_enable,
                                    fl['spatial_unrolling_multiprocessing'], fl['save_all_architecture_result'],
