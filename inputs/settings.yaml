@@ -31,6 +31,7 @@ layer_indices : [3,5]
 layer_multiprocessing : 100
 architecture_search_multiprocessing : 100
 spatial_unrolling_multiprocessing : 100
+temporal_mapping_multiprocessing: 100
 
 # TEMPORAL MAPPING GENERATOR SETTINGS
 # search_method : exhaustive / heuristic_v1 / heuristic_v2 / iterative

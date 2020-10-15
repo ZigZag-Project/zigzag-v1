@@ -737,7 +737,7 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
         print_good_su_format(cost_model_output.spatial_scheme, mem_scheme.mem_name, results_filename + '.mapping')
         print_good_tm_format(cost_model_output.temporal_scheme, mem_scheme.mem_name, results_filename + '.mapping')
 
-def print_helper(input_settings, layers_dict, multi_manager):
+def print_helper(input_settings, layers, multi_manager):
 
     # Use this for other print types (such as yaml) in the future
     print_type = 'xml'
@@ -775,7 +775,7 @@ def print_helper(input_settings, layers_dict, multi_manager):
     list_sim_time_ut = multi_manager.list_sim_time_ut
 
     # Iterate through the processed layers
-    for layer_index in input_settings.layer_number:
+    for i, layer_index in enumerate(input_settings.layer_number):
 
         layer_idx_str = 'L_%d' % layer_index
         layer = cls.Layer.extract_layer_info(multi_manager.layer_spec.layer_info[layer_index])
@@ -792,7 +792,7 @@ def print_helper(input_settings, layers_dict, multi_manager):
 
                     if su_count is None:
                         # su count is None for duplicate layers, get su count from parent
-                        parent_str = 'L_%d' % layers_dict[layer_index].parent
+                        parent_str = 'L_%d' % layers[i].parent
                         su_count = list_su_count[mem_scheme_str][parent_str]
 
                     for i in range(1, su_count + 1):

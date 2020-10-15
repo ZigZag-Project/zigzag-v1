@@ -15,7 +15,7 @@ import copy
 import input_funcs
 import bsg_exh
 import time
-from multiprocessing import Pool
+from multiprocessing import Pool, Process, cpu_count
 from datetime import datetime
 from pathlib import Path
 from itertools import repeat
@@ -223,8 +223,8 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, layer_info, mem_s
 
 
         # Convert tl_list to chunked list to pass to parallel cores
-        n_cores = 8
-        chunk_size = int(tl_combinations / n_cores) + (tl_combinations % n_cores > 0) # avoids importing math lib
+        n_processes = min(cpu_count(), input_settings.temporal_mapping_multiprocessing)
+        chunk_size = int(tl_combinations / n_processes) + (tl_combinations % n_processes > 0) # avoids import math
         tl_list = [tl_list[i:i + chunk_size] for i in range(0, tl_combinations, chunk_size)]
 
         # Create list of repeated arguments passed to parallel tl_worker functions
@@ -232,7 +232,7 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, layer_info, mem_s
                     ii_su, active_mac_cost, idle_mac_cost[ii_su]]
 
         # Call the worker function for each chunk 
-        pool = Pool(n_cores)
+        pool = Pool(processes=n_processes)
         results = pool.starmap(tl_worker, [[tl_chunk] + fixed_args for tl_chunk in tl_list])
 
         best_output_energy = None
@@ -437,32 +437,29 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, mem_scheme, mem_sche
     TIMEOUT = 36000
     start = time.time()
 
-    # su_number = list(range(0, len(spatial_unrolling), 1))
-    # su_chunk_list = [su_number[i:i + input_settings.su_parallel_processing] for i in
-    #                  range(0, len(spatial_unrolling), input_settings.su_parallel_processing)]
-    # for su_chunk in su_chunk_list:
-    #     su_zipped = [(idx, spatial_unrolling[idx]) for idx in su_chunk]
-    #     for ii_su, su_x in su_zipped:
-    #         procs.append(Process(target=mem_scheme_su_evaluate,
-    #                         args=(input_settings, layer, layer_index, mem_scheme, mem_scheme_index, 
-    #                         ii_su, spatial_unrolling[ii_su], len(spatial_unrolling), multi_manager)))
-    #     for p in procs: p.start()
-    #     while time.time() - start <= TIMEOUT:  # and all([p.is_alive() for p in procs]):
-    #         if any(p.is_alive() for p in procs):
-    #             break
-    #             time.sleep(1)
-    #         else:
-    #             print('MEM SCHEME EVALUATE : TIMED OUT - KILLING ALL PROCESSES')
-    #             for p in procs:
-    #                 p.terminate()
-    #                 p.join()
-    #     for p in procs: p.join()
-
-    # Loop over the spatial unrollings
     su_count = len(spatial_unrolling)
-    for ii_su, su in enumerate(spatial_unrolling):
-        mem_scheme_su_evaluate(input_settings, layer, layer_index, layer_info, mem_scheme, mem_scheme_index,
-                            ii_su, su, su_count, multi_manager)
+    su_number = list(range(0, su_count, 1))
+    su_chunk_list = [su_number[i:i + input_settings.su_parallel_processing] for i in
+                     range(0, su_count, input_settings.su_parallel_processing)]
+    for su_chunk in su_chunk_list:
+        procs = []
+        su_zipped = [(su_idx, spatial_unrolling[su_idx]) for su_idx in su_chunk]
+        for ii_su, su in su_zipped:
+            p = Process(target=mem_scheme_su_evaluate,
+                        args=(input_settings, layer, layer_index, layer_info, mem_scheme, mem_scheme_index, 
+                            ii_su, su, su_count, multi_manager))
+            procs.append(p)
+        for p in procs: p.start()
+        while time.time() - start <= TIMEOUT:  # and all([p.is_alive() for p in procs]):
+            if any(p.is_alive() for p in procs):
+                break
+                time.sleep(1)
+            else:
+                print('MEM SCHEME EVALUATE : TIMED OUT - KILLING ALL PROCESSES')
+                for p in procs:
+                    p.terminate()
+                    p.join()
+        for p in procs: p.join()
 
     # Get the results from mem_scheme_su_evaluate
     list_min_energy = multi_manager.list_min_energy
@@ -542,7 +539,7 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, mem_scheme, mem_sche
                     best_ut_mem_su_str.split('_')[-1], int(best_ut_en), best_ut, int(best_ut_output.area)))
 
 
-def mem_scheme_list_evaluate(mem_scheme, input_settings, mem_scheme_index, layers, multi_manager):
+def mem_scheme_list_evaluate(input_settings, mem_scheme, mem_scheme_index, layers, multi_manager):
     
     mem_scheme_count = multi_manager.mem_scheme_count
 
@@ -550,21 +547,18 @@ def mem_scheme_list_evaluate(mem_scheme, input_settings, mem_scheme_index, layer
     print(mem_scheme.mem_size)
     print(mem_scheme.mem_unroll)
 
-    # layer_chunk_list = [input_settings.layer_number[i:i + input_settings.layer_parallel_processing] for i in
-    #                     range(0, len(input_settings.layer_number), input_settings.layer_parallel_processing)]
+    layer_chunk_list = [layers[i:i + input_settings.layer_parallel_processing] for i in
+                        range(0, len(layers), input_settings.layer_parallel_processing)]
 
-    # for ii_layer_chunk, layer_chunk in enumerate(layer_chunk_list):
-    #     procs = []
-    #     for ii_layer_index, layer_number in enumerate(layer_chunk):
-    #         procs.append(Process(target=mem_scheme_evaluate,
-    #                     args=(input_settings, layer_number, layers_dict[layer_number], mem_scheme, mem_scheme_index, multi_manager)))
-    #     for p in procs: p.start()
-    #     for p in procs: p.join()
-
-    # Loop through all the layers
-    for idx, layer in enumerate(layers):
-        layer_number = input_settings.layer_number[idx]
-        mem_scheme_evaluate(input_settings, layer_number, layer, mem_scheme, mem_scheme_index, multi_manager)
+    for ii_layer_chunk, layer_chunk in enumerate(layer_chunk_list):
+        procs = []
+        for ii_layer_index, layer in enumerate(layer_chunk):
+            layer_idx = ii_layer_chunk * input_settings.layer_parallel_processing + ii_layer_index
+            layer_number = input_settings.layer_number[layer_idx]
+            procs.append(Process(target=mem_scheme_evaluate,
+                        args=(input_settings, layer_number, layer, mem_scheme, mem_scheme_index, multi_manager)))
+        for p in procs: p.start()
+        for p in procs: p.join()
 
 def optimal_su_evaluate(input_settings, multi_manager):
     ''' Collect the optimum spatial unrolling results for all memory schemes '''

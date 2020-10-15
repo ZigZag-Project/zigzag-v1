@@ -5,7 +5,7 @@ class InputSettings:
 
     def __init__(self, results_path, results_filename, layer_filename, layer_number, layer_parallel_processing, precision, mac_array_info, \
                  mac_array_stall, mem_hierarchy_single_simulation, mem_scheme_parallel_processing, mem_scheme_single, fixed_spatial_unrolling, spatial_unrolling_single, \
-                 flooring_single, fixed_temporal_mapping, temporal_mapping_single, tmg_search_method, drc_enabled, PE_RF_size_threshold, PE_RF_depth, CHIP_depth, \
+                 flooring_single, fixed_temporal_mapping, temporal_mapping_single, tmg_search_method, temporal_mapping_multiprocessing, drc_enabled, PE_RF_size_threshold, PE_RF_depth, CHIP_depth, \
                  max_area, utilization_rate_area, memory_hierarchy_ratio, mem_pool, banking, L1_size, L2_size, unrolling_scheme_list, unrolling_scheme_list_text, memory_scheme_hint, \
                  spatial_utilization_threshold, spatial_unrolling_mode, stationary_optimization_enable, su_parallel_processing,
                  arch_search_result_saving, su_search_result_saving, tm_search_result_saving, result_print_mode):
@@ -27,6 +27,7 @@ class InputSettings:
         self.fixed_temporal_mapping = fixed_temporal_mapping
         self.temporal_mapping_single = temporal_mapping_single
         self.tmg_search_method = tmg_search_method
+        self.temporal_mapping_multiprocessing = temporal_mapping_multiprocessing
         self.drc_enabled = drc_enabled
         self.prune_PE_RF = True
         self.mem_hierarchy_iterative_search = False
@@ -236,7 +237,8 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
                                    mac_array_info, mac_array_stall, fl['fixed_architecture'],
                                    fl['architecture_search_multiprocessing'], memory_scheme_hint,
                                    fl['fixed_spatial_unrolling'], sm_fixed, flooring_fixed,
-                                   fl['fixed_temporal_mapping'], tm_fixed, tmg_search_method,
+                                   fl['fixed_temporal_mapping'], tm_fixed, tmg_search_method, 
+                                   fl['temporal_mapping_multiprocessing'],
                                    data_reuse_threshold, PE_RF_size_threshold, PE_depth,
                                    CHIP_depth, area_max_arch, area_utilization_arch,
                                    mem_ratio, memory_pool, banking, L1_size, L2_size, 
