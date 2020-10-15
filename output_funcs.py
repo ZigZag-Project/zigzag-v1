@@ -738,7 +738,8 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
         print_good_tm_format(cost_model_output.temporal_scheme, mem_scheme.mem_name, results_filename + '.mapping')
 
 
-def print_helper(input_settings, layers_dict, multi_manager):
+def print_helper(input_settings, layers, multi_manager):
+
     # Use this for other print types (such as yaml) in the future
     print_type = 'xml'
 
@@ -775,7 +776,7 @@ def print_helper(input_settings, layers_dict, multi_manager):
     list_sim_time_ut = multi_manager.list_sim_time_ut
 
     # Iterate through the processed layers
-    for layer_index in input_settings.layer_number:
+    for i, layer_index in enumerate(input_settings.layer_number):
 
         layer_idx_str = 'L_%d' % layer_index
         layer = cls.Layer.extract_layer_info(multi_manager.layer_spec.layer_info[layer_index])
@@ -792,7 +793,7 @@ def print_helper(input_settings, layers_dict, multi_manager):
 
                     if su_count is None:
                         # su count is None for duplicate layers, get su count from parent
-                        parent_str = 'L_%d' % layers_dict[layer_index].parent
+                        parent_str = 'L_%d' % layers[i].parent
                         su_count = list_su_count[mem_scheme_str][parent_str]
 
                     for i in range(1, su_count + 1):
@@ -871,8 +872,7 @@ def print_helper(input_settings, layers_dict, multi_manager):
             [[mem_scheme_su_str_en, tm_count_en]] = list_tm_count_en['best_mem_each_layer'][layer_idx_str].items()
             sim_time_en = list_sim_time_en['best_mem_each_layer'][layer_idx_str]
 
-            [[mem_scheme_su_str_ut, best_output_utilization]] = list_max_ut_output['best_mem_each_layer'][
-                layer_idx_str].items()
+            [[mem_scheme_su_str_ut, best_output_utilization]] = list_max_ut_output['best_mem_each_layer'][layer_idx_str].items()
 
             [[mem_scheme_su_str_ut, tm_count_ut]] = list_tm_count_ut['best_mem_each_layer'][layer_idx_str].items()
             sim_time_ut = list_sim_time_ut['best_mem_each_layer'][layer_idx_str]
@@ -885,6 +885,11 @@ def print_helper(input_settings, layers_dict, multi_manager):
 
             mem_scheme_count_str_en = '%d/%d' % (mem_scheme_index_en + 1, multi_manager.mem_scheme_count)
             mem_scheme_count_str_ut = '%d/%d' % (mem_scheme_index_ut + 1, multi_manager.mem_scheme_count)
+
+            spatial_unrolling_count_en = str(mem_scheme_su_str_en.split('_')[-1]) + '/' + str(mem_scheme_su_str_en.split('_')[-2])
+            spatial_unrolling_count_ut = str(mem_scheme_su_str_ut.split('_')[-1]) + '/' + str(mem_scheme_su_str_ut.split('_')[-2])
+            common_settings_en = CommonSetting(input_settings, layer_index, mem_scheme_count_str_en, spatial_unrolling_count_en, msc_en)
+            common_settings_ut = CommonSetting(input_settings, layer_index, mem_scheme_count_str_ut, spatial_unrolling_count_ut, msc_ut)
 
             spatial_unrolling_count_en = str(mem_scheme_su_str_en.split('_')[-1]) + '/' + str(
                 mem_scheme_su_str_en.split('_')[-2])
@@ -936,29 +941,21 @@ def print_helper(input_settings, layers_dict, multi_manager):
             mem_scheme_count_str_en = '%d/%d' % (best_mem_scheme_idx_en + 1, multi_manager.mem_scheme_count)
             mem_scheme_count_str_ut = '%d/%d' % (best_mem_scheme_idx_ut + 1, multi_manager.mem_scheme_count)
 
-            spatial_unrolling_count_en = str(mem_scheme_su_str_en.split('_')[-1]) + '/' + str(
-                mem_scheme_su_str_en.split('_')[-2])
-            spatial_unrolling_count_ut = str(mem_scheme_su_str_ut.split('_')[-1]) + '/' + str(
-                mem_scheme_su_str_ut.split('_')[-2])
-            common_settings_en = CommonSetting(input_settings, layer_index, mem_scheme_count_str_en,
-                                               spatial_unrolling_count_en, msc_en)
-            common_settings_ut = CommonSetting(input_settings, layer_index, mem_scheme_count_str_ut,
-                                               spatial_unrolling_count_ut, msc_ut)
+            spatial_unrolling_count_en = str(mem_scheme_su_str_en.split('_')[-1]) + '/' + str(mem_scheme_su_str_en.split('_')[-2])
+            spatial_unrolling_count_ut = str(mem_scheme_su_str_ut.split('_')[-1]) + '/' + str(mem_scheme_su_str_ut.split('_')[-2])
+            common_settings_en = CommonSetting(input_settings, layer_index, mem_scheme_count_str_en, spatial_unrolling_count_en, msc_en)
+            common_settings_ut = CommonSetting(input_settings, layer_index, mem_scheme_count_str_ut, spatial_unrolling_count_ut, msc_ut)
 
-            mem_scheme_su_save_str_en = '_M%d_SU%s' % (
-            best_mem_scheme_idx_en + 1, str(mem_scheme_su_str_en.split('_')[-1]))
-            mem_scheme_su_save_str_ut = '_M%d_SU%s' % (
-            best_mem_scheme_idx_ut + 1, str(mem_scheme_su_str_ut.split('_')[-1]))
+            mem_scheme_su_save_str_en = '_M%d_SU%s' %(best_mem_scheme_idx_en + 1, str(mem_scheme_su_str_en.split('_')[-1]))
+            mem_scheme_su_save_str_ut = '_M%d_SU%s' %(best_mem_scheme_idx_ut + 1, str(mem_scheme_su_str_ut.split('_')[-1]))
 
             sub_path = '/best_mem_network/'
 
             rf_en = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_en + rf_ending_en
             rf_ut = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_ut + rf_ending_ut
 
-            print_xml(rf_en, layer, msc_en, best_output_energy, common_settings_en, tm_count_en, sim_time_en,
-                      input_settings.result_print_mode)
-            print_xml(rf_ut, layer, msc_ut, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut,
-                      input_settings.result_print_mode)
+            print_xml(rf_en, layer, msc_en, best_output_energy, common_settings_en, tm_count_en, sim_time_en, input_settings.result_print_mode)
+            print_xml(rf_ut, layer, msc_ut, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut, input_settings.result_print_mode)
 
 
 class CostModelOutput:

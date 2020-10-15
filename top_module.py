@@ -40,8 +40,9 @@ if __name__ == "__main__":
     # Setup a layer dictionary of following format for easy access
     # key: layer number
     # value: Layer class
-    layers_dict = {input_settings.layer_number[i]: layers[i]
-                   for i in range(len(layers))}
+
+    # layers_dict = {input_settings.layer_number[i]: layers[i]
+    #             for i in range(len(layers))}
 
     results_path = input_settings.results_path
 
@@ -104,15 +105,13 @@ if __name__ == "__main__":
     mem_scheme_sim_chunk_list = [mem_scheme_sim[i:i + input_settings.mem_scheme_parallel_processing] for i in
                                  range(0, len(mem_scheme_sim), input_settings.mem_scheme_parallel_processing)]
 
-    for ii_mem_scheme_chunk, mem_scheme_sim_chunk in enumerate(
-            mem_scheme_sim_chunk_list):  # serial processing of chunks
+    for ii_mem_scheme_chunk, mem_scheme_sim_chunk in enumerate(mem_scheme_sim_chunk_list): # serial processing of chunks
 
         procs = []
         for mem_scheme_index, mem_scheme in enumerate(mem_scheme_sim_chunk):  # parallel processing of one chunk
             current_mem_scheme_index = mem_scheme_index + input_settings.mem_scheme_parallel_processing * ii_mem_scheme_chunk
             procs.append(Process(target=evaluate.mem_scheme_list_evaluate,
-                                 args=(mem_scheme, input_settings, current_mem_scheme_index, layers_dict, multi_manager)))
-
+                                args=(input_settings, mem_scheme, current_mem_scheme_index, layers, multi_manager)))
         for p in procs: p.start()
         for p in procs: p.join()
 
@@ -120,7 +119,7 @@ if __name__ == "__main__":
     if not input_settings.mem_hierarchy_single_simulation:
         evaluate.optimal_su_evaluate(input_settings, multi_manager)
 
-    of.print_helper(input_settings, layers_dict, multi_manager)
+    of.print_helper(input_settings, layers, multi_manager)
 
     total_time = int(time.time() - t1)
     print('ZigZag finished running. Total elapsed time: %d seconds.' % total_time)
