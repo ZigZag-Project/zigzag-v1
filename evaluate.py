@@ -25,9 +25,14 @@ def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_
             active_mac_cost, idle_mac_cost):
 
     pickle_enable = input_settings.tm_search_result_saving
+
+    energy_collect = None
+    utilization_collect = None
     if pickle_enable:
+        group_count = layer.G
         energy_collect = []
         utilization_collect = []
+
     min_energy = float('inf')
     min_energy_utilization = 0
     max_utilization = 0
@@ -81,7 +86,8 @@ def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_
         total_cost_layer += active_mac_cost + idle_mac_cost
         ''' for pickle file (collecting all temporal mappings' energy and array utilization)'''
         if pickle_enable:
-            energy_collect.append(int(total_cost_layer))
+            print("Index: %d    Energy: %d      Utilization: %.3f" % (idx, int(group_count * total_cost_layer), utilization.mac_utilize_no_load))
+            energy_collect.append(int(group_count * total_cost_layer))
             utilization_collect.append(utilization.mac_utilize_no_load)
 
         if (total_cost_layer < min_energy) or (
@@ -112,7 +118,9 @@ def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_
                                                 utilization, ii)
             best_output_utilization = output_result
 
-    return (min_energy, min_energy_utilization, best_output_energy, max_utilization_energy, max_utilization, best_output_utilization)
+    return (min_energy, min_energy_utilization, best_output_energy, 
+        max_utilization_energy, max_utilization, best_output_utilization,
+        energy_collect, utilization_collect)
 
 
 def mem_scheme_su_evaluate(input_settings, layer, layer_index, layer_info, mem_scheme, mem_scheme_index,
@@ -130,9 +138,6 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, layer_info, mem_s
     t1 = time.time()
     ''' for pickle file'''
     pickle_enable = input_settings.tm_search_result_saving
-    if pickle_enable:
-        energy_collect = []
-        utilization_collect = []
 
     if input_settings.fixed_spatial_unrolling is True and input_settings.mem_hierarchy_single_simulation is False:
         mem_scheme = cmf.su_correction(mem_scheme)
@@ -242,8 +247,18 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, layer_info, mem_s
         best_utilization = 0
         best_utilization_energy = float('inf')
 
+        # Create pickle file to append to if pickle_enable
+        if pickle_enable:
+            parent_folder = "%s/all_tm_results/" % (input_settings.results_path)
+            rf = "%s/%s_L_%d_SU_%d" % (parent_folder, input_settings.results_filename, layer_index, ii_su + 1)
+            rf_en = rf + '_energy.pickle'
+            rf_ut = rf + '_utilization.pickle'
+            rf_en_ut = rf + '_combined.pickle'
+            # Create parent folder if it does not exist
+            Path(parent_folder).mkdir(parents=True, exist_ok=True)
+
         # Loop through the best energy/ut found by the parallel processes to find the overall best one
-        for (min_en, min_en_ut, min_en_output, max_ut_en, max_ut, max_ut_output) in results:
+        for (min_en, min_en_ut, min_en_output, max_ut_en, max_ut, max_ut_output, en_collect, ut_collect) in results:
             if (min_en < best_energy or (min_en == best_energy and min_en_ut > best_energy_utilization)):
                 best_energy = min_en
                 best_energy_utilization = min_en_ut
@@ -253,21 +268,21 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, layer_info, mem_s
                 best_utilization = max_ut
                 best_output_utilization = max_ut_output
 
-
-            
-    # TODO: Fix writing all the tm's energy and utilization from parallel processes to pickle if required
-    # TODO: Multiply by number of groups before saving to pickle
-    if pickle_enable:
-        rf = input_settings.results_path + '/all_tm_results/' + input_settings.results_filename + '_L_' + str(
-            layer_index) + '_SU_' + str(ii_su + 1)
-        ''' Create result folder if it does not exist. '''
-        Path(input_settings.results_path + '/all_tm_results/').mkdir(parents=True, exist_ok=True)
-        with open(rf + '_energy.pickle', 'wb') as f:
-            pickle.dump(energy_collect, f)
-            f.close()
-        with open(rf + '_utilization.pickle', 'wb') as f:
-            pickle.dump(utilization_collect, f)
-            f.close()
+            # Save the collected (energy,ut) from every temporal mapping if required
+            if pickle_enable:
+                with open(rf_en, 'ab') as f:
+                    pickle.dump(en_collect, f)
+                    f.close()
+                with open(rf_ut, 'ab') as f:
+                    pickle.dump(ut_collect, f)
+                    f.close()
+                
+                # Save combined (en,ut) tuples
+                combined = zip(en_collect, ut_collect)
+                with open(rf_en_ut, 'ab') as f:
+                    for elem in combined:
+                        pickle.dump(elem, f)
+                    f.close()
 
     now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
