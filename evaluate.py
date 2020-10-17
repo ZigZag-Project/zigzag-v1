@@ -256,6 +256,7 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, layer_info, mem_s
 
             
     # TODO: Fix writing all the tm's energy and utilization from parallel processes to pickle if required
+    # TODO: Multiply by number of groups before saving to pickle
     if pickle_enable:
         rf = input_settings.results_path + '/all_tm_results/' + input_settings.results_filename + '_L_' + str(
             layer_index) + '_SU_' + str(ii_su + 1)
@@ -279,15 +280,16 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, layer_info, mem_s
         t_cm = int(t3 - t2)
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
+        group_count = layer.G
         if input_settings.fixed_temporal_mapping:
             print(
                 ' | Elapsed time: {0:d} sec | (energy, mac_utilization, area): ({1:d}, {2:.2f}, {3:d})'.format(
-                    int(t_cm), int(round(best_energy)), best_energy_utilization, int(best_output_energy.area)))
+                    int(t_cm), int(round(group_count*best_energy)), best_energy_utilization, int(best_output_energy.area)))
         else:
             print(
                 ' | Elapsed time: {0:d} sec | [min en: ({1:d}, {2:.2f}, {3:d}) max ut: ({4:d}, {5:.2f}, {6:d})] in all TMs'.format(
-                    int(t_cm), int(round(best_energy)), best_energy_utilization, int(best_output_energy.area),
-                    int(round(best_utilization_energy)), best_utilization, int(best_output_utilization.area)))
+                    int(t_cm), int(round(group_count*best_energy)), best_energy_utilization, int(best_output_energy.area),
+                    int(round(group_count*best_utilization_energy)), best_utilization, int(best_output_utilization.area)))
 
         if input_settings.fixed_temporal_mapping or input_settings.tmg_search_method != 0:
             tm_count = len(tl_list)
@@ -533,15 +535,15 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, mem_scheme, mem_sche
         if not input_settings.fixed_spatial_unrolling:
             now = datetime.now()
             current_time = now.strftime("%H:%M:%S")
-
+            group_count = layer.G
             print(
                 '{0:s} {1:s} L {2:d},  M {3:d},  SU {4:s}  Min En: ({5:d}, {6:.2f}, {7:d}) in all SUs and TMs'.format(
                     current_time, str(input_settings.layer_filename.split('/')[-1]), layer_index, mem_scheme_index + 1,
-                    best_en_mem_su_str.split('_')[-1], int(best_en), best_en_ut, int(best_en_output.area)))
+                    best_en_mem_su_str.split('_')[-1], int(group_count*best_en), best_en_ut, int(best_en_output.area)))
             print(
                 '{0:s} {1:s} L {2:d},  M {3:d},  SU {4:s}  Max Ut: ({5:d}, {6:.2f}, {7:d}) in all SUs and TMs'.format(
                     current_time, str(input_settings.layer_filename.split('/')[-1]), layer_index, mem_scheme_index + 1,
-                    best_ut_mem_su_str.split('_')[-1], int(best_ut_en), best_ut, int(best_ut_output.area)))
+                    best_ut_mem_su_str.split('_')[-1], int(group_count*best_ut_en), best_ut, int(best_ut_output.area)))
 
 
 def mem_scheme_list_evaluate(input_settings, mem_scheme, mem_scheme_index, layers, multi_manager):
@@ -567,7 +569,7 @@ def mem_scheme_list_evaluate(input_settings, mem_scheme, mem_scheme_index, layer
         for p in procs: p.join()
 
 
-def optimal_su_evaluate(input_settings, multi_manager):
+def optimal_su_evaluate(input_settings, layers, multi_manager):
     ''' Collect the optimum spatial unrolling results for all memory schemes '''
 
     # Get the results from multi_manager
@@ -657,14 +659,17 @@ def optimal_su_evaluate(input_settings, multi_manager):
         for mem_scheme_index in range(len(mem_scheme_sim)):
 
             mem_scheme_str = 'M_%d' % (mem_scheme_index + 1)
+
             tot_min_en_energy = 0
             tot_min_en_latency = 0
 
             tot_max_ut_energy = 0
             tot_max_ut_latency = 0
 
-            for layer_index in input_settings.layer_number:
+            for i, layer_index in enumerate(input_settings.layer_number):
                 layer_str = 'L_%d' % layer_index
+
+                group_count = layers[i].G
 
                 # Energy part
                 su_dict_en = list_min_energy[mem_scheme_str][layer_str]['best_su_each_mem']
@@ -673,7 +678,7 @@ def optimal_su_evaluate(input_settings, multi_manager):
                 min_en_output = list_min_en_output[mem_scheme_str][layer_str]['best_su_each_mem'][mem_scheme_su_str_en]
                 min_en_latency = min_en_output.utilization.latency_tot
 
-                tot_min_en_energy += min_en_en
+                tot_min_en_energy += group_count * min_en_en
                 tot_min_en_latency += min_en_latency
 
                 # Utilization (latency) part
@@ -683,7 +688,7 @@ def optimal_su_evaluate(input_settings, multi_manager):
                 max_ut_output = list_max_ut_output[mem_scheme_str][layer_str]['best_su_each_mem'][mem_scheme_su_str_ut]
                 max_ut_latency = max_ut_output.utilization.latency_tot
 
-                tot_max_ut_energy += max_ut_en
+                tot_max_ut_energy += group_count * max_ut_en
                 tot_max_ut_latency += max_ut_latency
 
             # Check if total energy for this memory scheme is best so far

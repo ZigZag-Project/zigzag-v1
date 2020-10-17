@@ -63,5 +63,19 @@ layer_info = {
         'SFY': 1,
         'SFX': 1,
         'PY': 0,
-        'PX': 0}
+        'PX': 0},
+    6: {'B': 1,
+        'K': 256, # Total for all groups
+        'C': 192, # Total for all groups
+        'OY': 13,
+        'OX': 13,
+        'FY': 3,
+        'FX': 3,
+        'SY': 1,
+        'SX': 1,
+        'SFY': 1,
+        'SFX': 1,
+        'PY': 0,
+        'PX': 0,
+        'G' : 2} # Number of groups
 }

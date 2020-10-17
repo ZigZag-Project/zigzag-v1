@@ -117,7 +117,7 @@ if __name__ == "__main__":
 
     ''' Collect the optimum spatial unrolling results for all memory schemes if doing architecture exploration'''
     if not input_settings.mem_hierarchy_single_simulation:
-        evaluate.optimal_su_evaluate(input_settings, multi_manager)
+        evaluate.optimal_su_evaluate(input_settings, layers, multi_manager)
 
     of.print_helper(input_settings, layers, multi_manager)
 

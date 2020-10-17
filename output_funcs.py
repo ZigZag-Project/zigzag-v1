@@ -369,16 +369,80 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
     result_generate_time = ET.SubElement(sim, 'result_generated_time')
     result_generate_time.tail = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if cost_model_output not in [None, [], {}]:
+
+        # If layer has a number of groups > 1, transform relevant variables.
+        # At this point, the results are those of one group, so multiply by number of groups.
+        group_count = layer_specification.G
+        
+        # SPECIFICATION
+        size_list_output_print = deepcopy(layer_specification.size_list_output_print)
+        size_list_output_print['C'] *= group_count
+        size_list_output_print['K'] *= group_count
+        
+        # COMPUTATIONS
+        total_MAC_op_number = group_count * layer_specification.total_MAC_op
+
+        # DATA SIZE
+        total_data_size_number = deepcopy(layer_specification.total_data_size)
+        total_data_size_number['W'] *= group_count
+        total_data_size_number['I'] *= group_count
+        total_data_size_number['O'] *= group_count
+
+        # MEMORY ACCESS
+        mem_access_elem = digit_truncate(deepcopy(cost_model_output.loop.mem_access_elem), 0)
+        mem_access_elem['W'] *= group_count
+        mem_access_elem['I'] *= group_count
+        mem_access_elem['O'] *= group_count
+        mem_access_elem['O_partial'] *= group_count
+        mem_access_elem['O_final'] *= group_count
+
+        # ENERGY
+        total_cost = round(group_count * cost_model_output.total_cost, 1)
+        operand_cost = energy_clean(deepcopy(cost_model_output.operand_cost))
+        operand_cost['W'] *= group_count
+        operand_cost['I'] *= group_count
+        operand_cost['O'] *= group_count
+        mac_cost_active = round(group_count * cost_model_output.mac_cost[0], 1)
+        mac_cost_idle = round(group_count * cost_model_output.mac_cost[1], 1)
+
+        # LATENCY
+        latency_tot_number = group_count * cost_model_output.utilization.latency_tot
+        latency_no_load_number = group_count * cost_model_output.utilization.latency_no_load
+        total_cycles_number = group_count * cost_model_output.temporal_loop.total_cycles
+
+        cc_load_tot_number = group_count * cost_model_output.utilization.cc_load_tot
+        cc_load_number = deepcopy(cost_model_output.utilization.cc_load)
+        cc_load_number['W'] = [group_count * elem for elem in cc_load_number['W']]
+        cc_load_number['I'] = [group_count * elem for elem in cc_load_number['I']]
+        cc_load_comb_number = deepcopy(cost_model_output.utilization.cc_load_comb)
+        cc_load_comb_number['W'] *= group_count
+        cc_load_comb_number['I'] *= group_count
+
+        cc_mem_stall_tot_number = group_count * cost_model_output.utilization.cc_mem_stall_tot
+        stall_cc_number = deepcopy(cost_model_output.utilization.stall_cc)
+        stall_cc_number['W'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_number['W']]
+        stall_cc_number['I'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_number['I']]
+        stall_cc_number['O'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_number['O']]
+        stall_cc_mem_share_number = deepcopy(cost_model_output.utilization.stall_cc_mem_share)
+        stall_cc_mem_share_number['W'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_mem_share_number['W']]
+        stall_cc_mem_share_number['I'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_mem_share_number['I']]
+        stall_cc_mem_share_number['O'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_mem_share_number['O']]
+
+
+
         if result_print_mode == 'complete':
             layer = ET.SubElement(sim, 'layer')
             # layer_index = ET.SubElement(layer, 'layer_index')
             # layer_index.tail = str(common_settings.layer_index)
             layer_spec = ET.SubElement(layer, 'layer_spec')
+            # layer_spec.tail = str(layer_specification.size_list_output_print)
             layer_spec.tail = str(layer_specification.size_list_output_print)
             total_MAC_op = ET.SubElement(layer, 'total_MAC_operation')
-            total_MAC_op.tail = str(layer_specification.total_MAC_op)
+            # total_MAC_op.tail = str(layer_specification.total_MAC_op)
+            total_MAC_op.tail = str(total_MAC_op_number)
             total_data_size = ET.SubElement(layer, 'total_data_size_element')
-            total_data_size.tail = str(layer_specification.total_data_size)
+            # total_data_size.tail = str(layer_specification.total_data_size)
+            total_data_size.tail = str(total_data_size_number)
             total_data_reuse = ET.SubElement(layer, 'total_data_reuse')
             total_data_reuse.tail = str(layer_specification.total_data_reuse)
 
@@ -529,33 +593,44 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
             access_count = ET.SubElement(basic_info, 'mem_access_count_elem')
             cost_model_output.loop.mem_access_elem = digit_truncate(cost_model_output.loop.mem_access_elem, 0)
             access_count_W = ET.SubElement(access_count, 'W')
-            access_count_W.tail = str(cost_model_output.loop.mem_access_elem['W'])
+            # access_count_W.tail = str(cost_model_output.loop.mem_access_elem['W'])
+            access_count_W.tail = str(mem_access_elem['W'])
             access_count_I = ET.SubElement(access_count, 'I')
-            access_count_I.tail = str(cost_model_output.loop.mem_access_elem['I'])
+            # access_count_I.tail = str(cost_model_output.loop.mem_access_elem['I'])
+            access_count_I.tail = str(mem_access_elem['I'])
             access_count_O = ET.SubElement(access_count, 'O')
-            access_count_O.tail = str(cost_model_output.loop.mem_access_elem['O'])
+            # access_count_O.tail = str(cost_model_output.loop.mem_access_elem['O'])
+            access_count_O.tail = str(mem_access_elem['O'])
             access_count_O_partial = ET.SubElement(access_count, 'O_partial')
-            access_count_O_partial.tail = str(cost_model_output.loop.mem_access_elem['O_partial'])
+            # access_count_O_partial.tail = str(cost_model_output.loop.mem_access_elem['O_partial'])
+            access_count_O_partial.tail = str(mem_access_elem['O_partial'])
             access_count_O_final = ET.SubElement(access_count, 'O_final')
-            access_count_O_final.tail = str(cost_model_output.loop.mem_access_elem['O_final'])
+            # access_count_O_final.tail = str(cost_model_output.loop.mem_access_elem['O_final'])
+            access_count_O_final.tail = str(mem_access_elem['O_final'])
             # array_element_distance = ET.SubElement(basic_info, 'array_element_distance')
             # array_element_distance.tail = str(cost_model_output.loop.array_wire_distance)
 
             energy = ET.SubElement(results, 'energy')
             minimum_cost = ET.SubElement(energy, 'total_energy')
-            minimum_cost.tail = str(round(cost_model_output.total_cost, 1))
+            # minimum_cost.tail = str(round(cost_model_output.total_cost, 1))
+            minimum_cost.tail = str(total_cost)
             energy_breakdown = ET.SubElement(energy, 'mem_energy_breakdown')
             cost_model_output.operand_cost = energy_clean(cost_model_output.operand_cost)
             energy_breakdown_W = ET.SubElement(energy_breakdown, 'W')
-            energy_breakdown_W.tail = str(cost_model_output.operand_cost['W'])
+            # energy_breakdown_W.tail = str(cost_model_output.operand_cost['W'])
+            energy_breakdown_W.tail = str(operand_cost['W'])
             energy_breakdown_I = ET.SubElement(energy_breakdown, 'I')
-            energy_breakdown_I.tail = str(cost_model_output.operand_cost['I'])
+            # energy_breakdown_I.tail = str(cost_model_output.operand_cost['I'])
+            energy_breakdown_I.tail = str(operand_cost['I'])
             energy_breakdown_O = ET.SubElement(energy_breakdown, 'O')
-            energy_breakdown_O.tail = str(cost_model_output.operand_cost['O'])
+            # energy_breakdown_O.tail = str(cost_model_output.operand_cost['O'])
+            energy_breakdown_O.tail = str(operand_cost['O'])
 
             mac_cost = ET.SubElement(energy, 'mac_energy')
-            mac_cost.tail = 'active: ' + str(round(cost_model_output.mac_cost[0], 1)) + \
-                            ', idle: ' + str(round(cost_model_output.mac_cost[1], 1))
+            # mac_cost.tail = 'active: ' + str(round(cost_model_output.mac_cost[0], 1)) + \
+            #                 ', idle: ' + str(round(cost_model_output.mac_cost[1], 1))
+            mac_cost.tail = 'active: ' + str(mac_cost_active) + \
+                            ', idle: ' + str(mac_cost_idle)
 
             performance = ET.SubElement(results, 'performance')
             utilization = ET.SubElement(performance, 'mac_array_utilization')
@@ -569,32 +644,41 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
             mac_utilize_temporal = ET.SubElement(utilization, 'utilization_temporal_with_data_loading')
             mac_utilize_temporal.tail = str(round(cost_model_output.utilization.mac_utilize_temporal, 4))
             mac_utilize_temporal_no_load = ET.SubElement(utilization, 'mac_utilize_temporal_without_data_loading')
-            mac_utilize_temporal_no_load.tail = str(
-                round(cost_model_output.utilization.mac_utilize_temporal_no_load, 4))
+            mac_utilize_temporal_no_load.tail = str(round(cost_model_output.utilization.mac_utilize_temporal_no_load, 4))
+
 
             latency = ET.SubElement(performance, 'latency')
             latency_tot = ET.SubElement(latency, 'latency_cycle_with_data_loading')
-            latency_tot.tail = str(cost_model_output.utilization.latency_tot)
+            # latency_tot.tail = str(cost_model_output.utilization.latency_tot)
+            latency_tot.tail = str(latency_tot_number)
             latency_no_load = ET.SubElement(latency, 'latency_cycle_without_data_loading')
-            latency_no_load.tail = str(cost_model_output.utilization.latency_no_load)
+            # latency_no_load.tail = str(cost_model_output.utilization.latency_no_load)
+            latency_no_load.tail = str(latency_no_load_number)
             total_cycles = ET.SubElement(latency, 'ideal_computing_cycle')
-            total_cycles.tail = str(cost_model_output.temporal_loop.total_cycles)
+            # total_cycles.tail = str(cost_model_output.temporal_loop.total_cycles)
+            total_cycles.tail = str(total_cycles_number)
 
             data_loading = ET.SubElement(latency, 'data_loading')
             cc_load_tot = ET.SubElement(data_loading, 'load_cycle_total')
-            cc_load_tot.tail = str(cost_model_output.utilization.cc_load_tot)
+            # cc_load_tot.tail = str(cost_model_output.utilization.cc_load_tot)
+            cc_load_tot.tail = str(cc_load_tot_number)
             cc_load = ET.SubElement(data_loading, 'load_cycle_individual')
-            cc_load.tail = str(cost_model_output.utilization.cc_load)
+            # cc_load.tail = str(cost_model_output.utilization.cc_load)
+            cc_load.tail = str(cc_load_number)
             cc_load_comb = ET.SubElement(data_loading, 'load_cycle_combined')
-            cc_load_comb.tail = str(cost_model_output.utilization.cc_load_comb)
+            # cc_load_comb.tail = str(cost_model_output.utilization.cc_load_comb)
+            cc_load_comb.tail = str(cc_load_comb_number)
 
             mem_stalling = ET.SubElement(latency, 'mem_stalling')
             cc_mem_stall_tot = ET.SubElement(mem_stalling, 'mem_stall_cycle_total')
-            cc_mem_stall_tot.tail = str(cost_model_output.utilization.cc_mem_stall_tot)
+            # cc_mem_stall_tot.tail = str(cost_model_output.utilization.cc_mem_stall_tot)
+            cc_mem_stall_tot.tail = str(cc_mem_stall_tot_number)
             stall_cc = ET.SubElement(mem_stalling, 'mem_stall_cycle_individual')
-            stall_cc.tail = str(cost_model_output.utilization.stall_cc)
+            # stall_cc.tail = str(cost_model_output.utilization.stall_cc)
+            stall_cc.tail = str(stall_cc_number)
             stall_cc_mem_share = ET.SubElement(mem_stalling, 'mem_stall_cycle_shared')
-            stall_cc_mem_share.tail = str(cost_model_output.utilization.stall_cc_mem_share)
+            # stall_cc_mem_share.tail = str(cost_model_output.utilization.stall_cc_mem_share)
+            stall_cc_mem_share.tail = str(stall_cc_mem_share_number)
 
             req_mem_bw_bit = ET.SubElement(mem_stalling, 'req_mem_bw_bit_per_cycle_individual')
             req_mem_bw_bit.tail = str(digit_truncate(cost_model_output.utilization.req_mem_bw_bit, 1))
@@ -612,11 +696,14 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
             # layer_index = ET.SubElement(layer, 'layer_index')
             # layer_index.tail = str(common_settings.layer_index)
             layer_spec = ET.SubElement(layer, 'layer_spec')
-            layer_spec.tail = str(layer_specification.size_list_output_print)
+            # layer_spec.tail = str(layer_specification.size_list_output_print)
+            layer_spec.tail = str(size_list_output_print)
             total_MAC_op = ET.SubElement(layer, 'total_MAC_operation')
-            total_MAC_op.tail = str(layer_specification.total_MAC_op)
+            # total_MAC_op.tail = str(layer_specification.total_MAC_op)
+            total_MAC_op.tail = str(total_MAC_op_number)
             total_data_size = ET.SubElement(layer, 'total_data_size_element')
-            total_data_size.tail = str(layer_specification.total_data_size)
+            # total_data_size.tail = str(layer_specification.total_data_size)
+            total_data_size.tail = str(total_data_size_number)
             # total_data_reuse = ET.SubElement(layer, 'total_data_reuse')
             # total_data_reuse.tail = str(layer_specification.total_data_reuse)
 
@@ -686,19 +773,24 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
 
             energy = ET.SubElement(results, 'energy')
             minimum_cost = ET.SubElement(energy, 'total_energy')
-            minimum_cost.tail = str(round(cost_model_output.total_cost, 1))
+            # minimum_cost.tail = str(round(cost_model_output.total_cost, 1))
+            minimum_cost.tail = str(total_cost)
             energy_breakdown = ET.SubElement(energy, 'energy_breakdown')
             cost_model_output.operand_cost = energy_clean(cost_model_output.operand_cost)
             energy_breakdown_W = ET.SubElement(energy_breakdown, 'mem_energy_W')
-            energy_breakdown_W.tail = str(cost_model_output.operand_cost['W'])
+            # energy_breakdown_W.tail = str(cost_model_output.operand_cost['W'])
+            energy_breakdown_W.tail = str(operand_cost['W'])
             energy_breakdown_I = ET.SubElement(energy_breakdown, 'mem_energy_I')
-            energy_breakdown_I.tail = str(cost_model_output.operand_cost['I'])
+            # energy_breakdown_I.tail = str(cost_model_output.operand_cost['I'])
+            energy_breakdown_I.tail = str(operand_cost['I'])
             energy_breakdown_O = ET.SubElement(energy_breakdown, 'mem_energy_O')
-            energy_breakdown_O.tail = str(cost_model_output.operand_cost['O'])
+            # energy_breakdown_O.tail = str(cost_model_output.operand_cost['O'])
+            energy_breakdown_O.tail = str(operand_cost['O'])
 
             mac_cost = ET.SubElement(energy, 'mac_energy')
             mac_cost.tail = 'active: ' + str(round(cost_model_output.mac_cost[0], 1)) + \
                             ', idle: ' + str(round(cost_model_output.mac_cost[1], 1))
+            mac_cost.tail = 'active: ' + str(mac_cost_active) + ', idle: ' + str(mac_cost_idle)
 
             performance = ET.SubElement(results, 'performance')
             utilization = ET.SubElement(performance, 'mac_array_utilization')
@@ -718,7 +810,8 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
             # latency_tot = ET.SubElement(latency, 'latency_cycle_with_data_loading')
             # latency_tot.tail = str(cost_model_output.utilization.latency_tot)
             # latency_no_load = ET.SubElement(latency, 'latency_cycle_without_data_loading')
-            latency.tail = str(cost_model_output.utilization.latency_no_load)
+            # latency.tail = str(cost_model_output.utilization.latency_no_load)
+            latency.tail = str(latency_no_load)
             # total_cycles = ET.SubElement(latency, 'ideal_computing_cycle')
             # total_cycles.tail = str(cost_model_output.temporal_loop.total_cycles)
 
@@ -779,7 +872,7 @@ def print_helper(input_settings, layers, multi_manager):
     for i, layer_index in enumerate(input_settings.layer_number):
 
         layer_idx_str = 'L_%d' % layer_index
-        layer = cls.Layer.extract_layer_info(multi_manager.layer_spec.layer_info[layer_index])
+        layer = layers[i]
 
         if save_all_arch or input_settings.mem_hierarchy_single_simulation:
             for mem_scheme_index in range(multi_manager.mem_scheme_count):
