@@ -83,6 +83,7 @@ def check_node(blocking_node, mem_size, operand_irrelevant, mem_share, precision
                 good = False
     return good
 
+
 def cleaner(LPF_schemes_list):
     # Given a list of SchedulerNodes, delete all the duplicate ones
     clean_nodes = []

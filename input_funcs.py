@@ -3,6 +3,7 @@ import sys
 from msg import MemoryNode, MemorySchemeNode, MemoryScheme
 import importlib.machinery
 
+
 class InputSettings:
 
     def __init__(self, results_path, results_filename, layer_filename, layer_number, layer_parallel_processing, precision,
@@ -13,7 +14,8 @@ class InputSettings:
                  memory_hierarchy_ratio, mem_pool, banking, L1_size, L2_size, unrolling_size_list, unrolling_scheme_list,
                  unrolling_scheme_list_text, memory_scheme_hint, spatial_utilization_threshold, spatial_unrolling_mode,
                  stationary_optimization_enable, su_parallel_processing, arch_search_result_saving, su_search_result_saving,
-                 tm_search_result_saving, result_print_mode):
+                 tm_search_result_saving, result_print_mode, im2col_enable):
+
         self.results_path = results_path
         self.results_filename = results_filename
         self.layer_filename = layer_filename
@@ -59,6 +61,7 @@ class InputSettings:
         self.su_search_result_saving = su_search_result_saving
         self.tm_search_result_saving = tm_search_result_saving
         self.result_print_mode = result_print_mode
+        self.im2col_enable = im2col_enable
 
 
 def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure_path):
@@ -254,7 +257,7 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
                                    mac_array_info, mac_array_stall, fl['fixed_architecture'],
                                    fl['architecture_search_multiprocessing'], memory_scheme_hint,
                                    fl['fixed_spatial_unrolling'], sm_fixed, flooring_fixed,
-                                   fl['fixed_temporal_mapping'], tm_fixed, tmg_search_method, 
+                                   fl['fixed_temporal_mapping'], tm_fixed, tmg_search_method,
                                    fl['temporal_mapping_multiprocessing'],
                                    data_reuse_threshold, PE_RF_size_threshold, PE_depth,
                                    CHIP_depth, area_max_arch, area_utilization_arch,
@@ -263,7 +266,7 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
                                    fl['spatial_utilization_threshold'], sumx, stationary_optimization_enable,
                                    fl['spatial_unrolling_multiprocessing'], fl['save_all_architecture_result'],
                                    fl['save_all_spatial_unrolling_result'], fl['save_all_temporal_mapping_result'],
-                                   fl['result_print_mode'])
+                                   fl['result_print_mode'], fl['im2col_enable'])
 
     return input_settings
 
