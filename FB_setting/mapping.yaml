@@ -12,7 +12,7 @@ temporal_mapping_fixed:
     reg_psum: [[C,480]]
     global_buffer: [[K,5], [OY,3]]
 
-# L1 mapping assumption 1
+# FIXED SPATIAL MAPPING
 spatial_mapping_fixed:
   weight:
     MAC: []
@@ -35,32 +35,8 @@ spatial_mapping_fixed:
       Row: [[K,32]]
     1: []
 
-#spatial_mapping_fixed:
-#  weight:
-#    MAC: []
-#    0:
-#      Col: [[OX,12], [C,2]]
-#      Row: [[K,32]]
-#    1: []
-#    2: []
-#  input:
-#    MAC: []
-#    0:
-#      Col: [[OX,12], [C,2]]
-#      Row: [[K,32]]
-#    1: []
-#    2: []
-#  output:
-#    MAC: []
-#    0:
-#      Col: [[OX,12], [C,2]]
-#      Row: [[K,32]]
-#    1: []
-
-
 # SPATIAL MAPPING HINT LIST
 # used as hint if 'hint_driven' search method is chosen in the setting file.
 spatial_mapping_list: [
-  [Col : [B, OX, C_2], Row : [K]],
-  [Col : [B, C_2], Row : [K]]
+  [Col : [B,OY,OX,C_2], Row : [K]]
 ]

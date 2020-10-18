@@ -169,7 +169,7 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, layer_info, mem_s
         print('Utilization pruning active. Mem scheme sub-optimal')
         discard_mem_scheme = True
     if good_scheme:
-        # print('SU', ii_su + 1, '/', len(mem_scheme.spatial_unrolling), mem_scheme.spatial_unrolling[ii_su])
+        print('SU', ii_su + 1, '/', len(mem_scheme.spatial_unrolling), mem_scheme.spatial_unrolling[ii_su])
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
         print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, ', M',
@@ -214,9 +214,9 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, layer_info, mem_s
         else:
             now = datetime.now()
             current_time = now.strftime("%H:%M:%S")
-            print(current_time, ' M', mem_scheme_index + 1, '/', mem_scheme_count, ', L', layer_index, ', SU',
-                  ii_su + 1, '/',
-                  len(mem_scheme.spatial_unrolling), ' No TM found')
+            print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, ', M',
+                      mem_scheme_index + 1, '/', mem_scheme_count, ', SU', ii_su + 1,
+                      '/', len(mem_scheme.spatial_unrolling), ' No TM found')
             return
 
         now = datetime.now()
@@ -363,6 +363,7 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, layer_info, mem_s
 def mem_scheme_evaluate(input_settings, layer_index, layer, mem_scheme, mem_scheme_index, multi_manager):
     mem_scheme_count = multi_manager.mem_scheme_count
     layer_info = deepcopy(multi_manager.layer_spec.layer_info)
+    print('Layer', layer_index, layer_info[layer_index])
 
     # Check if this is a duplicate layer
     if layer.is_duplicate:
@@ -572,7 +573,7 @@ def mem_scheme_list_evaluate(input_settings, mem_scheme, mem_scheme_index, layer
 
 
 def optimal_su_evaluate(input_settings, multi_manager):
-    ''' Collect the optimum spatial unrolling results for all memory schemes '''
+    """ Collect the optimum spatial unrolling results for all memory schemes """
 
     # Get the results from multi_manager
     mem_scheme_sim = multi_manager.mem_scheme_sim

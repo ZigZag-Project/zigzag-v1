@@ -1,6 +1,5 @@
-
 # OUTPUT FILE
-result_path : './results_FB_test/2'
+result_path : './FBBBBB/conv'
 #result_path : './test_multi_layer'
 result_filename : FB
 
@@ -25,13 +24,14 @@ save_all_temporal_mapping_result : False
 # WORKLOAD
 # layer_indices can be a single-element list or a multiple-element list.
 layer_filename : './NN_layers/FB'
-layer_indices : [11]
+layer_indices : [1, 2]
 
 # MULTIPROCESSING
-# run the framework in multiprocessing mode to speedup the search procedure.
+# run the framework in multiprocessing modes to speedup the search and cost evaluation procedure.
 layer_multiprocessing : 100
 architecture_search_multiprocessing : 100
 spatial_unrolling_multiprocessing : 100
+temporal_mapping_multiprocessing : 100
 
 # TEMPORAL MAPPING GENERATOR SETTINGS
 # search_method : exhaustive / heuristic_v1 / heuristic_v2 / iterative
@@ -43,3 +43,6 @@ temporal_mapping_search_method : exhaustive
 # and 'spatial_utilization_threshold' below will be ignored.
 spatial_unrolling_search_method : hint_driven_with_greedy_mapping
 spatial_utilization_threshold : 0.7
+
+# CONV im2col ENABLE
+im2col_enable : False
