@@ -44,3 +44,4 @@ temporal_mapping_search_method : heuristic_v1
 spatial_unrolling_search_method : hint_driven_with_greedy_mapping
 spatial_utilization_threshold : 0.75
 
+im2col_enable : False
