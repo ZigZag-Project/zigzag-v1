@@ -41,12 +41,12 @@ def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_
     for idx, tl in enumerate(tl_list):
         temporal_loop = cls.TemporalLoop.extract_loop_info(layer, tl, spatial_loop)
         loop = cls.Loop.extract_loop_info(layer, temporal_loop, spatial_loop, input_settings.precision,
-                                            input_settings.fixed_temporal_mapping)
+                                          input_settings.fixed_temporal_mapping)
 
         if input_settings.spatial_unrolling_mode == 4:
             temporal_loop_fractional = cls.TemporalLoop.extract_loop_info(layer, tl, spatial_loop_fractional)
             loop_fractional = cls.Loop.extract_loop_info(layer, temporal_loop_fractional, spatial_loop_fractional,
-                                                            input_settings.precision, input_settings.fixed_temporal_mapping)
+                                                         input_settings.precision, input_settings.fixed_temporal_mapping)
         else:
             loop_fractional = loop
             
@@ -73,10 +73,11 @@ def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_
             for level in range(0, len(tl[operand])):
                 operand_cost[operand].append(
                     cmf.get_operand_level_energy_cost(operand, level, msc.mem_cost,
-                                                        input_settings.mac_array_info,
-                                                        schedule_info, loop_fractional,
-                                                        msc.mem_fifo, msc, input_settings.precision,
-                                                        utilization, ii))
+                                                      input_settings.mac_array_info,
+                                                      schedule_info, loop_fractional,
+                                                      msc.mem_fifo, msc, input_settings.precision,
+                                                      utilization, ii))
+                
                 # loop.array_wire_distance[operand].append(
                 #     cmf.get_operand_level_wire_distance(operand, level,
                 #                                         schedule_info,
@@ -101,6 +102,7 @@ def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_
                                                 deepcopy(loop_fractional), deepcopy(spatial_loop),
                                                 deepcopy(temporal_loop), occupied_area,
                                                 utilization, ii)
+
             best_output_energy = output_result
 
         if (utilization.mac_utilize_no_load > max_utilization) or (
@@ -195,7 +197,7 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, layer_info, mem_s
         if input_settings.fixed_temporal_mapping:
             tl_list.append(input_settings.temporal_mapping_single)
             tl_combinations = 1
-        
+
         t2 = time.time()
         t_tmg = int(t2 - t1)
         now = datetime.now()
@@ -203,21 +205,21 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, layer_info, mem_s
         if tl_list:
             if (not input_settings.fixed_temporal_mapping) and (input_settings.tmg_search_method == 0):
                 print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, ', M',
-                      mem_scheme_index + 1, '/', mem_scheme_count, ', SU', ii_su + 1, 
+                      mem_scheme_index + 1, '/', mem_scheme_count, ', SU', ii_su + 1,
                       '/', len(mem_scheme.spatial_unrolling), ' TMG finished', '| Elapsed time:', t_tmg, 'sec',
                       '| Valid TMs found: ( partial:', tl_combinations, ', final:', len(tl_list), ')')
             else:
                 print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, ', M',
-                      mem_scheme_index + 1, '/', mem_scheme_count, ', SU', ii_su + 1, 
+                      mem_scheme_index + 1, '/', mem_scheme_count, ', SU', ii_su + 1,
                       '/', len(mem_scheme.spatial_unrolling), ' TMG Finished', '| Elapsed time:', t_tmg, 'sec',
                       '| Valid TMs found:', len(tl_list))
 
         else:
             now = datetime.now()
             current_time = now.strftime("%H:%M:%S")
-            print(current_time, ' M', mem_scheme_index + 1, '/', mem_scheme_count, ', L', layer_index, ', SU',
-                  ii_su + 1, '/',
-                  len(mem_scheme.spatial_unrolling), ' No TM found')
+            print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, ', M',
+                      mem_scheme_index + 1, '/', mem_scheme_count, ', SU', ii_su + 1,
+                      '/', len(mem_scheme.spatial_unrolling), ' No TM found')
             return
 
         now = datetime.now()
@@ -310,49 +312,6 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, layer_info, mem_s
         else:
             tm_count = {'partial': tl_combinations, 'final': len(tl_list)}
 
-
-        '''
-        Write to xml on the fly. Beware of using (outdated code)
-        '''
-        # spatial_unrolling_index = str(ii_su + 1) + '/' + str(spatial_unrolling_count)
-        # mem_scheme_count = str(mem_scheme_index + 1) + '/' + str(mem_scheme_count)
-        # common_settings = of.CommonSetting(input_settings,
-        #                                    ii_layer_index,
-        #                                    mem_scheme_count,
-        #                                    spatial_unrolling_index,
-        #                                    msc_list[0])
-
-        # if input_settings.fixed_spatial_unrolling and input_settings.fixed_temporal_mapping:
-        #     sub_path = '/fixed_tm_for_fixed_su/'
-        # elif input_settings.fixed_spatial_unrolling:
-        #     sub_path = '/best_tm_for_fixed_su/'
-        # else:
-        #     sub_path = '/best_tm_for_each_su/'
-
-        # if not (input_settings.fixed_spatial_unrolling is False
-        #         and input_settings.su_search_result_saving is False):
-        #     if not (input_settings.fixed_spatial_unrolling and input_settings.fixed_temporal_mapping):
-                # rf = input_settings.results_path + sub_path + input_settings.results_filename + '_L' + str(
-                #     layer_index) + '_M' + str(
-                #     mem_scheme_index + 1) + '_SU' + str(
-                #     ii_su + 1) + '_min_en'
-                # of.print_xml(rf, layer, msc_list[0], best_output_energy, common_settings, tm_count, t2,
-                #              input_settings.result_print_mode)
-
-                # rf = input_settings.results_path + sub_path + input_settings.results_filename + '_L' + str(
-                #     layer_index) + '_M' + str(
-                #     mem_scheme_index + 1) + '_SU' + str(
-                #     ii_su + 1) + '_max_ut'
-                # of.print_xml(rf, layer, msc_list[0], best_output_utilization, common_settings, tm_count, t2,
-                #              input_settings.result_print_mode)
-            # else:
-                # rf = input_settings.results_path + sub_path + input_settings.results_filename + '_L' + str(
-                #     layer_index) + '_M' + str(
-                #     mem_scheme_index + 1) + '_SU' + str(
-                #     ii_su + 1)
-                # of.print_xml(rf, layer, msc_list[0], best_output_energy, common_settings, tm_count, t2,
-                #              input_settings.result_print_mode)
-
     else:
         # total_cost_mem_scheme.value += float('inf')
         now = datetime.now()
@@ -376,13 +335,14 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, layer_info, mem_s
 def mem_scheme_evaluate(input_settings, layer_index, layer, mem_scheme, mem_scheme_index, multi_manager):
     mem_scheme_count = multi_manager.mem_scheme_count
     layer_info = deepcopy(multi_manager.layer_spec.layer_info)
+    # print('Layer', layer_index, layer_info[layer_index])
 
     # Check if this is a duplicate layer
     if layer.is_duplicate:
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
-        print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, 
-            'is a duplicate of L', layer.parent, '. Skipping exploration.')
+        print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index,
+              'is a duplicate of L', layer.parent, '. Skipping exploration.')
         return
 
     t1 = time.time()
@@ -445,7 +405,8 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, mem_scheme, mem_sche
         mem_scheme.spatial_unrolling = spatial_unrolling
         mem_scheme.flooring = flooring
 
-        print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, ', M', mem_scheme_index + 1, '/', mem_scheme_count, ' SUG finished',
+        print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, ', M',
+              mem_scheme_index + 1, '/', mem_scheme_count, ' SUG finished',
               '| Valid SU found:', len(spatial_unrolling))
 
     if not mem_scheme.spatial_unrolling:
@@ -466,8 +427,8 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, mem_scheme, mem_sche
         su_zipped = [(su_idx, spatial_unrolling[su_idx]) for su_idx in su_chunk]
         for ii_su, su in su_zipped:
             p = Process(target=mem_scheme_su_evaluate,
-                        args=(input_settings, layer, layer_index, layer_info, mem_scheme, mem_scheme_index, 
-                            ii_su, su, su_count, multi_manager))
+                        args=(input_settings, layer, layer_index, layer_info, mem_scheme, mem_scheme_index,
+                              ii_su, su, su_count, multi_manager))
             procs.append(p)
 
         for p in procs: p.start()
@@ -673,7 +634,7 @@ def optimal_su_evaluate(input_settings, layers, multi_manager):
         for mem_scheme_index in range(len(mem_scheme_sim)):
 
             mem_scheme_str = 'M_%d' % (mem_scheme_index + 1)
-
+            
             tot_min_en_energy = 0
             tot_min_en_latency = 0
 

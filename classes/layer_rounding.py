@@ -107,7 +107,6 @@ class LayerRound(object):
         footer_info = []
         fraction_spatial_unrolling = []
         ideal_spatial_unrolling = []
-
         aux_layer_to_su_hint_table = []
         for i in range(len(unrolling_scheme_list)):
             su_list_flatten = [item for sublist in unrolling_scheme_list[i] for item in sublist]

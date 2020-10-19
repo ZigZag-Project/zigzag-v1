@@ -627,8 +627,6 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
             energy_breakdown_O.tail = str(operand_cost['O'])
 
             mac_cost = ET.SubElement(energy, 'mac_energy')
-            # mac_cost.tail = 'active: ' + str(round(cost_model_output.mac_cost[0], 1)) + \
-            #                 ', idle: ' + str(round(cost_model_output.mac_cost[1], 1))
             mac_cost.tail = 'active: ' + str(mac_cost_active) + \
                             ', idle: ' + str(mac_cost_idle)
 
@@ -788,8 +786,6 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
             energy_breakdown_O.tail = str(operand_cost['O'])
 
             mac_cost = ET.SubElement(energy, 'mac_energy')
-            mac_cost.tail = 'active: ' + str(round(cost_model_output.mac_cost[0], 1)) + \
-                            ', idle: ' + str(round(cost_model_output.mac_cost[1], 1))
             mac_cost.tail = 'active: ' + str(mac_cost_active) + ', idle: ' + str(mac_cost_idle)
 
             performance = ET.SubElement(results, 'performance')
@@ -830,7 +826,7 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
         print_good_su_format(cost_model_output.spatial_scheme, mem_scheme.mem_name, results_filename + '.mapping')
         print_good_tm_format(cost_model_output.temporal_scheme, mem_scheme.mem_name, results_filename + '.mapping')
 
-
+        
 def print_helper(input_settings, layers, multi_manager):
 
     # Use this for other print types (such as yaml) in the future
