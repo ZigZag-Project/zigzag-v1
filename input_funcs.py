@@ -15,7 +15,7 @@ class InputSettings:
                  memory_hierarchy_ratio, mem_pool, banking, L1_size, L2_size, unrolling_size_list, unrolling_scheme_list,
                  unrolling_scheme_list_text, memory_scheme_hint, spatial_utilization_threshold, spatial_unrolling_mode,
                  stationary_optimization_enable, su_parallel_processing, arch_search_result_saving, su_search_result_saving,
-                 tm_search_result_saving, result_print_mode, im2col_enable):
+                 tm_search_result_saving, result_print_mode):
 
         self.results_path = results_path
         self.results_filename = results_filename
@@ -62,7 +62,6 @@ class InputSettings:
         self.su_search_result_saving = su_search_result_saving
         self.tm_search_result_saving = tm_search_result_saving
         self.result_print_mode = result_print_mode
-        self.im2col_enable = im2col_enable
 
 
 def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure_path):
@@ -267,7 +266,7 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
                                    fl['spatial_utilization_threshold'], sumx, stationary_optimization_enable,
                                    fl['spatial_unrolling_multiprocessing'], fl['save_all_architecture_result'],
                                    fl['save_all_spatial_unrolling_result'], fl['save_all_temporal_mapping_result'],
-                                   fl['result_print_mode'], fl['im2col_enable'])
+                                   fl['result_print_mode'])
 
     return input_settings
 
