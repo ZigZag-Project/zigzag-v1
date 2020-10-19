@@ -86,7 +86,6 @@ def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_
         total_cost_layer += active_mac_cost + idle_mac_cost
         ''' for pickle file (collecting all temporal mappings' energy and array utilization)'''
         if pickle_enable:
-            print("Index: %d    Energy: %d      Utilization: %.3f" % (idx, int(group_count * total_cost_layer), utilization.mac_utilize_no_load))
             energy_collect.append(int(group_count * total_cost_layer))
             utilization_collect.append(utilization.mac_utilize_no_load)
 

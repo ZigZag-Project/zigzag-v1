@@ -891,6 +891,10 @@ def print_helper(input_settings, layers, multi_manager):
 
                     for i in range(1, su_count + 1):
                         mem_scheme_su_str = '%s_SU_%d_%d' % (mem_scheme_str, su_count, i)
+   
+                        if mem_scheme_su_str not in list_min_en_output[mem_scheme_str][layer_idx_str]['best_tm_each_su']:
+                            # This means there was no temporal mapping found for this spatial unrolling, so skip
+                            continue
 
                         best_output_energy = list_min_en_output[mem_scheme_str][layer_idx_str]['best_tm_each_su'][
                             mem_scheme_su_str]

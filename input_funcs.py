@@ -2,6 +2,7 @@ import yaml
 import sys
 from msg import MemoryNode, MemorySchemeNode, MemoryScheme
 import importlib.machinery
+import keras
 
 class InputSettings:
 
@@ -268,10 +269,27 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
     return input_settings
 
 
-def get_layer_spec(input_settings):
+def get_layer_spec(input_settings, model=None):
+    """
+    Function that gets the layer_spec according from the input_settings
+    If a Keras model is provided, it will update the layer spec accordingly
+
+
+    Arguments
+    =========
+
+    - input_settings: The input settings to get the layer_spec file location 
+
+    - model: A keras model that constitutes of a number of Conv2D layers
+
+    """    
     print()
     layer_filename = input_settings.layer_filename
     layer_spec = importlib.machinery.SourceFileLoader('%s' % (layer_filename), '%s.py' % (layer_filename)).load_module()
+
+    if model is not None:
+        update_layer_spec(layer_spec, input_settings, model)
+
     for layer_number, specs in layer_spec.layer_info.items():
 
         if layer_number in input_settings.layer_number: # Only care about layers we have to process
@@ -291,3 +309,70 @@ def get_layer_spec(input_settings):
                     % layer_number)
     print()
     return layer_spec
+
+def update_layer_spec(layer_spec, input_settings, model):
+    """
+    Function that changes the layer_spec according to a keras model.
+
+    Arguments
+    =========
+    - layer_spec: The layer_spec module that will be updated
+
+    - input_settings: The input settings, needed to update the layer_number variable  
+
+    - model: A keras model that constitutes of a number of Conv2D layers
+
+    """
+
+    # Clear any entries present in layer_spec
+    layer_spec.layer_info = {}
+    layer_numbers = []
+
+    # Iterate through model layers
+    for layer_idx, layer in enumerate(model.layers):
+        layer_number = layer_idx + 1
+
+        # Get the specs for this layer
+        if isinstance(layer, keras.layers.Conv2D):
+            b = layer.input_shape[0]
+            if b is None:
+                b = 1
+            c = layer.input_shape[3]
+            ox = layer.output_shape[1]
+            oy = layer.output_shape[2]
+            k = layer.output_shape[3]
+            fx = layer.kernel_size[0]
+            fy = layer.kernel_size[1]
+            sx = layer.strides[0]
+            sy = layer.strides[1]
+            sfx = layer.dilation_rate[0]
+            sfy = layer.dilation_rate[1]
+            px = 0
+            py = 0
+            g = 1
+            if isinstance(layer, keras.layers.DepthwiseConv2D):
+                g = c
+
+            # Update the layer_spec variable 
+            layer_spec.layer_info[layer_number] = {
+                'B': b,
+                'K': k,
+                'C': c,
+                'OY': oy,
+                'OX': ox,
+                'FY': fy,
+                'FX': fx,
+                'SY': sy,
+                'SX': sx,
+                'SFY': sfy,
+                'SFX': sfx,
+                'PY': py,
+                'PX': px,
+                'G': g
+            }
+
+            # Add this layer number to layer_numbers
+            layer_numbers.append(layer_number)
+    
+    # Update the input_settings.layer_number to correct layer numbers
+    input_settings.layer_number = layer_numbers
