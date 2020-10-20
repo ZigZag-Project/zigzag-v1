@@ -1,0 +1,65 @@
+PE_array:                                       
+  Col : 14
+  Row : 14
+
+precision:
+  I : 8
+  W : 8
+  O_partial : 16
+  O_final : 8
+
+single_mac_energy : 8
+# The characteristics of the systolic flow of data in the array: 
+# 0 is horizontal
+# 1 is vertical
+# 2 is diagonal
+mac_array_stall :
+  systolic: 2
+
+area_max : 3.5e6
+area_utilization : 0.75
+mem_ratio : 8                                   # minimum ratio between two adjacent levels in the memory hierarchy
+PE_memory_depth : 2                             # max number of memory levels in the hierarchy inside the PEs
+PE_threshold : 3000                             # maximum memory size that can be stored inside each PE
+CHIP_memory_depth : 2
+
+banking : [1,4]                                 # is this used ?
+
+L2_size:                                        #Each size listed is expressed as a banked combination of elements drawn from the memory pool
+  [1048576, 4194304]                            # when does it have to be specified ??
+L1_size:
+  [65536, 524288]
+
+memory_hint:
+  sramx:
+      memory_instance : sram16Mb                         
+      bank_instances : 1
+      nbanks : 1
+      operand_stored : [O,I,W]
+
+memory_hierarchy:
+  rf:
+      memory_instance : spad_48byte              # element in the memory pool which is taken;
+      bank_instances : 196                       # number of separate instances present in the architecture
+      operand_stored : [I,W,O]
+      nbanks : 1                                 # is this used ?
+  # rf_input:
+  #     memory_instance: spad_24byte
+  #     bank_instances: 196
+  #     operand_stored: [I]
+  #     nbanks : 1
+  # rf_weight:
+  #     memory_instance: spad_448byte
+  #     bank_instances: 14
+  #     operand_stored: [I,W,O]
+  #     nbanks : 1
+  global_buffer:
+      memory_instance: buffer_108Kbyte
+      bank_instances: 1
+      operand_stored: [I,W, O]
+      nbanks : 1
+  top_sram:
+      memory_instance: sram_eyeriss
+      bank_instances: 1
+      operand_stored: [W,I,O]
+      nbanks : 1
