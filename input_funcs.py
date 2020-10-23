@@ -15,7 +15,7 @@ class InputSettings:
                  memory_hierarchy_ratio, mem_pool, banking, L1_size, L2_size, unrolling_size_list, unrolling_scheme_list,
                  unrolling_scheme_list_text, memory_scheme_hint, spatial_utilization_threshold, spatial_unrolling_mode,
                  stationary_optimization_enable, su_parallel_processing, arch_search_result_saving, su_search_result_saving,
-                 tm_search_result_saving, result_print_mode):
+                 tm_search_result_saving, result_print_mode, im2col_enable):
 
         self.results_path = results_path
         self.results_filename = results_filename
@@ -62,6 +62,9 @@ class InputSettings:
         self.su_search_result_saving = su_search_result_saving
         self.tm_search_result_saving = tm_search_result_saving
         self.result_print_mode = result_print_mode
+        self.im2col_enable = im2col_enable
+        # TODO im2col_top_mem_level
+        self.im2col_top_mem_level = 100
 
 
 def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure_path):
@@ -247,7 +250,7 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
     else:
         raise ValueError('temporal_mapping_search_method is not correctly set. Please check the setting file.')
 
-    sumode = ['exhaustive', 'heuristic_v1', 'heuristic_v2', 'hint_driven', 'hint_driven_with_greedy_mapping']
+    sumode = ['exhaustive', 'heuristic_v1', 'heuristic_v2', 'hint_driven', 'greedy_mapping_with_hint', 'greedy_mapping_without_hint']
     if not fl['fixed_spatial_unrolling']:
         sumx = sumode.index(fl['spatial_unrolling_search_method'])
     else:
@@ -266,7 +269,7 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
                                    fl['spatial_utilization_threshold'], sumx, stationary_optimization_enable,
                                    fl['spatial_unrolling_multiprocessing'], fl['save_all_architecture_result'],
                                    fl['save_all_spatial_unrolling_result'], fl['save_all_temporal_mapping_result'],
-                                   fl['result_print_mode'])
+                                   fl['result_print_mode'], fl['im2col_enable'])
 
     return input_settings
 
@@ -280,11 +283,11 @@ def get_layer_spec(input_settings, model=None):
     Arguments
     =========
 
-    - input_settings: The input settings to get the layer_spec file location 
+    - input_settings: The input settings to get the layer_spec file location
 
     - model: A keras model that constitutes of a number of Conv2D layers
 
-    """    
+    """
     print()
     layer_filename = input_settings.layer_filename
     layer_spec = importlib.machinery.SourceFileLoader('%s' % (layer_filename), '%s.py' % (layer_filename)).load_module()
@@ -320,7 +323,7 @@ def update_layer_spec(layer_spec, input_settings, model):
     =========
     - layer_spec: The layer_spec module that will be updated
 
-    - input_settings: The input settings, needed to update the layer_number variable  
+    - input_settings: The input settings, needed to update the layer_number variable
 
     - model: A keras model that constitutes of a number of Conv2D layers
 
@@ -355,7 +358,7 @@ def update_layer_spec(layer_spec, input_settings, model):
             if isinstance(layer, keras.layers.DepthwiseConv2D):
                 g = c
 
-            # Update the layer_spec variable 
+            # Update the layer_spec variable
             layer_spec.layer_info[layer_number] = {
                 'B': b,
                 'K': k,
@@ -375,6 +378,6 @@ def update_layer_spec(layer_spec, input_settings, model):
 
             # Add this layer number to layer_numbers
             layer_numbers.append(layer_number)
-    
+
     # Update the input_settings.layer_number to correct layer numbers
     input_settings.layer_number = layer_numbers

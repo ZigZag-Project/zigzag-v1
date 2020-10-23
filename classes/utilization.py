@@ -156,20 +156,19 @@ class Utilization(object):
 
         ''' Moment 1 '''
         mac_utilize_temporal1 = 1
-        if mac_array_stall['systolic']:
-            if mac_array_stall['systolic'] == 0 or mac_array_stall['systolic'] == 1:
-                ''' row-by-row (0) or column-by-column (1) '''
-                mac_utilize_temporal1 = temporal_loop.total_cycles / \
-                                        (temporal_loop.total_cycles +
-                                         mac_array_info['array_size'][mac_array_stall['systolic']])
+        if mac_array_stall['systolic'] == 1 or mac_array_stall['systolic'] == 2:
+            ''' row-by-row (1) or column-by-column (2) '''
+            mac_utilize_temporal1 = temporal_loop.total_cycles / \
+                                    (temporal_loop.total_cycles +
+                                     mac_array_info['array_size'][mac_array_stall['systolic']-1])
 
-            elif mac_array_stall['systolic'] == 2:
-                ''' diagonally (2) '''
-                row = 0
-                column = 1
-                mac_utilize_temporal1 = temporal_loop.total_cycles / \
-                                        (temporal_loop.total_cycles +
-                                         mac_array_info['array_size'][row] + mac_array_info['array_size'][column] - 2)
+        elif mac_array_stall['systolic'] == 3:
+            ''' diagonally (3) '''
+            row = 0
+            column = 1
+            mac_utilize_temporal1 = temporal_loop.total_cycles / \
+                                    (temporal_loop.total_cycles +
+                                     mac_array_info['array_size'][row] + mac_array_info['array_size'][column] - 1)
 
         ''' Moment 2 '''
         # TODO memory schedule optimization

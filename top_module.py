@@ -1,6 +1,7 @@
 import output_funcs as of
 import classes as cls
 import importlib.machinery
+from copy import deepcopy
 import sys
 import msg
 from msg import mem_scheme_fit_check
@@ -25,10 +26,17 @@ if __name__ == "__main__":
     input_settings = input_funcs.get_input_settings(args.set, args.map, args.mempool, args.arch)
     layer_spec = importlib.machinery.SourceFileLoader('%s' % (input_settings.layer_filename),
                                                       '%s.py' % (input_settings.layer_filename)).load_module()
-
     # Extract the layer information from the layer_spec
     layers = [cls.Layer.extract_layer_info(layer_spec.layer_info[layer_number])
               for layer_number in input_settings.layer_number]
+
+    if input_settings.im2col_enable:
+        layer_info_im2col = im2col_layer_transform(layer_spec.layer_info)
+        layers_im2col = [cls.Layer.extract_layer_info(layer_info_im2col[layer_number])
+                         for layer_number in input_settings.layer_number]
+    else:
+        layer_info_im2col = None
+        layers_im2col = None
 
     # If there are duplicate layers, set flag for the latter ones.
     # This flag will prevent the layer from being evaluated later on to speed up run.
@@ -97,7 +105,7 @@ if __name__ == "__main__":
         raise ValueError('The largest memory in the hierarchy is still too small for holding the required workload.')
 
     # Manages the variables passed to the multiple parallel processes
-    multi_manager = MultiManager(input_settings, mem_scheme_sim, layer_spec, layers)
+    multi_manager = MultiManager(input_settings, mem_scheme_sim, layer_spec, layers, layer_info_im2col, layers_im2col)
 
     # A list containing the chunks that will be processed sequentially
     # Each element within a chunk will be processed in parallel
