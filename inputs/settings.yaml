@@ -24,7 +24,7 @@ save_all_temporal_mapping_result : False
 # WORKLOAD
 # layer_indices can be a single-element list or a multiple-element list.
 layer_filename : './NN_layers/AlexNet'
-layer_indices : [5]
+layer_indices : [3,5]
 
 # MULTIPROCESSING
 # run the framework in multiprocessing mode to speedup the search procedure.
