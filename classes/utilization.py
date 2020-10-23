@@ -28,8 +28,7 @@ class Utilization(object):
     def __init__(self, layer, temporal_loop, spatial_loop, loop, mac_array_info, mem_size_bit, mem_share,
                  mem_type, mac_array_stall, precision, mem_bw_bit, clk_domain={}):
 
-        if type(spatial_loop) != type([1]):
-            spatial_loop = [spatial_loop, spatial_loop]
+        # spatial_loop is a list, in which spatial_loop[0] is the rounded one and spatial_loop[1] is the fractional one.
 
         mem_level = temporal_loop.loop_levels
         output_pre = loop.output_precision
@@ -123,19 +122,22 @@ class Utilization(object):
         Case 1&2 can be added on top of each other, i.e. multiplying utilization values together.
         '''
 
+        # spatial_loop is a list, in which spatial_loop[0] is the rounded one and spatial_loop[1] is the fractional one.
+
         ''' Case 1 '''
         num_of_used_mac = spatial_loop[1].unit_count['W'][0]
         num_of_actual_mac = np.prod(mac_array_info['array_size']).item()
         mac_utilize_spatial1 = num_of_used_mac / num_of_actual_mac
 
-        ''' Case 2 '''
-        index = 0
-        value = 1
-        for unrolled_loop in spatial_loop[1].spatial_loop_list:
-            quotient = layer.size_list[unrolled_loop[index]] // unrolled_loop[value]
-            quotient_ceiling = (layer.size_list[unrolled_loop[index]] + unrolled_loop[value] - 1) // unrolled_loop[value]
-            remainder = layer.size_list[unrolled_loop[index]] % unrolled_loop[value]
-            mac_utilize_spatial2 = (quotient + (remainder / unrolled_loop[value])) / quotient_ceiling
+        # ''' Case 2 '''
+        # index = 0
+        # value = 1
+        # for unrolled_loop in spatial_loop[1].spatial_loop_list:
+        #     quotient = layer.size_list[unrolled_loop[index]] // unrolled_loop[value]
+        #     quotient_ceiling = (layer.size_list[unrolled_loop[index]] + unrolled_loop[value] - 1) // unrolled_loop[value]
+        #     remainder = layer.size_list[unrolled_loop[index]] % unrolled_loop[value]
+        #     mac_utilize_spatial2 = (quotient + (remainder / unrolled_loop[value])) / quotient_ceiling
+        mac_utilize_spatial2 = 1
 
         mac_utilize_spatial = mac_utilize_spatial1 * mac_utilize_spatial2
         if mac_utilize_spatial1 > 1 or mac_utilize_spatial2 > 1:

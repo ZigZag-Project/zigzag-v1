@@ -390,8 +390,6 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
 
 def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_scheme, mem_scheme_index, multi_manager):
     mem_scheme_count = multi_manager.mem_scheme_count
-    layer_info = deepcopy(multi_manager.layer_spec.layer_info)
-    # print('Layer', layer_index, layer_info[layer_index])
 
     # Check if this is a duplicate layer
     if layer.is_duplicate:
@@ -413,7 +411,7 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
     else:
         layer_info = deepcopy(multi_manager.layer_spec.layer_info)
         im2col_need_correct = False
-    print('Layer', layer_index, layer_info[layer_index])
+    # print('Layer', layer_index, layer_info[layer_index])
 
     t1 = time.time()
     min_energy_utilization = 0
@@ -496,6 +494,8 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
                 mem_scheme, input_settings.mac_array_info['array_size'], layer_info[layer_index],
                 input_settings.unrolling_scheme_list)
             mem_scheme.fraction_spatial_unrolling = spatial_unrolling
+            mem_scheme.greedy_mapping_flag = [False] * len(spatial_unrolling)
+            mem_scheme.footer_info = [0] * len(spatial_unrolling)
 
         # spatial unrolling full search based on user-defined spatial_utilization_threshold
         else:
@@ -504,6 +504,8 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
                 input_settings.precision, input_settings.spatial_utilization_threshold,
                 input_settings.spatial_unrolling_mode)
             mem_scheme.fraction_spatial_unrolling = spatial_unrolling
+            mem_scheme.greedy_mapping_flag = [False] * len(spatial_unrolling)
+            mem_scheme.footer_info = [0] * len(spatial_unrolling)
 
         mem_scheme.spatial_unrolling = spatial_unrolling
         mem_scheme.flooring = flooring
@@ -523,9 +525,8 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
 
         return
 
-    for su_idx, su_ in enumerate(spatial_unrolling):
-        print('-SU', su_idx + 1, '/', len(mem_scheme.spatial_unrolling), mem_scheme.spatial_unrolling[su_idx],
-              mem_scheme.su_utilization[su_idx])
+    # for su_idx, su_ in enumerate(spatial_unrolling):
+    #     print('-SU', su_idx + 1, '/', len(mem_scheme.spatial_unrolling), mem_scheme.spatial_unrolling[su_idx])
 
     ''' input_settings.su_parallel_processing SU parallel '''
     TIMEOUT = 36000
