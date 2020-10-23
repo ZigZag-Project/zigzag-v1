@@ -26,11 +26,6 @@ if __name__ == "__main__":
     layer_spec = importlib.machinery.SourceFileLoader('%s' % (input_settings.layer_filename),
                                                       '%s.py' % (input_settings.layer_filename)).load_module()
 
-    if input_settings.im2col_enable:
-        layer_spec_origin = importlib.machinery.SourceFileLoader('%s' % (input_settings.layer_filename),
-                                                          '%s.py' % (input_settings.layer_filename)).load_module()
-        layer_spec.layer_info = im2col_layer_transform(layer_spec.layer_info)
-
     # Extract the layer information from the layer_spec
     layers = [cls.Layer.extract_layer_info(layer_spec.layer_info[layer_number])
               for layer_number in input_settings.layer_number]

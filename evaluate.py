@@ -28,10 +28,12 @@ def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_
 
     energy_collect = None
     utilization_collect = None
+    latency_collect = None
     if pickle_enable:
         group_count = layer.G
         energy_collect = []
         utilization_collect = []
+        latency_collect = []
 
     min_energy = float('inf')
     min_energy_utilization = 0
@@ -89,6 +91,7 @@ def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_
         if pickle_enable:
             energy_collect.append(int(group_count * total_cost_layer))
             utilization_collect.append(utilization.mac_utilize_no_load)
+            latency_collect.append(utilization.latency_no_load)
 
         if (total_cost_layer < min_energy) or (
                 total_cost_layer == min_energy and utilization.mac_utilize_no_load > min_energy_utilization):
@@ -121,7 +124,7 @@ def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_
 
     return (min_energy, min_energy_utilization, best_output_energy, 
         max_utilization_energy, max_utilization, best_output_utilization,
-        energy_collect, utilization_collect)
+        energy_collect, utilization_collect, latency_collect)
 
 
 def mem_scheme_su_evaluate(input_settings, layer, layer_index, layer_info, mem_scheme, mem_scheme_index,
@@ -254,12 +257,13 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, layer_info, mem_s
             rf = "%s/%s_L_%d_SU_%d" % (parent_folder, input_settings.results_filename, layer_index, ii_su + 1)
             rf_en = rf + '_energy.pickle'
             rf_ut = rf + '_utilization.pickle'
+            rf_lat = rf + '_latency.pickle'
             rf_en_ut = rf + '_combined.pickle'
             # Create parent folder if it does not exist
             Path(parent_folder).mkdir(parents=True, exist_ok=True)
 
         # Loop through the best energy/ut found by the parallel processes to find the overall best one
-        for (min_en, min_en_ut, min_en_output, max_ut_en, max_ut, max_ut_output, en_collect, ut_collect) in results:
+        for (min_en, min_en_ut, min_en_output, max_ut_en, max_ut, max_ut_output, en_collect, ut_collect, lat_collect) in results:
             if (min_en < best_energy or (min_en == best_energy and min_en_ut > best_energy_utilization)):
                 best_energy = min_en
                 best_energy_utilization = min_en_ut
@@ -271,19 +275,24 @@ def mem_scheme_su_evaluate(input_settings, layer, layer_index, layer_info, mem_s
 
             # Save the collected (energy,ut) from every temporal mapping if required
             if pickle_enable:
+                # Save energy
                 with open(rf_en, 'ab') as f:
                     pickle.dump(en_collect, f)
                     f.close()
-                with open(rf_ut, 'ab') as f:
-                    pickle.dump(ut_collect, f)
+                # Save utilization
+                # with open(rf_ut, 'ab') as f:
+                #     pickle.dump(ut_collect, f)
+                #     f.close()
+                # Save latency
+                with open(rf_lat, 'ab') as f:
+                    pickle.dump(lat_collect, f)
                     f.close()
-                
                 # Save combined (en,ut) tuples
-                combined = zip(en_collect, ut_collect)
-                with open(rf_en_ut, 'ab') as f:
-                    for elem in combined:
-                        pickle.dump(elem, f)
-                    f.close()
+                # combined = zip(en_collect, ut_collect)
+                # with open(rf_en_ut, 'ab') as f:
+                #     for elem in combined:
+                #         pickle.dump(elem, f)
+                #     f.close()
 
     now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
@@ -412,6 +421,12 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, mem_scheme, mem_sche
     if not mem_scheme.spatial_unrolling:
         discard_mem_scheme = True
         print('Layer', layer_index, ': no valid spatial unrolling found')
+
+        # Set the spatial unrolling count to 0 for this mem scheme + layer combination
+        mem_scheme_str = 'M_%d' % (mem_scheme_index + 1)
+        layer_str = 'L_%d' % (layer_index)
+        multi_manager.list_su_count[mem_scheme_str][layer_str] = len(spatial_unrolling)
+
         return
 
     ''' input_settings.su_parallel_processing SU parallel '''
@@ -455,7 +470,14 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, mem_scheme, mem_sche
 
     mem_scheme_str = 'M_%d' % (mem_scheme_index + 1)
     layer_str = 'L_%d' % (layer_index)
-    if len(list_min_energy[mem_scheme_str][layer_str]['best_tm_each_su']) != 0:
+    if len(list_min_energy[mem_scheme_str][layer_str]['best_tm_each_su']) == 0:
+        list_su_count[mem_scheme_str][layer_str] = 0
+        now = datetime.now()
+        current_time = now.strftime("%H:%M:%S")
+        print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, ', M',
+                mem_scheme_index + 1, '/', mem_scheme_count, ' No TM found')
+        return
+    else:
         t2 = time.time() - t1
 
         best_en = sys.float_info.max

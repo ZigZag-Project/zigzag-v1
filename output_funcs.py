@@ -390,18 +390,18 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
 
         # MEMORY ACCESS
         mem_access_elem = digit_truncate(deepcopy(cost_model_output.loop.mem_access_elem), 0)
-        mem_access_elem['W'] *= group_count
-        mem_access_elem['I'] *= group_count
-        mem_access_elem['O'] *= group_count
-        mem_access_elem['O_partial'] *= group_count
-        mem_access_elem['O_final'] *= group_count
+        mem_access_elem['W'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['W']]
+        mem_access_elem['I'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['I']]
+        mem_access_elem['O'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['O']]
+        mem_access_elem['O_partial'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['O_partial']]
+        mem_access_elem['O_final'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['O_final']]
 
         # ENERGY
         total_cost = round(group_count * cost_model_output.total_cost, 1)
         operand_cost = energy_clean(deepcopy(cost_model_output.operand_cost))
-        operand_cost['W'] *= group_count
-        operand_cost['I'] *= group_count
-        operand_cost['O'] *= group_count
+        operand_cost['W'] = [group_count * elem for elem in operand_cost['W']]
+        operand_cost['I'] = [group_count * elem for elem in operand_cost['I']]
+        operand_cost['O'] = [group_count * elem for elem in operand_cost['O']]
         mac_cost_active = round(group_count * cost_model_output.mac_cost[0], 1)
         mac_cost_idle = round(group_count * cost_model_output.mac_cost[1], 1)
 
@@ -876,14 +876,14 @@ def print_helper(input_settings, layers, multi_manager):
                 mem_scheme_str = 'M_%d' % (mem_scheme_index + 1)
                 msc = multi_manager.mem_scheme_sim[mem_scheme_index]
 
+                su_count = list_su_count[mem_scheme_str][layer_idx_str]
+                if su_count is None:
+                    # su count is None for duplicate layers, get su count from parent
+                    parent_str = 'L_%d' % layers[i].parent
+                    su_count = list_su_count[mem_scheme_str][parent_str]
+
                 if save_all_su:
                     # Save all the SU + best TM combinations
-                    su_count = list_su_count[mem_scheme_str][layer_idx_str]
-
-                    if su_count is None:
-                        # su count is None for duplicate layers, get su count from parent
-                        parent_str = 'L_%d' % layers[i].parent
-                        su_count = list_su_count[mem_scheme_str][parent_str]
 
                     for i in range(1, su_count + 1):
                         mem_scheme_su_str = '%s_SU_%d_%d' % (mem_scheme_str, su_count, i)
@@ -921,42 +921,43 @@ def print_helper(input_settings, layers, multi_manager):
                                   input_settings.result_print_mode)
 
                 # Save the best SU + TM combination
-                [[mem_scheme_su_str_en, best_output_energy]] = list_min_en_output[mem_scheme_str][layer_idx_str][
-                    'best_su_each_mem'].items()
-                [[mem_scheme_su_str_en, tm_count_en]] = list_tm_count_en[mem_scheme_str][layer_idx_str][
-                    'best_su_each_mem'].items()
-                sim_time_en = list_sim_time[mem_scheme_str][layer_idx_str]['best_su_each_mem'][mem_scheme_su_str_en]
+                if su_count != 0:
+                    [[mem_scheme_su_str_en, best_output_energy]] = list_min_en_output[mem_scheme_str][layer_idx_str][
+                        'best_su_each_mem'].items()
+                    [[mem_scheme_su_str_en, tm_count_en]] = list_tm_count_en[mem_scheme_str][layer_idx_str][
+                        'best_su_each_mem'].items()
+                    sim_time_en = list_sim_time[mem_scheme_str][layer_idx_str]['best_su_each_mem'][mem_scheme_su_str_en]
 
-                [[mem_scheme_su_str_ut, best_output_utilization]] = list_max_ut_output[mem_scheme_str][layer_idx_str][
-                    'best_su_each_mem'].items()
-                [[mem_scheme_su_str_ut, tm_count_ut]] = list_tm_count_ut[mem_scheme_str][layer_idx_str][
-                    'best_su_each_mem'].items()
-                sim_time_ut = list_sim_time[mem_scheme_str][layer_idx_str]['best_su_each_mem'][mem_scheme_su_str_ut]
+                    [[mem_scheme_su_str_ut, best_output_utilization]] = list_max_ut_output[mem_scheme_str][layer_idx_str][
+                        'best_su_each_mem'].items()
+                    [[mem_scheme_su_str_ut, tm_count_ut]] = list_tm_count_ut[mem_scheme_str][layer_idx_str][
+                        'best_su_each_mem'].items()
+                    sim_time_ut = list_sim_time[mem_scheme_str][layer_idx_str]['best_su_each_mem'][mem_scheme_su_str_ut]
 
-                mem_scheme_count_str = '%d/%d' % (mem_scheme_index + 1, multi_manager.mem_scheme_count)
-                spatial_unrolling_count_en = str(mem_scheme_su_str_en.split('_')[-1]) + '/' + str(
-                    mem_scheme_su_str_en.split('_')[-2])
-                spatial_unrolling_count_ut = str(mem_scheme_su_str_ut.split('_')[-1]) + '/' + str(
-                    mem_scheme_su_str_ut.split('_')[-2])
-                common_settings_en = CommonSetting(input_settings, layer_index, mem_scheme_count_str,
-                                                   spatial_unrolling_count_en, msc)
-                common_settings_ut = CommonSetting(input_settings, layer_index, mem_scheme_count_str,
-                                                   spatial_unrolling_count_ut, msc)
+                    mem_scheme_count_str = '%d/%d' % (mem_scheme_index + 1, multi_manager.mem_scheme_count)
+                    spatial_unrolling_count_en = str(mem_scheme_su_str_en.split('_')[-1]) + '/' + str(
+                        mem_scheme_su_str_en.split('_')[-2])
+                    spatial_unrolling_count_ut = str(mem_scheme_su_str_ut.split('_')[-1]) + '/' + str(
+                        mem_scheme_su_str_ut.split('_')[-2])
+                    common_settings_en = CommonSetting(input_settings, layer_index, mem_scheme_count_str,
+                                                    spatial_unrolling_count_en, msc)
+                    common_settings_ut = CommonSetting(input_settings, layer_index, mem_scheme_count_str,
+                                                    spatial_unrolling_count_ut, msc)
 
-                mem_scheme_su_save_str_en = '_M%d_SU%s' % (
-                mem_scheme_index + 1, str(mem_scheme_su_str_en.split('_')[-1]))
-                mem_scheme_su_save_str_ut = '_M%d_SU%s' % (
-                mem_scheme_index + 1, str(mem_scheme_su_str_ut.split('_')[-1]))
+                    mem_scheme_su_save_str_en = '_M%d_SU%s' % (
+                    mem_scheme_index + 1, str(mem_scheme_su_str_en.split('_')[-1]))
+                    mem_scheme_su_save_str_ut = '_M%d_SU%s' % (
+                    mem_scheme_index + 1, str(mem_scheme_su_str_ut.split('_')[-1]))
 
-                sub_path = '/best_su_best_tm/'
+                    sub_path = '/best_su_best_tm/'
 
-                rf_en = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_en + rf_ending_en
-                rf_ut = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_ut + rf_ending_ut
+                    rf_en = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_en + rf_ending_en
+                    rf_ut = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_ut + rf_ending_ut
 
-                print_xml(rf_en, layer, msc, best_output_energy, common_settings_en, tm_count_en, sim_time_en,
-                          input_settings.result_print_mode)
-                print_xml(rf_ut, layer, msc, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut,
-                          input_settings.result_print_mode)
+                    print_xml(rf_en, layer, msc, best_output_energy, common_settings_en, tm_count_en, sim_time_en,
+                            input_settings.result_print_mode)
+                    print_xml(rf_ut, layer, msc, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut,
+                            input_settings.result_print_mode)
 
         else:
             # Only save the best memory + su + tm combination
