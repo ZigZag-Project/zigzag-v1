@@ -137,15 +137,9 @@ def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_
                                                utilization, ii)
             best_output_utilization = output_result
 
-<<<<<<< HEAD
     return (min_energy, min_energy_utilization, best_output_energy, 
         max_utilization_energy, max_utilization, best_output_utilization,
         energy_collect, utilization_collect, latency_collect)
-=======
-    return (min_energy, min_energy_utilization, best_output_energy,
-            max_utilization_energy, max_utilization, best_output_utilization,
-            energy_collect, utilization_collect)
->>>>>>> 663f9fd4393107f863a1e5a81213dbd57378aa4f
 
 
 def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, layer_info, mem_scheme, mem_scheme_index,
@@ -278,6 +272,7 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
         # Convert tl_list to chunked list to pass to parallel cores
         n_processes = min(cpu_count(), input_settings.temporal_mapping_multiprocessing)
         chunk_size = int(tl_combinations / n_processes) + (tl_combinations % n_processes > 0)  # avoids import math
+        tl_count = len(tl_list)
         tl_list = [tl_list[i:i + chunk_size] for i in range(0, tl_combinations, chunk_size)]
 
         # 'layer' is the original 7D layer
@@ -339,10 +334,6 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
                 with open(rf_lat, 'ab') as f:
                     pickle.dump(lat_collect, f)
                     f.close()
-<<<<<<< HEAD
-=======
-
->>>>>>> 663f9fd4393107f863a1e5a81213dbd57378aa4f
                 # Save combined (en,ut) tuples
                 # combined = zip(en_collect, ut_collect)
                 # with open(rf_en_ut, 'ab') as f:
@@ -373,9 +364,9 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
                     int(round(group_count*best_utilization_energy)), best_utilization, int(best_output_utilization.area)))
 
         if input_settings.fixed_temporal_mapping or input_settings.tmg_search_method != 0:
-            tm_count = len(tl_list)
+            tm_count = tl_count
         else:
-            tm_count = {'partial': tl_combinations, 'final': len(tl_list)}
+            tm_count = {'partial': tl_combinations, 'final': tl_count}
 
     else:
         # total_cost_mem_scheme.value += float('inf')
