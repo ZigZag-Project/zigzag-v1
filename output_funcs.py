@@ -373,12 +373,12 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
         # If layer has a number of groups > 1, transform relevant variables.
         # At this point, the results are those of one group, so multiply by number of groups.
         group_count = layer_specification.G
-        
+
         # SPECIFICATION
         size_list_output_print = deepcopy(layer_specification.size_list_output_print)
         size_list_output_print['C'] *= group_count
         size_list_output_print['K'] *= group_count
-        
+
         # COMPUTATIONS
         total_MAC_op_number = group_count * layer_specification.total_MAC_op
 
@@ -437,6 +437,8 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
             layer_spec = ET.SubElement(layer, 'layer_spec')
             # layer_spec.tail = str(layer_specification.size_list_output_print)
             layer_spec.tail = str(layer_specification.size_list_output_print)
+            im2col_enable = ET.SubElement(layer, 'im2col_enable')
+            im2col_enable.tail = str(common_settings.im2col_enable)
             total_MAC_op = ET.SubElement(layer, 'total_MAC_operation')
             # total_MAC_op.tail = str(layer_specification.total_MAC_op)
             total_MAC_op.tail = str(total_MAC_op_number)
@@ -552,6 +554,11 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
                 spatial_mapping_W.tail = str(s_loop_name_transfer(cost_model_output.spatial_scheme['W']))
                 spatial_mapping_I.tail = str(s_loop_name_transfer(cost_model_output.spatial_scheme['I']))
                 spatial_mapping_O.tail = str(s_loop_name_transfer(cost_model_output.spatial_scheme['O']))
+            greedy_mapping_flag = ET.SubElement(spatial_mapping, 'greedy_mapping')
+            greedy_mapping_flag.tail = str(cost_model_output.greedy_mapping_flag)
+            if cost_model_output.greedy_mapping_flag:
+                footer_info = ET.SubElement(spatial_mapping, 'footer_info')
+                footer_info.tail = str(cost_model_output.footer_info)
             temporal_mapping = ET.SubElement(basic_info, 'temporal_mapping')
             temporal_mapping_W = ET.SubElement(temporal_mapping, 'W')
             temporal_mapping_W.tail = str(t_loop_name_transfer(cost_model_output.temporal_scheme['W']))
@@ -696,6 +703,8 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
             layer_spec = ET.SubElement(layer, 'layer_spec')
             # layer_spec.tail = str(layer_specification.size_list_output_print)
             layer_spec.tail = str(size_list_output_print)
+            im2col_enable = ET.SubElement(layer, 'im2col_enable')
+            im2col_enable.tail = str(common_settings.im2col_enable)
             total_MAC_op = ET.SubElement(layer, 'total_MAC_operation')
             # total_MAC_op.tail = str(layer_specification.total_MAC_op)
             total_MAC_op.tail = str(total_MAC_op_number)
@@ -806,8 +815,7 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
             # latency_tot = ET.SubElement(latency, 'latency_cycle_with_data_loading')
             # latency_tot.tail = str(cost_model_output.utilization.latency_tot)
             # latency_no_load = ET.SubElement(latency, 'latency_cycle_without_data_loading')
-            # latency.tail = str(cost_model_output.utilization.latency_no_load)
-            latency.tail = str(latency_no_load)
+            latency.tail = str(cost_model_output.utilization.latency_no_load)
             # total_cycles = ET.SubElement(latency, 'ideal_computing_cycle')
             # total_cycles.tail = str(cost_model_output.temporal_loop.total_cycles)
 
@@ -826,7 +834,7 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
         print_good_su_format(cost_model_output.spatial_scheme, mem_scheme.mem_name, results_filename + '.mapping')
         print_good_tm_format(cost_model_output.temporal_scheme, mem_scheme.mem_name, results_filename + '.mapping')
 
-        
+
 def print_helper(input_settings, layers, multi_manager):
 
     # Use this for other print types (such as yaml) in the future
@@ -887,7 +895,7 @@ def print_helper(input_settings, layers, multi_manager):
 
                     for i in range(1, su_count + 1):
                         mem_scheme_su_str = '%s_SU_%d_%d' % (mem_scheme_str, su_count, i)
-   
+
                         if mem_scheme_su_str not in list_min_en_output[mem_scheme_str][layer_idx_str]['best_tm_each_su']:
                             # This means there was no temporal mapping found for this spatial unrolling, so skip
                             continue
@@ -1054,7 +1062,7 @@ def print_helper(input_settings, layers, multi_manager):
 class CostModelOutput:
 
     def __init__(self, total_cost, operand_cost, mac_cost, temporal_scheme, spatial_scheme, flooring, loop,
-                 spatial_loop, temporal_loop, area, utilization, shared_bw):
+                 spatial_loop, greedy_mapping_flag, footer_info, temporal_loop, area, utilization, shared_bw):
         self.operand_cost = operand_cost
         self.total_cost = total_cost
         self.temporal_scheme = temporal_scheme
@@ -1063,6 +1071,8 @@ class CostModelOutput:
         self.loop = loop
         self.mac_cost = mac_cost
         self.spatial_loop = spatial_loop
+        self.greedy_mapping_flag = greedy_mapping_flag
+        self.footer_info = footer_info
         self.temporal_loop = temporal_loop
         self.area = area
         self.utilization = utilization
@@ -1080,7 +1090,9 @@ class CommonSetting:
             else 'exhaustive search' if input_settings.spatial_unrolling_mode == 0
             else 'heuristic search v1' if input_settings.spatial_unrolling_mode == 1
             else 'heuristic search v2' if input_settings.spatial_unrolling_mode == 2
-            else 'hint-driven search',
+            else 'hint-driven search' if input_settings.spatial_unrolling_mode == 3
+            else 'greedy mapping with hint' if input_settings.spatial_unrolling_mode == 4
+            else 'greedy mapping without hint',
 
             'Temporal': 'fixed' if input_settings.fixed_temporal_mapping
             else 'exhaustive search' if (
@@ -1112,6 +1124,7 @@ class CommonSetting:
                            'Row': input_settings.mac_array_info['array_size'][1]}
         self.spatial_unrolling_mode = input_settings.spatial_unrolling_mode
         self.spatial_mapping_hint_list = input_settings.unrolling_scheme_list_text
+        self.im2col_enable = input_settings.im2col_enable
 
         try:
             mem_access_cost = {'W': [], 'I': [], 'O': []}

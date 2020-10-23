@@ -74,6 +74,13 @@ class MemoryScheme:
     spatial_unrolling = []
     flooring = []
     fraction_spatial_unrolling = []
+    greedy_mapping_flag = []
+    footer_info = []
+    su_utilization = []
+
+    col2im_spatial_unrolling = []
+    col2im_flooring = []
+    col2im_fraction_spatial_unrolling = []
 
     def __init__(self, mem_name, mem_size, mem_cost, mem_utilization_rate, mem_utilization_rate_fixed, mem_share,
                  mem_unroll, mem_fifo, mem_bw, mem_type, mem_area, mem_nbanks):
@@ -102,6 +109,11 @@ class MemoryScheme:
 
     def set_fraction_spatial_unrolling(self, fraction_spatial_unrolling):
         self.frac_spatial_unrolling = fraction_spatial_unrolling
+
+    def set_im2col_parameters(self, col2im_spatial_unrolling, col2im_flooring, col2im_fraction_spatial_unrolling):
+        self.col2im_spatial_unrolling = col2im_spatial_unrolling
+        self.col2im_flooring = col2im_flooring
+        self.col2im_fraction_spatial_unrolling = col2im_fraction_spatial_unrolling
 
 
 def fix_best_scheme(old_best_scheme, new_best_scheme, mem_pool):
@@ -705,15 +717,14 @@ def mem_scheme_fit_check(mem_scheme, precision, layer, layer_number):
 
     for layer_idx, each_layer in layer.items():
         if layer_idx in layer_number:
-            operand_size = {}
-            operand_size['W'] = each_layer['FX'] * each_layer['FY'] * each_layer['C'] * each_layer['K'] * precision['W']
-            operand_size['O'] = each_layer['OX'] * each_layer['OY'] * each_layer['K'] * each_layer['B'] * precision[
-                'O_final']
-            operand_size['I'] = (each_layer['SX'] * (each_layer['OX'] - 1) + each_layer['SFX'] * (
-                    each_layer['FX'] - 1) + 1) * \
-                                (each_layer['SY'] * (each_layer['OY'] - 1) + each_layer['SFY'] * (
-                                        each_layer['FY'] - 1) + 1) * \
-                                each_layer['C'] * each_layer['B'] * precision['I']
+            operand_size = {
+                'W': each_layer['FX'] * each_layer['FY'] * each_layer['C'] * each_layer['K'] * precision['W'],
+                'O': each_layer['OX'] * each_layer['OY'] * each_layer['K'] * each_layer['B'] * precision['O_final'],
+                'I': (each_layer['SX'] * (each_layer['OX'] - 1) +
+                      each_layer['SFX'] * (each_layer['FX'] - 1) + 1) * \
+                     (each_layer['SY'] * (each_layer['OY'] - 1) +
+                      each_layer['SFY'] * (each_layer['FY'] - 1) + 1) * \
+                     each_layer['C'] * each_layer['B'] * precision['I']}
 
             # Check if the all the data can fit in the top level memory.
             for operand in ['W', 'I', 'O']:
@@ -998,7 +1009,7 @@ def spatial_unrolling_generator_with_hint(mem_scheme, array_dimension, layer, un
             if best_unroll_size == 1:
                 # good_scheme = False
                 # break
-                best_comb = ([unroll_dim[0],1],)
+                best_comb = ([unroll_dim[0], 1],)
             for u in best_comb:
                 if cluster_scheme:
                     u_cs_type, u_cs_size = zip(*cluster_scheme)
@@ -1042,7 +1053,8 @@ def spatial_unrolling_generator_with_hint(mem_scheme, array_dimension, layer, un
             if not_good:
                 break
             for ii_level, unroll in enumerate(mem_scheme.mem_unroll[operand]):
-                if array_dimension[0] < unroll <= array_dimension[0] * array_dimension[1] and array_dimension[1] < unroll <= array_dimension[0] * array_dimension[1]:
+                if array_dimension[0] < unroll <= array_dimension[0] * array_dimension[1] and array_dimension[
+                    1] < unroll <= array_dimension[0] * array_dimension[1]:
                     unroll = np.prod([x[1] for x in cluster_scheme])
                 elif unroll != 1:
                     unroll = np.prod([x[1] for x in cluster_scheme if x[0] not in operand_irrelevant[operand]])
@@ -1293,7 +1305,7 @@ def unroll_scheme_list_generator(mem_scheme, array_dimension, layer, precision, 
 def su_reformat(spatial_unrolling, ideal_su_old, fraction_su_old):
     ideal_su = copy.deepcopy(spatial_unrolling)
     fraction_su = copy.deepcopy(spatial_unrolling)
-    for op in ['W','I','O']:
+    for op in ['W', 'I', 'O']:
         for level, outer_list in enumerate(spatial_unrolling[0][op]):
             if outer_list:
                 for idx, inner_list in enumerate(outer_list):

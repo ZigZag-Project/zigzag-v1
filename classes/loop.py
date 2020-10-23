@@ -92,7 +92,6 @@ class Loop(object):
 
             req_mem_count['W'][level] = spatial_loop.unit_count['W'][level + 1]
 
-
         for level in range(mem_level['I']):
             '''
             For input size calculation, 
@@ -300,7 +299,6 @@ class Loop(object):
                     # reset spatial_para (real_mem_boost) to 1 to make sure only multiply with it once per level.
                     spatial_para[level] = 1
 
-
         # data_block = 1
         # cycle_block = 1
         # spatial_para = spatial_loop.real_bw_boost['I']
@@ -374,18 +372,6 @@ class Loop(object):
                                     'O_final': [],
                                     'O_partial': []}
 
-        # '''Weight'''
-
-        # for level in range(mem_level['W']):
-        #     mem_read.append(np.prod(
-        #         temporal_loop.B['W'][level:mem_level['W']] +
-        #         temporal_loop.OX['W'][level:mem_level['W']] +
-        #         temporal_loop.OY['W'][level:mem_level['W']] +
-        #         spatial_loop.Bu['W'][level+1:mem_level['W']+1] +
-        #         spatial_loop.OXu['W'][level+1:mem_level['W']+1] +
-        #         spatial_loop.OYu['W'][level+1:mem_level['W']+1]
-        #     ).item())
-
         '''
         Memory access data format for weight and input:
         [(Read, Write @ mem 0),(Read, Write @ mem 1), ...]
@@ -415,6 +401,33 @@ class Loop(object):
                 mem_access_total_element[operand].append(
                     [int(mem_read[operand][level] * layer.total_data_size[operand]),
                      int(mem_write * layer.total_data_size[operand])])
+
+        # Treat 'I' separately in case im2col need correction
+        # for operand in ['I']:
+        #     for level in range(mem_level[operand]):
+        #         mem_read[operand].append(np.prod(
+        #             temporal_loop.irrelevant_loop[operand][level:mem_level[operand]] +
+        #             spatial_loop.unit_duplicate[operand][level + 1:mem_level[operand] + 1]
+        #         ).item())
+        #
+        #     for level in range(mem_level[operand]):
+        #         if level == mem_level[operand] - 1:
+        #             '''
+        #             For now, we don't consider the writing access from outside peripherals to the top-level memory.
+        #             '''
+        #             mem_write = 0
+        #         else:
+        #             mem_write = mem_read[operand][level + 1]
+        #
+        #         mem_access_per_element[operand].append([mem_read[operand][level], mem_write])
+        #         mem_access_total_element[operand].append(
+        #             [int(mem_read[operand][level] * layer_for_compute.total_data_size[operand]),
+        #              int(mem_write * layer_for_compute.total_data_size[operand])])
+        #
+        #     if im2col_need_correct:
+        #         mem_access_total_element['I'] = im2col_mem_access_correction(
+        #             layer_for_correct, layer_for_compute, mem_access_total_element['I'], temporal_loop, spatial_loop,
+        #             im2col_top_mem_level)
 
         ''' I_base '''
         for level in range(mem_level['I']):
@@ -612,7 +625,6 @@ class Loop(object):
                 effective_mem_size['O_final'].append(0)
                 effective_mem_size['O_partial'].append(effective_mem_size['O'][level])
 
-
                 output_precision.append((precision['O'], precision['O_final']))
                 output_distinguish.append(('psum', 'fsum'))
 
@@ -645,7 +657,6 @@ class Loop(object):
 
                 output_precision.append((precision['O'], precision['O']))
                 output_distinguish.append(('psum', 'psum'))
-
 
         '''
         For the 'addressable' & lowest level (one level above the MAC) memory, for 'W' and 'I', 
@@ -694,7 +705,7 @@ class Loop(object):
         self.data_reuse = data_reuse
         self.mem_access_elem = mem_access_total_element
 
-        self.array_wire_distance = { 'W' : [], 'I' : [], 'O' : []}
+        self.array_wire_distance = {'W': [], 'I': [], 'O': []}
 
         self.output_precision = output_precision
         self.output_distinguish = output_distinguish

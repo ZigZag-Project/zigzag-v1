@@ -159,7 +159,7 @@ def even_uneven(LPF_scheme):
         # EG (6, 2), (3, 3), (6, 5) -> (6, 10), (3, 3)
 
         # Remove the virtual level from tmp_LPF_scheme
-        for operand in tmp_LPF_scheme:
+        for operand in ['W', 'I', 'O']:
             if tmp_LPF_scheme[operand]:
                 if not tmp_LPF_scheme[operand][0]:
                     tmp_LPF_scheme[operand].remove(tmp_LPF_scheme[operand][0])
@@ -1412,9 +1412,37 @@ def bsg_fixed_order(loop_order, mem_size, mem_share, precision, utilization_rate
                             except IndexError:
                                 continue
 
-    for sch in list_LPF_schemes:
-        for op in ['W', 'I', 'O']:
-            print(op, ' ', sch[op])
+    for i, sch in enumerate(list_LPF_schemes):
+        list_LPF_schemes[i] = loop_same_term_merge(sch)
 
     return list_LPF_schemes
 
+
+def loop_same_term_merge(loop_unmerged):
+    loop_merged = {'W': [], 'I': [], 'O': []}
+
+    # change data format from tuple to list
+    for operand in ['W', 'I', 'O']:
+        for level_list in loop_unmerged[operand]:
+            loop_merged[operand].append([])
+            if not level_list:
+                continue
+            else:
+                for loop_elem in level_list:
+                    loop_merged[operand][-1].append(list(loop_elem))
+
+    # merge same type loops within each memory level
+    for operand in ['W', 'I', 'O']:
+        for level, level_list in enumerate(loop_unmerged[operand]):
+            if len(level_list) in [1, 0]:
+                continue
+            else:
+                va_clean_idx = 0
+                for va_idx in range(1, len(level_list)):
+                    if level_list[va_idx - 1][0] == level_list[va_idx][0]:
+                        loop_merged[operand][level][va_clean_idx][1] *= level_list[va_idx][1]
+                        loop_merged[operand][level].remove(list(level_list[va_idx]))
+                        va_clean_idx -= 1
+                    va_clean_idx += 1
+
+    return loop_merged

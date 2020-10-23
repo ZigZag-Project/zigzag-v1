@@ -6,7 +6,7 @@ result_filename : AlexNet
 # OUTPUT FILE PRINTING MODE
 # 'concise' for printing the basic information for each optimal design point found, i.e. energy and performance.
 # 'complete' for printing all detailed information for each optimal design point found for in-depth analysis.
-result_print_mode : concise
+result_print_mode : complete
 
 # SEARCH SETTINGS
 # 'False' for searching the corresponding space.
@@ -38,10 +38,15 @@ temporal_mapping_multiprocessing: 100
 temporal_mapping_search_method : heuristic_v1
 
 # SPATIAL MAPPING GENERATOR SETTINGS
-# search method : exhaustive / heuristic_v1 / heuristic_v2 / hint_driven / hint_driven_with_greedy_mapping
-# If 'hint_driven' is chosen, 'spatial_mapping_list' in the mapping file will be used,
-# and 'spatial_utilization_threshold' below will be ignored.
-spatial_unrolling_search_method : hint_driven_with_greedy_mapping
-spatial_utilization_threshold : 0.75
+# search method : exhaustive / heuristic_v1 / heuristic_v2 / hint_driven / greedy_mapping_with_hint / greedy_mapping_without_hint
+# If 'hint_driven' is chosen, 'spatial_mapping_list' in the mapping file will be used.
+spatial_unrolling_search_method : greedy_mapping_with_hint
+spatial_utilization_threshold : 0.9
 
+# CONV im2col ENABLE
+# Weight matrix [K,       C|FX|FY]
+# Input  matrix [B|OY|OX, C|FY|FX]
+# Output matrix [K,       B|OY|OX]
+# For pointwise layers (FX=FY=1), recommend to put im2col_enable True.
 im2col_enable : False
+
