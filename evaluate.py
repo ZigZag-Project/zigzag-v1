@@ -137,15 +137,9 @@ def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_
                                                utilization, ii)
             best_output_utilization = output_result
 
-<<<<<<< HEAD
-    return (min_energy, min_energy_utilization, best_output_energy, 
-        max_utilization_energy, max_utilization, best_output_utilization,
-        energy_collect, utilization_collect, latency_collect)
-=======
     return (min_energy, min_energy_utilization, best_output_energy,
             max_utilization_energy, max_utilization, best_output_utilization,
-            energy_collect, utilization_collect)
->>>>>>> 663f9fd4393107f863a1e5a81213dbd57378aa4f
+            energy_collect, utilization_collect, latency_collect)
 
 
 def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, layer_info, mem_scheme, mem_scheme_index,
@@ -339,16 +333,6 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
                 with open(rf_lat, 'ab') as f:
                     pickle.dump(lat_collect, f)
                     f.close()
-<<<<<<< HEAD
-=======
-
->>>>>>> 663f9fd4393107f863a1e5a81213dbd57378aa4f
-                # Save combined (en,ut) tuples
-                # combined = zip(en_collect, ut_collect)
-                # with open(rf_en_ut, 'ab') as f:
-                #     for elem in combined:
-                #         pickle.dump(elem, f)
-                #     f.close()
 
     now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
