@@ -355,11 +355,11 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
         group_count = layer[0].G
         if input_settings.fixed_temporal_mapping:
             print(
-                ' | Elapsed time: {0:d} sec | (energy, mac_utilization, area): ({1:d}, {2:.2f}, {3:d})'.format(
+                ' | Elapsed time: {0:d} sec | (energy, mac_utilization, area): ({1:.3E}, {2:.3f}, {3:.3E})'.format(
                     int(t_cm), int(round(group_count*best_energy)), best_energy_utilization, int(best_output_energy.area)))
         else:
             print(
-                ' | Elapsed time: {0:d} sec | [min en: ({1:d}, {2:.2f}, {3:d}) max ut: ({4:d}, {5:.2f}, {6:d})] in all TMs'.format(
+                ' | Elapsed time: {0:d} sec | [min en: ({1:.3E}, {2:.3f}, {3:.3E}) max ut: ({4:.3E}, {5:.3f}, {6:.3E})] in all TMs'.format(
                     int(t_cm), int(round(group_count*best_energy)), best_energy_utilization, int(best_output_energy.area),
                     int(round(group_count*best_utilization_energy)), best_utilization, int(best_output_utilization.area)))
 
@@ -369,7 +369,6 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
             tm_count = {'partial': tl_combinations, 'final': tl_count}
 
     else:
-        # total_cost_mem_scheme.value += float('inf')
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
         print()
@@ -615,7 +614,7 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
         list_sim_time[mem_scheme_str][layer_str]['best_su_each_mem'].update({best_ut_mem_su_str: t2})
 
         # Delete all results in 'best_tm_each_su' if save_all_spatial_unrolling_result is false,
-        # As this information is not required anymore an might be very large (>100 000 TM's possible)
+        # As this information is not required anymore
         if not input_settings.su_search_result_saving:
             del list_tm_count_en[mem_scheme_str][layer_str]['best_tm_each_su']
             del list_min_en_output[mem_scheme_str][layer_str]['best_tm_each_su']
@@ -632,11 +631,11 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
             current_time = now.strftime("%H:%M:%S")
             group_count = layer.G
             print(
-                '{0:s} {1:s} L {2:d},  M {3:d},  SU {4:s}  Min En: ({5:d}, {6:.2f}, {7:d}) in all SUs and TMs'.format(
+                '{0:s} {1:s} L {2:d},  M {3:d},  SU {4:s}  Min En: ({5:.3E}, {6:.3f}, {7:.3E}) in all SUs and TMs'.format(
                     current_time, str(input_settings.layer_filename.split('/')[-1]), layer_index, mem_scheme_index + 1,
                     best_en_mem_su_str.split('_')[-1], int(group_count*best_en), best_en_ut, int(best_en_output.area)))
             print(
-                '{0:s} {1:s} L {2:d},  M {3:d},  SU {4:s}  Max Ut: ({5:d}, {6:.2f}, {7:d}) in all SUs and TMs'.format(
+                '{0:s} {1:s} L {2:d},  M {3:d},  SU {4:s}  Max Ut: ({5:.3E}, {6:.3f}, {7:.3E}) in all SUs and TMs'.format(
                     current_time, str(input_settings.layer_filename.split('/')[-1]), layer_index, mem_scheme_index + 1,
                     best_ut_mem_su_str.split('_')[-1], int(group_count*best_ut_en), best_ut, int(best_ut_output.area)))
 
@@ -813,16 +812,11 @@ def optimal_su_evaluate(input_settings, layers, multi_manager):
             network_name = str(input_settings.layer_filename.split('/')[-1])
             memory_area = int(min_en_output.area)
 
-            print('{0:s} {1:s} M {2:d}: Minimal energy for all layers:      (energy, latency, area) = ({3:d}, {4:d}, {5:d})'.format(
-                current_time, network_name, mem_scheme_index + 1, int(tot_min_en_energy), int(tot_min_en_latency), memory_area))
-            print('{0:s} {1:s} M {2:d}: Maximal utilization for all layers: (energy, latency, area) = ({3:d}, {4:d}, {5:d})'.format(
-                current_time, network_name, mem_scheme_index + 1, int(tot_max_ut_energy), int(tot_max_ut_latency), memory_area))
-
             print(
-                '{0:s} {1:s} M {2:d}: Minimal energy for all layers:      (energy, latency, area) = ({3:d}, {4:d}, {5:d})'.format(
+                '{0:s} {1:s} M {2:d}: Minimal energy for all layers:      (energy, latency, area) = ({3:.3E}, {4:.3E}, {5:.3E})'.format(
                     current_time, network_name, mem_scheme_index + 1, int(tot_min_en_energy), int(tot_min_en_latency), memory_area))
             print(
-                '{0:s} {1:s} M {2:d}: Maximal utilization for all layers: (energy, latency, area) = ({3:d}, {4:d}, {5:d})'.format(
+                '{0:s} {1:s} M {2:d}: Maximal utilization for all layers: (energy, latency, area) = ({3:.3E}, {4:.3E}, {5:.3E})'.format(
                     current_time, network_name, mem_scheme_index + 1, int(tot_max_ut_energy), int(tot_max_ut_latency), memory_area))
 
             # Set the multi_manager's parameter with the correct mem_scheme_index
