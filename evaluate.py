@@ -37,6 +37,13 @@ def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_
     max_utilization = 0
     max_utilization_energy = float('inf')
 
+    try:
+        greedy_mapping_flag = mem_scheme.greedy_mapping_flag[ii_su]
+        footer_info = mem_scheme.footer_info[ii_su]
+    except:
+        greedy_mapping_flag = False
+        footer_info = None
+
     for idx, tl in enumerate(tl_list):
 
         temporal_loop = cls.TemporalLoop.extract_loop_info(layer_rounded, tl, spatial_loop)
@@ -114,8 +121,7 @@ def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_
                                                deepcopy(mem_scheme.spatial_unrolling[ii_su]),
                                                deepcopy(mem_scheme.flooring[ii_su]),
                                                deepcopy(loop_fractional), deepcopy(spatial_loop),
-                                               mem_scheme.greedy_mapping_flag[ii_su],
-                                               mem_scheme.footer_info[ii_su],
+                                               greedy_mapping_flag, footer_info,
                                                deepcopy(temporal_loop), occupied_area,
                                                utilization, ii)
 
@@ -131,8 +137,7 @@ def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_
                                                deepcopy(mem_scheme.spatial_unrolling[ii_su]),
                                                deepcopy(mem_scheme.flooring[ii_su]),
                                                deepcopy(loop_fractional), deepcopy(spatial_loop),
-                                               mem_scheme.greedy_mapping_flag[ii_su],
-                                               mem_scheme.footer_info[ii_su],
+                                               greedy_mapping_flag, footer_info,
                                                deepcopy(temporal_loop), occupied_area,
                                                utilization, ii)
             best_output_utilization = output_result
