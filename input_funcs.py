@@ -2,7 +2,7 @@ import yaml
 import sys
 from msg import MemoryNode, MemorySchemeNode, MemoryScheme
 import importlib.machinery
-import keras
+# import keras
 
 
 class InputSettings:
@@ -86,8 +86,8 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
         mt = fl[m]['mem_type']
         mt_tmp = 0
         if mt == 'dual_port_double_buffered': mt_tmp = 3
-        if mt == 'dual_port_single_buffered': mt_tmp = 2
-        if mt == 'single_port_double_buffered': mt_tmp = 1
+        elif mt == 'dual_port_single_buffered': mt_tmp = 2
+        elif mt == 'single_port_double_buffered': mt_tmp = 1
         if mt_tmp == 0:
             raise ValueError("In memory pool, some memory's memory type is not correctly defined.")
         mbw = []
@@ -129,7 +129,7 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
             m_tmp = m_tmp[0]
             m_tmp = MemoryNode(m_tmp, (), 0, 1)
             m_tmp.memory_level['unroll'] = fl['memory_hierarchy'][m]['bank_instances']
-            m_tmp.memory_level['nbanks'] = fl['memory_hierarchy'][m]['nbanks']
+            m_tmp.memory_level['nbanks'] = None
             m_tmp.operand = tuple(fl['memory_hierarchy'][m]['operand_stored'])
             memory_scheme_hint.memory_scheme.add(m_tmp)
             for operand in ['W', 'I', 'O']:
@@ -177,8 +177,8 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
     if tm_fixed_flag:
         for op in fl['temporal_mapping_fixed']:
             if op == 'weight': operand = 'W'
-            if op == 'input': operand = 'I'
-            if op == 'output': operand = 'O'
+            elif op == 'input': operand = 'I'
+            elif op == 'output': operand = 'O'
             tm_fixed[operand] = [[] for x in fl['temporal_mapping_fixed'][op]]
             for ii, lev in enumerate(fl['temporal_mapping_fixed'][op]):
                 index_lev = mh_name[operand].index(lev)
@@ -187,8 +187,8 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
     if sm_fixed_flag:
         for op in fl['spatial_mapping_fixed']:
             if op == 'weight': operand = 'W'
-            if op == 'input': operand = 'I'
-            if op == 'output': operand = 'O'
+            elif op == 'input': operand = 'I'
+            elif op == 'output': operand = 'O'
             sm_fixed[operand] = [[] for x in fl['spatial_mapping_fixed'][op]]
             flooring_fixed[operand] = [[] for x in fl['spatial_mapping_fixed'][op]]
             for lev in fl['spatial_mapping_fixed'][op]:
@@ -199,7 +199,7 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
                 for dim in fl['spatial_mapping_fixed'][op][lev]:
                     ii_dim = 0
                     if dim == 'Col': ii_dim = 0
-                    if dim == 'Row': ii_dim = 1
+                    elif dim == 'Row': ii_dim = 1
                     for pf in fl['spatial_mapping_fixed'][op][lev][dim]:
                         sm_fixed[operand][ii_lev].append(tuple([i2a[pf[0]], pf[1]]))
                         flooring_fixed[operand][ii_lev][ii_dim].append(i2a[pf[0]])
@@ -214,7 +214,7 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
                 ii_dim = 0
                 dimx = next(iter(dim))
                 if dimx == 'Col': ii_dim = 0
-                if dimx == 'Row': ii_dim = 1
+                elif dimx == 'Row': ii_dim = 1
                 for pf in dim[dimx]:
                     pf_type = list(pf.split('_'))[0]
                     unrolling_scheme_list[-1][ii_dim].append(i2a[pf_type])
@@ -314,6 +314,7 @@ def get_layer_spec(input_settings, model=None):
                     % layer_number)
     print()
     return layer_spec
+
 
 def update_layer_spec(layer_spec, input_settings, model):
     """

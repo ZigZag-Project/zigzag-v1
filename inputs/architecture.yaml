@@ -14,6 +14,7 @@ idle_mac_energy : 0.05
 mac_array_stall :
   systolic: 1
 
+############### you need to set them if doing architecture search ###############
 area_max : 3.5e6
 area_utilization : 0.75
 mem_ratio : 8
@@ -32,32 +33,29 @@ memory_hint:
   sramx:
       memory_instance : sram16Mb
       bank_instances : 1
-      nbanks : 1
       operand_stored : [O,I,W]
+#################################################################################
 
+############# you need to set them if not doing architecture search #############
 memory_hierarchy:
   rf_psum:
       memory_instance : spad_48byte
       bank_instances : 168
       operand_stored : [O]
-      nbanks : 1
   rf_input:
       memory_instance: spad_24byte
       bank_instances: 168
       operand_stored: [I]
-      nbanks : 1
   rf_weight:
       memory_instance: spad_448byte
       bank_instances: 168
       operand_stored: [W]
-      nbanks : 1
   global_buffer:
       memory_instance: buffer_108Kbyte
       bank_instances: 1
       operand_stored: [I, O]
-      nbanks : 1
   top_sram:
       memory_instance: sram_eyeriss
       bank_instances: 1
       operand_stored: [W,I,O]
-      nbanks : 1
+#################################################################################

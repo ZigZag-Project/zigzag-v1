@@ -2,7 +2,7 @@ import numpy as np
 from itertools import combinations
 from itertools import product
 from itertools import combinations_with_replacement
-import copy
+from copy import deepcopy
 import pickle
 from classes import Layer
 from math import log
@@ -170,14 +170,14 @@ def update_mem_pool(partial_pool, memory_pool, not_fixed_scheme, memory_hierarch
         for mem in partial_pool:
             if mem['size_bit'] >= max_mem:
                 max_mem = mem['size_bit']
-                max_mem_level = copy.deepcopy(mem)
+                max_mem_level = deepcopy(mem)
             if mem['size_bit'] <= min_mem:
                 min_mem = mem['size_bit']
-                min_mem_level = copy.deepcopy(mem)
+                min_mem_level = deepcopy(mem)
         partial_pool.remove(max_mem_level)
         for memory in not_fixed_scheme.memory_scheme:
             if memory.memory_level['size_bit'] == max_mem and memory.fixed == 0:
-                tmp_max_level = copy.deepcopy(max_mem_level)
+                tmp_max_level = deepcopy(max_mem_level)
                 tmp_max_level['unroll'] = memory.memory_level['unroll']
                 mn = MemoryNode(tmp_max_level, memory.operand, memory.cluster_level, memory.fixed)
                 tmp_mem_node_list.append(mn)
@@ -187,7 +187,7 @@ def update_mem_pool(partial_pool, memory_pool, not_fixed_scheme, memory_hierarch
         for mem in memory_pool:
             if mem['size_bit'] < min_mem_mhr and mem['size_bit'] >= max_mem:
                 max_mem = mem['size_bit']
-                max_mem_level = copy.deepcopy(mem)
+                max_mem_level = deepcopy(mem)
         if max_mem_level != None:
             partial_pool.append(max_mem_level)
     else:
@@ -197,7 +197,7 @@ def update_mem_pool(partial_pool, memory_pool, not_fixed_scheme, memory_hierarch
         for mem in memory_pool:
             if mem['size_bit'] >= max_mem:
                 max_mem = mem['size_bit']
-                max_mem_level = copy.deepcopy(mem)
+                max_mem_level = deepcopy(mem)
         partial_pool.append(max_mem_level)
         max_mem_mhr = max_mem  # / memory_hierarchy_ratio
         max_mem = 0
@@ -205,7 +205,7 @@ def update_mem_pool(partial_pool, memory_pool, not_fixed_scheme, memory_hierarch
         for mem in memory_pool:
             if mem['size_bit'] < max_mem_mhr and mem['size_bit'] >= max_mem:
                 max_mem = mem['size_bit']
-                max_mem_level = copy.deepcopy(mem)
+                max_mem_level = deepcopy(mem)
         partial_pool.append(max_mem_level)
 
     return partial_pool, tmp_mem_node_list
@@ -224,7 +224,7 @@ def array_mem_pool(mem_pool, array_size, area, PE_RF_size_threshold, tmp_mem_nod
     # if their bit size is lower than PE_RF_size_threshold
     # Only 2D array for now
     array_pool = []
-    update_mem_pool = []  # copy.deepcopy(mem_pool)
+    update_mem_pool = []  # deepcopy(mem_pool)
     for l1 in L1_size:
         for mem in mem_pool:
             if mem['size_bit'] > PE_RF_size_threshold:
@@ -253,7 +253,7 @@ def array_mem_pool(mem_pool, array_size, area, PE_RF_size_threshold, tmp_mem_nod
                 update_mem_pool.append(tmp_mem)
     # for mem in update_mem_pool:
     #    if mem['size_bit'] > PE_RF_size_threshold:
-    #        array_pool.append(copy.deepcopy(mem))
+    #        array_pool.append(deepcopy(mem))
     #
 
     return update_mem_pool
@@ -335,7 +335,7 @@ def memory_scheme_generator_cluster(memory_comb, memory_pool, array_dimension, m
             is_over = True
             break
 
-        layer = copy.deepcopy(nextLayer)
+        layer = deepcopy(nextLayer)
         nextLayer.clear()
 
         for msn in layer:  # msn is a single memory scheme node(with mem_scheme and temp_comb), incompleted
@@ -396,9 +396,9 @@ def memory_scheme_generator_cluster(memory_comb, memory_pool, array_dimension, m
                                 memory_operand_list]):
                             continue
 
-                    new_memory_comb = copy.deepcopy(msn.temp_comb)
+                    new_memory_comb = deepcopy(msn.temp_comb)
                     new_memory_comb.remove(msn.temp_comb[index_smallest_memory])
-                    new_msn = copy.deepcopy(msn)
+                    new_msn = deepcopy(msn)
                     new_msn.temp_comb = new_memory_comb
                     new_msn.memory_scheme.add(memory_node)
                     nextLayer.append(new_msn)
@@ -494,7 +494,7 @@ def memory_scheme_generator(mem_pool, array_dimension, max_area, utilization_rat
     tmp_msn = memory_scheme_hint
     tmp_memory_scheme_list = [tmp_msn]
 
-    memory_scheme_list = copy.deepcopy(tmp_memory_scheme_list)
+    memory_scheme_list = deepcopy(tmp_memory_scheme_list)
     memory_scheme_list = clean_memory_schemes(memory_scheme_list)
     tmp_memory_scheme_list.clear()
     schemes = None
@@ -618,7 +618,6 @@ def mem_scheme_not_ordered_check(mem_scheme_set_list, memory_hierarchy_ratio, ar
                 if mo_u != 1:
                     for mo_u2 in mo_unroll_list:
                         if mo_u2 < mo_u and mo_u % mo_u2 != 0:
-                            print('wtf')
                             mem_scheme_fit = False
                             break
             # Check if the size of memories within the PE array is below PE_RF_size_threshold (redundant)
@@ -631,7 +630,6 @@ def mem_scheme_not_ordered_check(mem_scheme_set_list, memory_hierarchy_ratio, ar
                     if mo.memory_level['size_bit'] < PE_RF_size_threshold:
                         if mo.memory_level['unroll'] == 1:
                             mem_scheme_fit = False
-                            print('wtf2')
                             break
             memory_ratios = []
             # Check if the memory scheme respects the memory hierarchy ratio
@@ -640,7 +638,6 @@ def mem_scheme_not_ordered_check(mem_scheme_set_list, memory_hierarchy_ratio, ar
                                  x != m]
                 if any([x > 1 / memory_hierarchy_ratio and x < memory_hierarchy_ratio for x in memory_ratios]):
                     mem_scheme_fit = False
-                    # print('wtf')
                     break
 
         if mem_scheme_fit:
@@ -777,9 +774,9 @@ def spatial_unrolling_generator(mem_scheme, array_dimension, layer, precision, S
 
         not_good = False
         for operand in ['W', 'I', 'O']:
-            spatial_loop[operand][0] = copy.deepcopy(cluster_scheme[0] + cluster_scheme[1])
+            spatial_loop[operand][0] = deepcopy(cluster_scheme[0] + cluster_scheme[1])
             aux = [[x[0]] for x in cluster_scheme]
-            flooring[operand][0] = copy.deepcopy(unrolling_scheme)
+            flooring[operand][0] = deepcopy(unrolling_scheme)
         for operand in ['W', 'I', 'O']:
 
             if mem_scheme.mem_unroll[operand][-1] != 1:
@@ -820,10 +817,10 @@ def spatial_unrolling_generator(mem_scheme, array_dimension, layer, precision, S
                     continue
                 else:
                     if unroll_level_below == unroll:
-                        unrolling = copy.deepcopy(spatial_loop[operand][ii_level])
+                        unrolling = deepcopy(spatial_loop[operand][ii_level])
                         for shared_level in shared_set:
-                            spatial_loop[shared_level[0]][shared_level[1] + 1] = copy.deepcopy(unrolling)
-                            flooring[shared_level[0]][shared_level[1] + 1] = copy.deepcopy(unrolling_scheme)
+                            spatial_loop[shared_level[0]][shared_level[1] + 1] = deepcopy(unrolling)
+                            flooring[shared_level[0]][shared_level[1] + 1] = deepcopy(unrolling_scheme)
                             for ii_level_shared, level_shared in enumerate(
                                     spatial_loop[shared_level[0]][shared_level[1]:shared_level[1] + 1]):
                                 for ur in unrolling:
@@ -1034,9 +1031,9 @@ def spatial_unrolling_generator_with_hint(mem_scheme, array_dimension, layer, un
 
         not_good = False
         for operand in ['W', 'I', 'O']:
-            spatial_loop[operand][0] = copy.deepcopy(cluster_scheme)
+            spatial_loop[operand][0] = deepcopy(cluster_scheme)
             aux = [[x[0]] for x in cluster_scheme]
-            flooring[operand][0] = copy.deepcopy(unrolling_scheme)
+            flooring[operand][0] = deepcopy(unrolling_scheme)
         for operand in ['W', 'I', 'O']:
 
             if mem_scheme.mem_unroll[operand][-1] != 1:
@@ -1053,8 +1050,8 @@ def spatial_unrolling_generator_with_hint(mem_scheme, array_dimension, layer, un
             if not_good:
                 break
             for ii_level, unroll in enumerate(mem_scheme.mem_unroll[operand]):
-                if array_dimension[0] < unroll <= array_dimension[0] * array_dimension[1] and array_dimension[
-                    1] < unroll <= array_dimension[0] * array_dimension[1]:
+                if array_dimension[0] < unroll <= array_dimension[0] * array_dimension[1] and \
+                   array_dimension[1] < unroll <= array_dimension[0] * array_dimension[1]:
                     unroll = np.prod([x[1] for x in cluster_scheme])
                 elif unroll != 1:
                     unroll = np.prod([x[1] for x in cluster_scheme if x[0] not in operand_irrelevant[operand]])
@@ -1075,10 +1072,10 @@ def spatial_unrolling_generator_with_hint(mem_scheme, array_dimension, layer, un
                     continue
                 else:
                     if unroll_level_below == unroll:
-                        unrolling = copy.deepcopy(spatial_loop[operand][ii_level])
+                        unrolling = deepcopy(spatial_loop[operand][ii_level])
                         for shared_level in shared_set:
-                            spatial_loop[shared_level[0]][shared_level[1] + 1] = copy.deepcopy(unrolling)
-                            flooring[shared_level[0]][shared_level[1] + 1] = copy.deepcopy(unrolling_scheme)
+                            spatial_loop[shared_level[0]][shared_level[1] + 1] = deepcopy(unrolling)
+                            flooring[shared_level[0]][shared_level[1] + 1] = deepcopy(unrolling_scheme)
                             for ii_level_shared, level_shared in enumerate(
                                     spatial_loop[shared_level[0]][shared_level[1]:shared_level[1] + 1]):
                                 for ur in unrolling:
@@ -1142,6 +1139,39 @@ def pareto_clean_3D(dr_list):
     return del_idx
 
 
+def spatial_loop_same_term_merge(unrolling, flooring):
+    spatial_list = {'W': [], 'I': [], 'O': []}
+    for operand in ['W', 'I', 'O']:
+        for level, level_list in enumerate(flooring[operand]):
+            spatial_list[operand].append([])
+            if not level_list:
+                continue
+            else:
+                for XY_idx, XY_list in enumerate(level_list):
+                    spatial_list[operand][-1].append([])
+                    for va in XY_list:
+                        spatial_list[operand][-1][-1].append(list(unrolling[operand][level].pop(0)))
+
+    spatial_list_clean = deepcopy(spatial_list)
+    for operand in ['W', 'I', 'O']:
+        for level, level_list in enumerate(spatial_list[operand]):
+            if not level_list:
+                continue
+            else:
+                for XY_idx, XY_list in enumerate(level_list):
+                    if len(XY_list) in [1, 0]:
+                        continue
+                    else:
+                        va_clean_idx = 0
+                        for va_idx in range(1, len(XY_list)):
+                            if XY_list[va_idx - 1][0] == XY_list[va_idx][0]:
+                                spatial_list_clean[operand][level][XY_idx][va_clean_idx][1] *= XY_list[va_idx][1]
+                                spatial_list_clean[operand][level][XY_idx].remove(XY_list[va_idx])
+                                va_clean_idx -= 1
+                            va_clean_idx += 1
+    return spatial_list_clean
+
+
 def unroll_scheme_list_generator(mem_scheme, array_dimension, layer, precision, SU_threshold, mode):
     ll2 = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B'}
     loops_pf = {
@@ -1196,7 +1226,7 @@ def unroll_scheme_list_generator(mem_scheme, array_dimension, layer, precision, 
             comb = list(comb)
             comb.sort()
             if array_dimension[0] >= np.prod([x[1] for x in comb]) > array_dimension[0] * SU_threshold:
-                lpf2_list = copy.deepcopy(lpf_list)
+                lpf2_list = deepcopy(lpf_list)
                 for pf in comb:
                     lpf2_list.remove(pf)
                 for k2 in range(1, len(lpf2_list)):
@@ -1218,8 +1248,7 @@ def unroll_scheme_list_generator(mem_scheme, array_dimension, layer, precision, 
     for ii_us, us in enumerate(unrolling_scheme_list):
         us_aux = us[0] + us[1]
         layer_sp = {'B': 1, 'K': 1, 'C': 1, 'OY': 1, 'OX': 1, 'FY': 1, 'FX': 1,
-                    'SY': layer['SY'], 'SX': layer['SX'], 'SFY': layer['SFY'], 'SFX': layer['SFX'],
-                    'PY': layer['PY'], 'PX': layer['PX']}
+                    'SY': layer['SY'], 'SX': layer['SX'], 'SFY': layer['SFY'], 'SFX': layer['SFX']}
 
         for va in us_aux:
             layer_sp[ll2[va[0]]] *= va[1]
@@ -1280,9 +1309,9 @@ def unroll_scheme_list_generator(mem_scheme, array_dimension, layer, precision, 
                 tdr_list_clean.append(tdr_list[i])
                 unrolling_scheme_list_clean.append(unrolling_scheme_list[i])
 
-        sdr_list_clean2 = copy.deepcopy(sdr_list_clean)
-        tdr_list_clean2 = copy.deepcopy(tdr_list_clean)
-        unrolling_scheme_list_clean2 = copy.deepcopy(unrolling_scheme_list_clean)
+        sdr_list_clean2 = deepcopy(sdr_list_clean)
+        tdr_list_clean2 = deepcopy(tdr_list_clean)
+        unrolling_scheme_list_clean2 = deepcopy(unrolling_scheme_list_clean)
 
         del_idx = pareto_clean_3D(sdr_list_clean)
 
@@ -1303,8 +1332,8 @@ def unroll_scheme_list_generator(mem_scheme, array_dimension, layer, precision, 
 
 
 def su_reformat(spatial_unrolling, ideal_su_old, fraction_su_old):
-    ideal_su = copy.deepcopy(spatial_unrolling)
-    fraction_su = copy.deepcopy(spatial_unrolling)
+    ideal_su = deepcopy(spatial_unrolling)
+    fraction_su = deepcopy(spatial_unrolling)
     for op in ['W', 'I', 'O']:
         for level, outer_list in enumerate(spatial_unrolling[0][op]):
             if outer_list:
@@ -1346,8 +1375,8 @@ def update_mem_scheme_bw(mem_scheme, utilization):
     mem_bw_non_shared_final = {'W': [], 'I': [], 'O': []}
     mem_bw_shared_final = {'W': [], 'I': [], 'O': []}
 
-    mem_scheme_shared_bw = copy.deepcopy(mem_scheme)
-    mem_scheme_non_shared_bw = copy.deepcopy(mem_scheme)
+    mem_scheme_shared_bw = deepcopy(mem_scheme)
+    mem_scheme_non_shared_bw = deepcopy(mem_scheme)
 
     for operand in ['W', 'I', 'O']:
         for level, mem in enumerate(mem_scheme.mem_size[operand]):

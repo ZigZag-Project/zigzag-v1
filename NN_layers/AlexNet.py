@@ -64,9 +64,10 @@ layer_info = {
         'SFX': 1,
         'PY': 0,
         'PX': 0},
+    # just an example of group convolution
     6: {'B': 1,
-        'K': 256, # Total for all groups
-        'C': 192, # Total for all groups
+        'K': 256,  # Total for all groups
+        'C': 192,  # Total for all groups
         'OY': 13,
         'OX': 13,
         'FY': 3,
@@ -77,5 +78,5 @@ layer_info = {
         'SFX': 1,
         'PY': 0,
         'PX': 0,
-        'G' : 2} # Number of groups
+        'G' : 2}  # Number of groups
 }

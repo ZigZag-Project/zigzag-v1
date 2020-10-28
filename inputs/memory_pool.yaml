@@ -7,7 +7,6 @@ spad_448byte :
     write_word: [16]
   mem_type: dual_port_single_buffered
   utilization_rate: 0.7
-  nbanks : 1
 
 spad_24byte :
   size_bit: 192
@@ -18,7 +17,6 @@ spad_24byte :
     write_word: [16]
   mem_type: dual_port_single_buffered
   utilization_rate: 0.7
-  nbanks : 1
 
 spad_48byte:
   size_bit: 384
@@ -29,7 +27,6 @@ spad_48byte:
     write_word: [16]
   mem_type: dual_port_double_buffered
   utilization_rate: 0.7
-  nbanks : 1
 
 buffer_108Kbyte:
   size_bit: 884736
@@ -40,7 +37,6 @@ buffer_108Kbyte:
     write_word: [384]
   mem_type: dual_port_double_buffered
   utilization_rate: 0.7
-  nbanks : 1
 
 sram_eyeriss:
   size_bit : 17254617
@@ -51,7 +47,6 @@ sram_eyeriss:
       write_word : [12800]
   mem_type : dual_port_single_buffered
   utilization_rate : 0.7
-  nbanks : 1
 
 rf512:  
    size_bit: 512
@@ -103,7 +98,6 @@ sram1024kb:
   mem_bw: [32]
   mem_type: dual_port_single_buffered
   utilization_rate: 0.7
-  nbanks : 1
 
 sram:
   size_bit : 17254617

@@ -29,6 +29,9 @@ class Utilization(object):
                  mem_type, mac_array_stall, precision, mem_bw_bit, clk_domain={}):
 
         # spatial_loop is a list, in which spatial_loop[0] is the rounded one and spatial_loop[1] is the fractional one.
+        if type(spatial_loop) != type([1]):
+            spatial_loop = [spatial_loop, spatial_loop]
+
 
         mem_level = temporal_loop.loop_levels
         output_pre = loop.output_precision

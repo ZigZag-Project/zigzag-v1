@@ -248,6 +248,42 @@ def print_printing_block(file_path_name, printing_block, mode):
     f.close()
 
 
+def su_reformat_if_need(su):
+    new_su = {'W':[], 'I':[], 'O':[]}
+    # extract unrolled dimension on row and on column
+    for op in ['W', 'I', 'O']:
+        for level_list in su[op]:
+            # TODO for now, assume that at least one operand at one level is fully 2D unrolled.
+            if len(level_list) == 2:
+
+                row_list = [x[0] for x in level_list[0]]
+                col_list = [x[0] for x in level_list[1]]
+                ok = True
+                break
+        if ok:
+            break
+
+    # for each 1D-unrolled mem/mac level, distinguish column from row
+    for op in ['W', 'I', 'O']:
+        for level_list in su[op]:
+            if len(level_list) in [0,2]:
+                new_su[op].append(level_list)
+            elif len(level_list) == 1:
+                if level_list[0][0][0] in row_list:
+                    level_list.append([])
+                elif level_list[0][0][0] in col_list:
+                    level_list.insert(0, [])
+                else:
+                    print('su:', su)
+                    raise ValueError('NO1. Please check the SU.')
+                new_su[op].append(level_list)
+            else:
+                print('su:', su)
+                raise ValueError('NO2. Please check the SU.')
+
+    return new_su
+
+
 def print_good_tm_format(tm, mem_name, file_path_name):
     lp_name = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B'}
     tm_list = [tp for li in tm['W'] for tp in li]
@@ -294,54 +330,149 @@ def print_good_tm_format(tm, mem_name, file_path_name):
 
 
 def print_good_su_format(su, mem_name, file_path_name):
-    lp_name = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B'}
-    su_list = [sp for lv_li in su['W'] for xy_li in lv_li for sp in xy_li]
-    mem_name = {'W': ['MAC'] + mem_name['W'], 'I': ['MAC'] + mem_name['I'], 'O': ['MAC'] + mem_name['O']}
-    # get required interval between 'W', 'I', 'O', based on actual mem name length
-    max_mem_name_len = 0
-    for operand in ['W', 'I', 'O']:
-        for lv in range(len(mem_name[operand])):
-            if len(mem_name[operand][lv]) > max_mem_name_len and su[operand][lv] != []:
-                max_mem_name_len = len(mem_name[operand][lv])
-    interval = max_mem_name_len + 13
+    # print(su,mem_name,file_path_name)
+    try:
+        lp_name = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B'}
+        su_list = [sp for lv_li in su['W'] for xy_li in lv_li for sp in xy_li]
+        mem_name = {'W': ['MAC'] + mem_name['W'], 'I': ['MAC'] + mem_name['I'], 'O': ['MAC'] + mem_name['O']}
+        # get required interval between 'W', 'I', 'O', based on actual mem name length
+        max_mem_name_len = 0
+        for operand in ['W', 'I', 'O']:
+            for lv in range(len(mem_name[operand])):
+                if len(mem_name[operand][lv]) > max_mem_name_len and su[operand][lv] != []:
+                    max_mem_name_len = len(mem_name[operand][lv])
+        interval = max_mem_name_len + 13
 
-    tot_row = 2 * (len(su_list) + 1) + 13
-    tot_col = int(2 * (len(su_list) + 1) + 3.75 * interval)
-    tot_col_cut = 2 * (len(su_list) + 1) + interval
-    su_block = create_printing_block(tot_row, tot_col)
-    dash = '*' * int((tot_col - len(' Levels In The System')) / 2)
-    su_block = modify_printing_block(su_block, 0, 0, dash + ' Levels In The System ' + dash)
-    su_block = modify_printing_block(su_block, 1, 1, 'W: ' + str(mem_name['W']))
-    su_block = modify_printing_block(su_block, 2, 1, 'I: ' + str(mem_name['I']))
-    su_block = modify_printing_block(su_block, 3, 1, 'O: ' + str(mem_name['O']))
-    dash = '*' * int((tot_col - len(' Spatial Unrolling Visualization ')) / 2)
-    su_block = modify_printing_block(su_block, 6, 0, dash + ' Spatial Unrolling Visualization ' + dash)
-    su_block = modify_printing_block(su_block, 7, 1, 'W: ' + str(s_loop_name_transfer(su['W'])))
-    su_block = modify_printing_block(su_block, 8, 1, 'I: ' + str(s_loop_name_transfer(su['I'])))
-    su_block = modify_printing_block(su_block, 9, 1, 'O: ' + str(s_loop_name_transfer(su['O'])))
-    su_block = modify_printing_block(su_block, 11, 0, '-' * tot_col)
-    su_block = modify_printing_block(su_block, 12, 1, "Unrolled Loops")
-    su_block = modify_printing_block(su_block, 13, 0, '-' * tot_col)
-    finish_row = 2 * len(su_list) + 12
-    for i, li in enumerate(su_list):
-        su_block = modify_printing_block(su_block, finish_row - 2 * i, 1,
-                                         'unroll ' + str(lp_name[li[0]]) + ' in ' + '[0:' + str(li[1]) + ')')
-        su_block = modify_printing_block(su_block, 2 * (i + 1) + 1 + 12, 0, '-' * tot_col)
+        tot_row = 2 * (len(su_list) + 1) + 13
+        tot_col = int(2 * (len(su_list) + 1) + 3.75 * interval)
+        tot_col_cut = 2 * (len(su_list) + 1) + interval
+        su_block = create_printing_block(tot_row, tot_col)
+        dash = '*' * int((tot_col - len(' Levels In The System')) / 2)
+        su_block = modify_printing_block(su_block, 0, 0, dash + ' Levels In The System ' + dash)
+        su_block = modify_printing_block(su_block, 1, 1, 'W: ' + str(mem_name['W']))
+        su_block = modify_printing_block(su_block, 2, 1, 'I: ' + str(mem_name['I']))
+        su_block = modify_printing_block(su_block, 3, 1, 'O: ' + str(mem_name['O']))
+        dash = '*' * int((tot_col - len(' Spatial Unrolling Visualization ')) / 2)
+        su_block = modify_printing_block(su_block, 6, 0, dash + ' Spatial Unrolling Visualization ' + dash)
+        su_block = modify_printing_block(su_block, 7, 1, 'W: ' + str(s_loop_name_transfer(su['W'])))
+        su_block = modify_printing_block(su_block, 8, 1, 'I: ' + str(s_loop_name_transfer(su['I'])))
+        su_block = modify_printing_block(su_block, 9, 1, 'O: ' + str(s_loop_name_transfer(su['O'])))
+        su_block = modify_printing_block(su_block, 11, 0, '-' * tot_col)
+        su_block = modify_printing_block(su_block, 12, 1, "Unrolled Loops")
+        su_block = modify_printing_block(su_block, 13, 0, '-' * tot_col)
+        finish_row = 2 * len(su_list) + 12
+        for i, li in enumerate(su_list):
+            su_block = modify_printing_block(su_block, finish_row - 2 * i, 1,
+                                             'unroll ' + str(lp_name[li[0]]) + ' in ' + '[0:' + str(li[1]) + ')')
+            su_block = modify_printing_block(su_block, 2 * (i + 1) + 1 + 12, 0, '-' * tot_col)
 
-    su_block = modify_printing_block(su_block, finish_row + 2, 1,
-                                     "(Notes: Unrolled loops' order doesn't matters; D1 and D2 indicate 2 PE array dimensions.)")
-    # print mem name to each level
-    XY_name = {0: 'D1', 1: 'D2'}
-    for idx, operand in enumerate(['W', 'I', 'O']):
-        column_position = tot_col_cut + idx * interval
-        su_block = modify_printing_block(su_block, 12, column_position, operand)
-        i = 0
-        for level, lv_li in enumerate(su[operand]):
-            for xy, xy_li in enumerate(lv_li):
-                for _ in enumerate(xy_li):
-                    su_block = modify_printing_block(su_block, finish_row - 2 * i, column_position,
-                                                     str(mem_name[operand][level]) + ' (' + XY_name[xy] + ')')
-                    i += 1
+        su_block = modify_printing_block(su_block, finish_row + 2, 1,
+                                         "(Notes: Unrolled loops' order doesn't matters; D1 and D2 are PE "
+                                         "array's two geometric dimensions. )")
+        # print mem name to each level
+        XY_name = {0: 'D1', 1: 'D2'}
+        position_save = [[], []]  # for I and O based on W
+
+        for idx, operand in enumerate(['W']):
+            column_position = tot_col_cut + idx * interval
+            su_block = modify_printing_block(su_block, 12, column_position, operand)
+            i = 0
+            for level, lv_li in enumerate(su[operand]):
+                for xy, xy_li in enumerate(lv_li):
+                    for _ in enumerate(xy_li):
+                        position_save[0].extend([XY_name[xy], finish_row - 2 * i])
+                        position_save[1].extend([XY_name[xy], finish_row - 2 * i])
+                        su_block = modify_printing_block(su_block, finish_row - 2 * i, column_position,
+                                                         str(mem_name[operand][level]) + ' (' + XY_name[xy] + ')')
+                        # print_printing_block(file_path_name, su_block, 'w+')
+                        i += 1
+
+        for idx, operand in enumerate(['I', 'O']):
+            column_position = tot_col_cut + (idx+1) * interval
+            su_block = modify_printing_block(su_block, 12, column_position, operand)
+            i = 0
+            for level, lv_li in enumerate(su[operand]):
+                for xy, xy_li in enumerate(lv_li):
+                    for _ in enumerate(xy_li):
+                        line_position_index = position_save[idx].index(XY_name[xy])
+                        line_position = position_save[idx][line_position_index+1]
+                        del position_save[idx][line_position_index]
+                        del position_save[idx][line_position_index]
+                        su_block = modify_printing_block(su_block, line_position, column_position,
+                                                         str(mem_name[operand][level]) + ' (' + XY_name[xy] + ')')
+                        # print_printing_block(file_path_name, su_block, 'w+')
+                        i += 1
+    except:
+        su = su_reformat_if_need(su)
+        su_list = [sp for lv_li in su['W'] for xy_li in lv_li for sp in xy_li]
+        # get required interval between 'W', 'I', 'O', based on actual mem name length
+        max_mem_name_len = 0
+        for operand in ['W', 'I', 'O']:
+            for lv in range(len(mem_name[operand])):
+                if len(mem_name[operand][lv]) > max_mem_name_len and su[operand][lv] != []:
+                    max_mem_name_len = len(mem_name[operand][lv])
+        interval = max_mem_name_len + 13
+
+        tot_row = 2 * (len(su_list) + 1) + 13
+        tot_col = int(2 * (len(su_list) + 1) + 3.75 * interval)
+        tot_col_cut = 2 * (len(su_list) + 1) + interval
+        su_block = create_printing_block(tot_row, tot_col)
+        dash = '*' * int((tot_col - len(' Levels In The System')) / 2)
+        su_block = modify_printing_block(su_block, 0, 0, dash + ' Levels In The System ' + dash)
+        su_block = modify_printing_block(su_block, 1, 1, 'W: ' + str(mem_name['W']))
+        su_block = modify_printing_block(su_block, 2, 1, 'I: ' + str(mem_name['I']))
+        su_block = modify_printing_block(su_block, 3, 1, 'O: ' + str(mem_name['O']))
+        dash = '*' * int((tot_col - len(' Spatial Unrolling Visualization ')) / 2)
+        su_block = modify_printing_block(su_block, 6, 0, dash + ' Spatial Unrolling Visualization ' + dash)
+        su_block = modify_printing_block(su_block, 7, 1, 'W: ' + str(s_loop_name_transfer(su['W'])))
+        su_block = modify_printing_block(su_block, 8, 1, 'I: ' + str(s_loop_name_transfer(su['I'])))
+        su_block = modify_printing_block(su_block, 9, 1, 'O: ' + str(s_loop_name_transfer(su['O'])))
+        su_block = modify_printing_block(su_block, 11, 0, '-' * tot_col)
+        su_block = modify_printing_block(su_block, 12, 1, "Unrolled Loops")
+        su_block = modify_printing_block(su_block, 13, 0, '-' * tot_col)
+        finish_row = 2 * len(su_list) + 12
+        for i, li in enumerate(su_list):
+            su_block = modify_printing_block(su_block, finish_row - 2 * i, 1,
+                                             'unroll ' + str(lp_name[li[0]]) + ' in ' + '[0:' + str(li[1]) + ')')
+            su_block = modify_printing_block(su_block, 2 * (i + 1) + 1 + 12, 0, '-' * tot_col)
+
+        su_block = modify_printing_block(su_block, finish_row + 2, 1,
+                                         "(Notes: Unrolled loops' order doesn't matters; D1 and D2 are PE "
+                                         "array's two geometric dimensions. )")
+        # print mem name to each level
+        XY_name = {0: 'D1', 1: 'D2'}
+        position_save = [[], []]  # for I and O based on W
+
+        for idx, operand in enumerate(['W']):
+            column_position = tot_col_cut + idx * interval
+            su_block = modify_printing_block(su_block, 12, column_position, operand)
+            i = 0
+            for level, lv_li in enumerate(su[operand]):
+                for xy, xy_li in enumerate(lv_li):
+                    for _ in enumerate(xy_li):
+                        position_save[0].extend([XY_name[xy], finish_row - 2 * i])
+                        position_save[1].extend([XY_name[xy], finish_row - 2 * i])
+                        su_block = modify_printing_block(su_block, finish_row - 2 * i, column_position,
+                                                         str(mem_name[operand][level]) + ' (' + XY_name[xy] + ')')
+                        # print_printing_block(file_path_name, su_block, 'w+')
+                        i += 1
+
+        for idx, operand in enumerate(['I', 'O']):
+            column_position = tot_col_cut + (idx + 1) * interval
+            su_block = modify_printing_block(su_block, 12, column_position, operand)
+            i = 0
+            for level, lv_li in enumerate(su[operand]):
+                for xy, xy_li in enumerate(lv_li):
+                    for _ in enumerate(xy_li):
+                        line_position_index = position_save[idx].index(XY_name[xy])
+                        line_position = position_save[idx][line_position_index + 1]
+                        del position_save[idx][line_position_index]
+                        del position_save[idx][line_position_index]
+                        su_block = modify_printing_block(su_block, line_position, column_position,
+                                                         str(mem_name[operand][level]) + ' (' + XY_name[xy] + ')')
+                        # print_printing_block(file_path_name, su_block, 'w+')
+                        i += 1
+
     print_printing_block(file_path_name, su_block, 'w+')
 
 

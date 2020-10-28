@@ -875,7 +875,7 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, spati
     for i, blocking_node in enumerate(finalLayer):
         # print('\r bs cleaning ', i, '/', len(finalLayer), end='', flush=True)
         good = True
-        good = su.check_node(blocking_node, mem_size, operand_irrelevant, mem_share, precision, layer_loop_info,
+        good = su.check_node(blocking_node.LPF_scheme, mem_size, operand_irrelevant, mem_share, precision, layer_loop_info,
                              utilization_rate)
         if good:
             if blocking_node.LPF_scheme not in list_blocking_schemes:
