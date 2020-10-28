@@ -34,22 +34,12 @@ spatial_unrolling_multiprocessing : 100
 temporal_mapping_multiprocessing: 100
 
 # TEMPORAL MAPPING GENERATOR SETTINGS
-# search_method : exhaustive / heuristic_v1 / heuristic_v2 / iterative
+# search_method : exhaustive / heuristic_v1 / heuristic_v2
 temporal_mapping_search_method : heuristic_v1
 
 # SPATIAL MAPPING GENERATOR SETTINGS
-# search method : exhaustive / heuristic_v1 / heuristic_v2 / hint_driven / greedy_mapping_with_hint / greedy_mapping_without_hint
-# If 'hint_driven' or 'greedy_mapping_with_hint' is chosen, 'spatial_mapping_list' in the mapping file will be used.
-# Greedy mapping allows MAC array to be always fully utilized except the last time,
-  # e.g. to map (C,10) on a row of 8 PEs, without greedy mapping enabled, the tool will map (C,5), (C,5);
-  # with greedy mapping enabled, it will map (C,8), (C,2).
+# search method : exhaustive / heuristic_v1 / heuristic_v2 / hint_driven
+# If 'hint_driven' is chosen, 'spatial_mapping_list' in the mapping file will be used.
 spatial_unrolling_search_method : hint_driven
 spatial_utilization_threshold : 0.9
-
-# CONV im2col ENABLE
-# Weight matrix [K,       C|FX|FY]
-# Input  matrix [B|OY|OX, C|FY|FX]
-# Output matrix [K,       B|OY|OX]
-# Process convolution as matrix-matrix multiplication.
-im2col_enable : False
 
