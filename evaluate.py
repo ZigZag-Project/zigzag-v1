@@ -415,7 +415,7 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
     else:
         layer_info = deepcopy(multi_manager.layer_spec.layer_info)
         im2col_need_correct = False
-    # print('Layer', layer_index, layer_info[layer_index])
+    print('Layer', layer_index, layer_info[layer_index])
 
     t1 = time.time()
     min_energy_utilization = 0
@@ -449,15 +449,18 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
             spatial_unrolling = []
             flooring = []
             fraction_spatial_unrolling = []
-            for aux_layer_idx in range(len(layer_info[layer_index])):
+            for idd, aux_layer_idx in enumerate(range(len(layer_info[layer_index]))):
                 su_hint_idx = aux_layer_to_su_hint_table[aux_layer_idx]
                 spatial_unrolling_, flooring_, mem_scheme, not_good = msg.spatial_unrolling_generator_with_hint(
                     mem_scheme, input_settings.mac_array_info['array_size'],
                     layer_info[layer_index][aux_layer_idx], [unrolling_scheme_list[su_hint_idx]])
                 if not spatial_unrolling_:
                     continue
-                spatial_unrolling_, fraction_spatial_unrolling_ = \
-                    msg.su_reformat(spatial_unrolling_, ideal_su[aux_layer_idx], fraction_su[aux_layer_idx])
+                if layer_rounded.greedy_mapping_flag[idd]:
+                    spatial_unrolling_, fraction_spatial_unrolling_ = \
+                        msg.su_reformat(spatial_unrolling_, ideal_su[aux_layer_idx], fraction_su[aux_layer_idx])
+                else:
+                    fraction_spatial_unrolling_ = spatial_unrolling_
                 spatial_unrolling += spatial_unrolling_
                 flooring += flooring_
                 fraction_spatial_unrolling += fraction_spatial_unrolling_
@@ -481,14 +484,17 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
             spatial_unrolling = []
             flooring = []
             fraction_spatial_unrolling = []
-            for aux_layer_idx in range(len(layer_info[layer_index])):
+            for idd, aux_layer_idx in enumerate(range(len(layer_info[layer_index]))):
                 su_hint_idx = aux_layer_to_su_hint_table[aux_layer_idx]
                 spatial_unrolling_, flooring_, mem_scheme, not_good = msg.spatial_unrolling_generator_with_hint(
                     mem_scheme, input_settings.mac_array_info['array_size'],
                     layer_info[layer_index][aux_layer_idx],
                     [input_settings.unrolling_scheme_list[su_hint_idx]])
-                spatial_unrolling_, fraction_spatial_unrolling_ = \
-                    msg.su_reformat(spatial_unrolling_, ideal_su[aux_layer_idx], fraction_su[aux_layer_idx])
+                if layer_rounded.greedy_mapping_flag[idd]:
+                    spatial_unrolling_, fraction_spatial_unrolling_ = \
+                        msg.su_reformat(spatial_unrolling_, ideal_su[aux_layer_idx], fraction_su[aux_layer_idx])
+                else:
+                    fraction_spatial_unrolling_ = spatial_unrolling_
                 spatial_unrolling += spatial_unrolling_
                 flooring += flooring_
                 fraction_spatial_unrolling += fraction_spatial_unrolling_
@@ -531,8 +537,8 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
 
         return
 
-    # for su_idx, su_ in enumerate(spatial_unrolling):
-    #     print('-SU', su_idx + 1, '/', len(mem_scheme.spatial_unrolling), mem_scheme.spatial_unrolling[su_idx])
+    for su_idx, su_ in enumerate(spatial_unrolling):
+        print('-SU', su_idx + 1, '/', len(mem_scheme.spatial_unrolling), mem_scheme.spatial_unrolling[su_idx])
 
     ''' input_settings.su_parallel_processing SU parallel '''
     TIMEOUT = 36000

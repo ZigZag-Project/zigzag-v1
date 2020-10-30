@@ -793,9 +793,8 @@ def spatial_unrolling_generator(mem_scheme, array_dimension, layer, precision, S
             if not_good:
                 break
             for ii_level, unroll in enumerate(mem_scheme.mem_unroll[operand]):
-                if array_dimension[0] < unroll <= array_dimension[0] * array_dimension[1] and array_dimension[
-                    1] < unroll <= \
-                        array_dimension[0] * array_dimension[1]:
+                if array_dimension[0] < unroll <= array_dimension[0] * array_dimension[1] and \
+                   array_dimension[1] < unroll <= array_dimension[0] * array_dimension[1]:
                     unroll = np.prod([x[1] for x in cluster_scheme[0] + cluster_scheme[1]])
                 elif unroll != 1:
                     unroll = np.prod([x[1] for x in cluster_scheme[0] + cluster_scheme[1] if
@@ -1338,8 +1337,10 @@ def su_reformat(spatial_unrolling, ideal_su_old, fraction_su_old):
         for level, outer_list in enumerate(spatial_unrolling[0][op]):
             if outer_list:
                 for idx, inner_list in enumerate(outer_list):
-                    ideal_su[0][op][level][idx] = ideal_su_old[idx]
-                    fraction_su[0][op][level][idx] = fraction_su_old[idx]
+                    locate_corresponding_id_su = [x for x in ideal_su_old if x[0] == inner_list[0]]
+                    locate_corresponding_fr_su = [x for x in fraction_su_old if x[0] == inner_list[0]]
+                    ideal_su[0][op][level][idx] = locate_corresponding_id_su[0]
+                    fraction_su[0][op][level][idx] = locate_corresponding_fr_su[0]
     return ideal_su, fraction_su
 
 
