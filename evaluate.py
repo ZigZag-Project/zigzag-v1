@@ -76,7 +76,7 @@ def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_
                                                       input_settings.mac_array_stall,
                                                       input_settings.precision, msc.mem_bw)
 
-        occupied_area = msg.get_mem_scheme_area(msc)
+        occupied_area = msg.get_mem_scheme_area(msc, spatial_loop.unit_count)
 
         total_cost_layer = 0
         # loop.array_wire_distance = {'W': [], 'I': [], 'O': []}
@@ -511,17 +511,25 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
 
         # spatial unrolling full search based on user-defined spatial_utilization_threshold
         else:
-            spatial_unrolling, flooring, mem_scheme, not_good = msg.spatial_unrolling_generator(
-                mem_scheme, input_settings.mac_array_info['array_size'], layer_info[layer_index],
-                input_settings.precision, input_settings.spatial_utilization_threshold,
-                input_settings.spatial_unrolling_mode)
+            even = (mem_scheme.mem_unroll['W'][0] == mem_scheme.mem_unroll['I'][0] == mem_scheme.mem_unroll['O'][0])
+            if even and not input_settings.memory_unroll_fully_flexible:
+                spatial_unrolling, flooring, mem_scheme, not_good = msg.spatial_unrolling_generator_even(
+                    mem_scheme, input_settings.mac_array_info['array_size'], layer_info[layer_index],
+                    input_settings.precision, input_settings.spatial_utilization_threshold,
+                    input_settings.spatial_unrolling_mode)
+            else:
+                spatial_unrolling, flooring, mem_scheme, not_good = msg.spatial_unrolling_generator_uneven(
+                    mem_scheme, input_settings.mac_array_info['array_size'], layer_info[layer_index],
+                    input_settings.precision, input_settings.spatial_utilization_threshold,
+                    input_settings.spatial_unrolling_mode, input_settings.memory_unroll_fully_flexible)
             mem_scheme.fraction_spatial_unrolling = spatial_unrolling
             mem_scheme.greedy_mapping_flag = [False] * len(spatial_unrolling)
             mem_scheme.footer_info = [0] * len(spatial_unrolling)
 
         mem_scheme.spatial_unrolling = spatial_unrolling
         mem_scheme.flooring = flooring
-
+        now = datetime.now()
+        current_time = now.strftime("%H:%M:%S")
         print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, ', M',
               mem_scheme_index + 1, '/', mem_scheme_count, ' SUG finished',
               '| Valid SU found:', len(spatial_unrolling))
@@ -537,8 +545,8 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
 
         return
 
-    for su_idx, su_ in enumerate(spatial_unrolling):
-        print('-SU', su_idx + 1, '/', len(mem_scheme.spatial_unrolling), mem_scheme.spatial_unrolling[su_idx])
+    # for su_idx, su_ in enumerate(spatial_unrolling):
+    #     print('-SU', su_idx + 1, '/', len(mem_scheme.spatial_unrolling), mem_scheme.spatial_unrolling[su_idx])
 
     ''' input_settings.su_parallel_processing SU parallel '''
     TIMEOUT = 36000
@@ -659,7 +667,10 @@ def mem_scheme_list_evaluate(input_settings, mem_scheme, mem_scheme_index, layer
 
     print('MEM HIERARCHY ', mem_scheme_index + 1, '/', mem_scheme_count)
     print('memory size:', mem_scheme.mem_size)
-    print('memory unroll:', mem_scheme.mem_unroll)
+    if input_settings.memory_unroll_fully_flexible:
+        print('memory unroll: unfixed')
+    else:
+        print('memory unroll:', mem_scheme.mem_unroll)
     print('memory share:', mem_scheme.mem_share)
 
     layer_chunk_list = [layers[i:i + input_settings.layer_parallel_processing] for i in

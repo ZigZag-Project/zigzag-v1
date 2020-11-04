@@ -82,6 +82,8 @@ class MemoryScheme:
     col2im_flooring = []
     col2im_fraction_spatial_unrolling = []
 
+    new_mem_unroll = []
+
     def __init__(self, mem_name, mem_size, mem_cost, mem_utilization_rate, mem_utilization_rate_fixed, mem_share,
                  mem_unroll, mem_fifo, mem_bw, mem_type, mem_area, mem_nbanks):
         self.mem_name = mem_name
@@ -742,7 +744,171 @@ def mem_scheme_fit_check(mem_scheme, precision, layer, layer_number):
     return mem_scheme_fit
 
 
-def spatial_unrolling_generator(mem_scheme, array_dimension, layer, precision, SU_threshold, SU_mode):
+def loop_same_term_merge1(unmerged):
+    """
+    This function merges same type of loops' dimension size at X/Y directions,
+    assuming same type of loops are close to each other.
+    """
+    merged = []
+
+    # change data format from tuple to list
+    for level_list in unmerged:
+        merged.append([])
+        for loop_elem in level_list:
+            merged[-1].append(list(loop_elem))
+
+    # merge same type loops within X, Y unrolling list
+    for level, level_list in enumerate(unmerged):
+        if len(level_list) in [1, 0]:
+            continue
+        else:
+            va_clean_idx = 0
+            for va_idx in range(1, len(level_list)):
+                if level_list[va_idx - 1][0] == level_list[va_idx][0]:
+                    merged[level][va_clean_idx][1] *= level_list[va_idx][1]
+                    merged[level].remove(list(level_list[va_idx]))
+                    va_clean_idx -= 1
+                va_clean_idx += 1
+
+    return merged
+
+
+def loop_same_term_merge2(unmerged):
+    """
+    This function merges same type of loops' dimension size at each level,
+    without assuming same type of loops are close to each other.
+    """
+    merged = {'W': [], 'I': [], 'O': []}
+    merged_loop_type = {'W': [], 'I': [], 'O': []}
+    for operand in ['W', 'I', 'O']:
+        for level, level_list in enumerate(unmerged[operand]):
+            merged[operand].append([])
+            merged_loop_type[operand].append([])
+            if len(level_list) > 1:
+                for level_elem in level_list:
+                    if level_elem[0] not in merged_loop_type[operand][-1]:
+                        merged[operand][-1].append(deepcopy(level_elem))
+                        merged_loop_type[operand][-1].append(level_elem[0])
+                    else:
+                        idx = merged_loop_type[operand][-1].index(level_elem[0])
+                        merged[operand][-1][idx][1] *= level_elem[1]
+
+    return merged, merged_loop_type
+
+
+def memory_unroll_candidate_gen(unrolling_scheme, layer):
+    """ This function generate EVEN/UNEVEN memory unroll candidate according to unrolling_scheme. """
+    B = 1
+    K = 1
+    C = 1
+    OY = 1
+    OX = 1
+    FY = 1
+    FX = 1
+
+    for unroll in unrolling_scheme:
+        for loop in unroll:
+            if loop[0] == 7:
+                B *= loop[1]
+            elif loop[0] == 6:
+                K *= loop[1]
+            elif loop[0] == 5:
+                C *= loop[1]
+            elif loop[0] == 4:
+                OY *= loop[1]
+            elif loop[0] == 3:
+                OX *= loop[1]
+            elif loop[0] == 2:
+                FY *= loop[1]
+            elif loop[0] == 1:
+                FX *= loop[1]
+
+    IX = layer['SX'] * (OX - 1) + layer['SFX'] * (FX - 1) + 1
+    IY = layer['SY'] * (OY - 1) + layer['SFY'] * (FY - 1) + 1
+    W_unroll = K * C * FY * FX
+    I_unroll = B * C * IX * IY
+    O_unroll = B * K * OY * OX
+    memory_unroll_candidate = {'W': W_unroll, 'I': I_unroll, 'O': O_unroll}
+    return memory_unroll_candidate
+
+
+def spatial_unrolling_generator_uneven(mem_scheme, array_dimension, layer, precision, SU_threshold, SU_mode,
+                                       memory_unroll_fully_flexible):
+    spatial_loop_list = []
+    flooring_list = []
+
+    unrolling_scheme_list = unroll_scheme_list_generator(mem_scheme, array_dimension, layer, precision, SU_threshold,
+                                                         SU_mode)
+
+    mem_unroll_candidates = []
+    unrolling_scheme_candidates = []
+    if memory_unroll_fully_flexible:
+        for i, unroll_i in enumerate(unrolling_scheme_list):
+            unrolling_scheme_list[i] = loop_same_term_merge1(unroll_i)
+            mem_unroll_candidate = memory_unroll_candidate_gen(unrolling_scheme_list[i], layer)
+            mem_unroll_candidates.append(mem_unroll_candidate)
+            unrolling_scheme_candidates.append(unrolling_scheme_list[i])
+    else:
+        mem_unroll = {'W': mem_scheme.mem_unroll['W'][0],
+                      'I': mem_scheme.mem_unroll['I'][0],
+                      'O': mem_scheme.mem_unroll['O'][0]}
+        for i, unroll_i in enumerate(unrolling_scheme_list):
+            unrolling_scheme_list[i] = loop_same_term_merge1(unroll_i)
+            mem_unroll_candidate = memory_unroll_candidate_gen(unrolling_scheme_list[i], layer)
+            if mem_unroll_candidate == mem_unroll:
+                mem_unroll_candidates.append(mem_unroll_candidate)
+                unrolling_scheme_candidates.append(unrolling_scheme_list[i])
+                # TODO remove the below "break" when later take interconnection cost into account
+                break
+
+    mem_scheme.new_mem_unroll = mem_unroll_candidates
+
+    for i, unroll_i in enumerate(unrolling_scheme_candidates):
+        spatial_loop = {'W': [], 'I': [], 'O': []}
+        flooring = {'W': [], 'I': [], 'O': []}
+        for operand in ['W', 'I', 'O']:
+            spatial_loop[operand] = [[] for _ in range(len(mem_scheme.mem_size[operand]) + 1)]
+            flooring[operand] = [[[], []] for _ in range(len(mem_scheme.mem_size[operand]) + 1)]
+
+        for XY_dim, XY_list in enumerate(unroll_i):
+            for XY_elem in XY_list:
+                # Weight
+                if XY_elem[0] in [7, 4, 3]:
+                    spatial_loop['W'][0].append(XY_elem)
+                    flooring['W'][0][XY_dim].append(XY_elem[0])
+                else:
+                    spatial_loop['W'][1].append(XY_elem)
+                    flooring['W'][1][XY_dim].append(XY_elem[0])
+                # Input
+                if XY_elem[0] in [6]:
+                    spatial_loop['I'][0].append(XY_elem)
+                    flooring['I'][0][XY_dim].append(XY_elem[0])
+                else:
+                    spatial_loop['I'][1].append(XY_elem)
+                    flooring['I'][1][XY_dim].append(XY_elem[0])
+                # Output
+                if XY_elem[0] in [5, 2, 1]:
+                    spatial_loop['O'][0].append(XY_elem)
+                    flooring['O'][0][XY_dim].append(XY_elem[0])
+                else:
+                    spatial_loop['O'][1].append(XY_elem)
+                    flooring['O'][1][XY_dim].append(XY_elem[0])
+        # spatial_loop, flooring = loop_same_term_merge2(spatial_loop)
+        for op in ['W', 'I', 'O']:
+            for level, level_list in enumerate(flooring[op]):
+                if level_list == [[], []]:
+                    flooring[op][level] = []
+        spatial_loop_list.append(spatial_loop)
+        flooring_list.append(flooring)
+        print('mem_unroll', i, mem_unroll_candidates[i])
+        print('spatial_loop', i, spatial_loop)
+        print('flooring', i, flooring)
+        print()
+
+    return spatial_loop_list, flooring_list, mem_scheme, False
+
+
+def spatial_unrolling_generator_even(mem_scheme, array_dimension, layer, precision, SU_threshold, SU_mode):
     spatial_loop_list = []
     flooring_list = []
 
@@ -856,69 +1022,69 @@ def spatial_unrolling_generator(mem_scheme, array_dimension, layer, precision, S
             spatial_loop_list.append(spatial_loop)
             flooring_list.append(flooring)
 
-    best_spatial_loop_list = []
-    best_flooring_list = []
-    mincost = float('inf')
-    mem_cost = {'W': [], 'I': [], 'O': []}
-    for op in ['W', 'I', 'O']:
-        readc = []
-        writec = []
-        try:
-            for ii_rc, rc in enumerate(mem_scheme.mem_cost[op]):
-                readc.append(
-                    (precision[op] / mem_scheme.mem_bw[op][ii_rc][0][0]) * mem_scheme.mem_cost[op][ii_rc][0][0])
-                writec.append(
-                    (precision[op] / mem_scheme.mem_bw[op][ii_rc][0][0]) * mem_scheme.mem_cost[op][ii_rc][0][1])
-        except:
-            for ii_rc, rc in enumerate(mem_scheme.mem_cost[op]):
-                if ii_rc == 0:
-                    for lv, per_word_rd_cost in enumerate(rc):
-                        readc.append((precision[op] / mem_scheme.mem_bw[op][lv][0]) * per_word_rd_cost)
-                elif ii_rc == 1:
-                    for lv, per_word_wr_cost in enumerate(rc):
-                        writec.append((precision[op] / mem_scheme.mem_bw[op][lv][1]) * per_word_wr_cost)
-        mem_cost[op] = [readc, writec]
-
-    totalMACop = 1
-    output_data_size = 1
-    for loop_type in layer:
-        if loop_type in ['FX', 'FY', 'OX', 'OY', 'C', 'K', 'B']:
-            totalMACop *= layer[loop_type]
-        if loop_type in ['OX', 'OY', 'K']:
-            output_data_size *= layer[loop_type]
-
-    for ii_su, sl in enumerate(spatial_loop_list):
-        energy_su = 0
-        for op in ['W', 'I', 'O']:
-            for ii_lev, lev in enumerate(sl[op]):
-                if ii_lev == 0: continue
-                totalMACop_tmp = totalMACop
-                unroll_below = []
-                for levaux in sl[op][:ii_lev]:
-                    for pf in levaux: unroll_below.append(pf)
-                data_reuse = 1
-                if op in ['W', 'O']:
-                    for pf in unroll_below:
-                        if pf[0] in operand_irrelevant[op]: data_reuse *= pf[1]
-                else:
-                    data_reuse = get_input_data_reuse(unroll_below, layer)
-                totalMACop_tmp /= data_reuse
-                if op in ['W', 'I']:
-                    energy_su += totalMACop_tmp * (mem_cost[op][0][ii_lev - 1] + mem_cost[op][0][ii_lev - 1])
-                else:
-                    energy_su += totalMACop_tmp * mem_cost[op][1][ii_lev - 1]
-                    energy_su += (totalMACop_tmp - output_data_size) * mem_cost[op][0][ii_lev - 1]
-
-        if energy_su == mincost:
-            best_spatial_loop_list.append(sl)
-            best_flooring_list.append(flooring_list[ii_su])
-        if energy_su < mincost:
-            # print(energy_su)
-            mincost = energy_su
-            best_spatial_loop_list.clear()
-            best_flooring_list.clear()
-            best_spatial_loop_list.append(sl)
-            best_flooring_list.append(flooring_list[ii_su])
+    # best_spatial_loop_list = []
+    # best_flooring_list = []
+    # mincost = float('inf')
+    # mem_cost = {'W': [], 'I': [], 'O': []}
+    # for op in ['W', 'I', 'O']:
+    #     readc = []
+    #     writec = []
+    #     try:
+    #         for ii_rc, rc in enumerate(mem_scheme.mem_cost[op]):
+    #             readc.append(
+    #                 (precision[op] / mem_scheme.mem_bw[op][ii_rc][0][0]) * mem_scheme.mem_cost[op][ii_rc][0][0])
+    #             writec.append(
+    #                 (precision[op] / mem_scheme.mem_bw[op][ii_rc][0][0]) * mem_scheme.mem_cost[op][ii_rc][0][1])
+    #     except:
+    #         for ii_rc, rc in enumerate(mem_scheme.mem_cost[op]):
+    #             if ii_rc == 0:
+    #                 for lv, per_word_rd_cost in enumerate(rc):
+    #                     readc.append((precision[op] / mem_scheme.mem_bw[op][lv][0]) * per_word_rd_cost)
+    #             elif ii_rc == 1:
+    #                 for lv, per_word_wr_cost in enumerate(rc):
+    #                     writec.append((precision[op] / mem_scheme.mem_bw[op][lv][1]) * per_word_wr_cost)
+    #     mem_cost[op] = [readc, writec]
+    #
+    # totalMACop = 1
+    # output_data_size = 1
+    # for loop_type in layer:
+    #     if loop_type in ['FX', 'FY', 'OX', 'OY', 'C', 'K', 'B']:
+    #         totalMACop *= layer[loop_type]
+    #     if loop_type in ['OX', 'OY', 'K']:
+    #         output_data_size *= layer[loop_type]
+    #
+    # for ii_su, sl in enumerate(spatial_loop_list):
+    #     energy_su = 0
+    #     for op in ['W', 'I', 'O']:
+    #         for ii_lev, lev in enumerate(sl[op]):
+    #             if ii_lev == 0: continue
+    #             totalMACop_tmp = totalMACop
+    #             unroll_below = []
+    #             for levaux in sl[op][:ii_lev]:
+    #                 for pf in levaux: unroll_below.append(pf)
+    #             data_reuse = 1
+    #             if op in ['W', 'O']:
+    #                 for pf in unroll_below:
+    #                     if pf[0] in operand_irrelevant[op]: data_reuse *= pf[1]
+    #             else:
+    #                 data_reuse = get_input_data_reuse(unroll_below, layer)
+    #             totalMACop_tmp /= data_reuse
+    #             if op in ['W', 'I']:
+    #                 energy_su += totalMACop_tmp * (mem_cost[op][0][ii_lev - 1] + mem_cost[op][0][ii_lev - 1])
+    #             else:
+    #                 energy_su += totalMACop_tmp * mem_cost[op][1][ii_lev - 1]
+    #                 energy_su += (totalMACop_tmp - output_data_size) * mem_cost[op][0][ii_lev - 1]
+    #
+    #     if energy_su == mincost:
+    #         best_spatial_loop_list.append(sl)
+    #         best_flooring_list.append(flooring_list[ii_su])
+    #     if energy_su < mincost:
+    #         # print(energy_su)
+    #         mincost = energy_su
+    #         best_spatial_loop_list.clear()
+    #         best_flooring_list.clear()
+    #         best_spatial_loop_list.append(sl)
+    #         best_flooring_list.append(flooring_list[ii_su])
 
     # ---------------------------------------------------------------------------------------------HERE----------------
     # return best_spatial_loop_list, best_flooring_list, mem_scheme, not_good
@@ -1352,7 +1518,7 @@ def iterative_data_format_clean(original_dict):
     return new_dict
 
 
-def get_mem_scheme_area(mem_scheme):
+def get_mem_scheme_area(mem_scheme, unit_count):
     total_area = 0
     level_area = 0
     if type(mem_scheme.mem_area['W'][0]) in [list, tuple]:
@@ -1362,10 +1528,10 @@ def get_mem_scheme_area(mem_scheme):
             index_unroll_shared = [tuple([op, level]) in mem_scheme.mem_share[x] for x in
                                    mem_scheme.mem_share]
             if any(index_unroll_shared):
-                level_area = mem_area * mem_scheme.mem_unroll[op][level] / len(
+                level_area = mem_area * unit_count[op][level + 1] / len(
                     mem_scheme.mem_share[index_unroll_shared.index(True)])
             else:
-                level_area = mem_area * mem_scheme.mem_unroll[op][level]
+                level_area = mem_area * unit_count[op][level + 1]
             total_area += level_area
 
     return total_area

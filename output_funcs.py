@@ -249,13 +249,12 @@ def print_printing_block(file_path_name, printing_block, mode):
 
 
 def su_reformat_if_need(su):
-    new_su = {'W':[], 'I':[], 'O':[]}
+    new_su = {'W': [], 'I': [], 'O': []}
     # extract unrolled dimension on row and on column
     for op in ['W', 'I', 'O']:
         for level_list in su[op]:
-            # TODO for now, assume that at least one operand at one level is fully 2D unrolled.
+            # TODO assume that at least one operand at one level is fully 2D unrolled.
             if len(level_list) == 2:
-
                 row_list = [x[0] for x in level_list[0]]
                 col_list = [x[0] for x in level_list[1]]
                 ok = True
@@ -330,7 +329,7 @@ def print_good_tm_format(tm, mem_name, file_path_name):
 
 
 def print_good_su_format(su, mem_name, file_path_name):
-    # print(su,mem_name,file_path_name)
+    # print(su, mem_name, file_path_name)
     try:
         lp_name = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B'}
         su_list = [sp for lv_li in su['W'] for xy_li in lv_li for sp in xy_li]
@@ -379,9 +378,9 @@ def print_good_su_format(su, mem_name, file_path_name):
             i = 0
             for level, lv_li in enumerate(su[operand]):
                 for xy, xy_li in enumerate(lv_li):
-                    for _ in enumerate(xy_li):
-                        position_save[0].extend([XY_name[xy], finish_row - 2 * i])
-                        position_save[1].extend([XY_name[xy], finish_row - 2 * i])
+                    for tt in xy_li:
+                        position_save[0].extend([tt[0], XY_name[xy], finish_row - 2 * i])
+                        position_save[1].extend([tt[0], XY_name[xy], finish_row - 2 * i])
                         su_block = modify_printing_block(su_block, finish_row - 2 * i, column_position,
                                                          str(mem_name[operand][level]) + ' (' + XY_name[xy] + ')')
                         # print_printing_block(file_path_name, su_block, 'w+')
@@ -393,8 +392,13 @@ def print_good_su_format(su, mem_name, file_path_name):
             i = 0
             for level, lv_li in enumerate(su[operand]):
                 for xy, xy_li in enumerate(lv_li):
-                    for _ in enumerate(xy_li):
-                        line_position_index = position_save[idx].index(XY_name[xy])
+                    for tt in xy_li:
+                        indices = [i for i, x in enumerate(position_save[idx]) if x == XY_name[xy]]
+                        for ind in indices:
+                            # Check if loop type matches.
+                            if position_save[idx][ind-1] == tt[0]:
+                                line_position_index = ind
+                                break
                         line_position = position_save[idx][line_position_index+1]
                         del position_save[idx][line_position_index]
                         del position_save[idx][line_position_index]
@@ -449,7 +453,7 @@ def print_good_su_format(su, mem_name, file_path_name):
             i = 0
             for level, lv_li in enumerate(su[operand]):
                 for xy, xy_li in enumerate(lv_li):
-                    for _ in enumerate(xy_li):
+                    for _ in xy_li:
                         position_save[0].extend([XY_name[xy], finish_row - 2 * i])
                         position_save[1].extend([XY_name[xy], finish_row - 2 * i])
                         su_block = modify_printing_block(su_block, finish_row - 2 * i, column_position,
@@ -463,7 +467,7 @@ def print_good_su_format(su, mem_name, file_path_name):
             i = 0
             for level, lv_li in enumerate(su[operand]):
                 for xy, xy_li in enumerate(lv_li):
-                    for _ in enumerate(xy_li):
+                    for _ in xy_li:
                         line_position_index = position_save[idx].index(XY_name[xy])
                         line_position = position_save[idx][line_position_index + 1]
                         del position_save[idx][line_position_index]

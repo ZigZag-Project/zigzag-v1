@@ -149,7 +149,7 @@ class LayerRound(object):
                             fraction_spatial_unrolling[-1].append([su_type, array_size_single_flatten[su_dim]])
                         ideal_spatial_unrolling[-1].append([su_type, array_size_single_flatten[su_dim]])
 
-        # step 4: remove the repetitive unrolling schemes
+        # step 4: remove repetitive unrollings and unrollings that cannot meet PE array spatial utilization TH
         round_layer_info0 = []
         footer_info0 = []
         fraction_spatial_unrolling0 = []
@@ -214,7 +214,9 @@ def generate_unrolling_scheme_list(non_one_dim, symmetrical_array):
 
 
 class LayerRound2(object):
-    """ LayerRound2 doesn't require spatial unrolling hint from user """
+
+    """ LayerRound2 doesn't require spatial unrolling hint from user (LayerRound does) """
+
     def __init__(self, layer_spec_raw, array_size, spatial_utilization_TH):
 
         # step 0: generate unrolling_scheme_list
@@ -262,7 +264,7 @@ class LayerRound2(object):
                         fraction_spatial_unrolling[-1].append([su_type, array_size_single_flatten[su_dim]])
                     ideal_spatial_unrolling[-1].append([su_type, array_size_single_flatten[su_dim]])
 
-        # step 3: remove the repetitive unrolling schemes
+        # step 3: remove repetitive unrollings and unrollings that cannot meet PE array spatial utilization TH
         round_layer_info0 = []
         footer_info0 = []
         fraction_spatial_unrolling0 = []
@@ -309,7 +311,7 @@ class LayerRound2(object):
 def mem_access_count_correct(loop_fractional, loop):
     """
     This function penalize the memory which feed data into MAC array under greedy mapping
-    when there is no energy benefit from memory BW under-utilization.)
+    when there is no energy benefit from memory BW under-utilization.
     """
     for op in ['W', 'I', 'O']:
         for level, mem_count in enumerate(loop.req_mem_count[op]):

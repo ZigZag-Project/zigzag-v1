@@ -15,7 +15,7 @@ class InputSettings:
                  memory_hierarchy_ratio, mem_pool, banking, L1_size, L2_size, unrolling_size_list, unrolling_scheme_list,
                  unrolling_scheme_list_text, memory_scheme_hint, spatial_utilization_threshold, spatial_unrolling_mode,
                  stationary_optimization_enable, su_parallel_processing, arch_search_result_saving, su_search_result_saving,
-                 tm_search_result_saving, result_print_mode, im2col_enable):
+                 tm_search_result_saving, result_print_mode, im2col_enable, memory_unroll_fully_flexible):
 
         self.results_path = results_path
         self.results_filename = results_filename
@@ -65,6 +65,7 @@ class InputSettings:
         self.im2col_enable = im2col_enable
         # TODO im2col_top_mem_level
         self.im2col_top_mem_level = 100
+        self.memory_unroll_fully_flexible = memory_unroll_fully_flexible
 
 
 def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure_path):
@@ -106,6 +107,10 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
         }
         memory_pool.append(m_tmp)
     fl = yaml.full_load(architecture_file)
+    try:
+        memory_unroll_fully_flexible = fl['memory_unroll_fully_flexible']
+    except:
+        memory_unroll_fully_flexible = False
     L1_size = fl['L1_size']
     L2_size = fl['L2_size']
     banking = fl['banking']
@@ -128,7 +133,7 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
                 raise Exception("Memory instance " + str(m) + " in hierarchy is not found in memory pool")
             m_tmp = m_tmp[0]
             m_tmp = MemoryNode(m_tmp, (), 0, 1)
-            m_tmp.memory_level['unroll'] = fl['memory_hierarchy'][m]['bank_instances']
+            m_tmp.memory_level['unroll'] = fl['memory_hierarchy'][m]['memory_unroll']
             m_tmp.memory_level['nbanks'] = None
             m_tmp.operand = tuple(fl['memory_hierarchy'][m]['operand_stored'])
             memory_scheme_hint.memory_scheme.add(m_tmp)
@@ -255,6 +260,10 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
         sumx = sumode.index(fl['spatial_unrolling_search_method'])
     else:
         sumx = 0
+    try:
+        im2col_enable = fl['im2col_enable']
+    except:
+        im2col_enable = False
     input_settings = InputSettings(fl['result_path'], fl['result_filename'], fl['layer_filename'],
                                    fl['layer_indices'], fl['layer_multiprocessing'], precision,
                                    mac_array_info, mac_array_stall, fl['fixed_architecture'],
@@ -269,7 +278,7 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
                                    fl['spatial_utilization_threshold'], sumx, stationary_optimization_enable,
                                    fl['spatial_unrolling_multiprocessing'], fl['save_all_architecture_result'],
                                    fl['save_all_spatial_unrolling_result'], fl['save_all_temporal_mapping_result'],
-                                   fl['result_print_mode'], fl['im2col_enable'])
+                                   fl['result_print_mode'], im2col_enable, memory_unroll_fully_flexible)
 
     return input_settings
 
