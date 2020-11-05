@@ -1,0 +1,56 @@
+spad_448byte :
+  size_bit: 36864
+  mem_bw: [256]
+  area: [0.0134306]
+  cost:
+    read_word: [0.00357672]
+    write_word: [0.00620352]
+  mem_type: dual_port_single_buffered
+  utilization_rate: 0.7
+  nbanks : 1
+
+spad_24byte :
+  size_bit: 32768
+  mem_bw: [256]
+  area: [0.0126542]
+  cost:
+    read_word: [0.00349965]
+    write_word: [0.00582692]
+  mem_type: dual_port_single_buffered
+  utilization_rate: 0.7
+  nbanks : 1
+
+spad_48byte:
+  size_bit: 32768
+  mem_bw: [256]
+  area: [0.0253084]
+  cost:
+    read_word: [0.00349965]
+    write_word: [0.00582692]
+  mem_type: dual_port_double_buffered
+  utilization_rate: 0.7
+  nbanks : 1
+
+buffer_108Kbyte:
+  size_bit: 524288
+  mem_bw: [320]
+  area: [0.322206]
+  cost:
+    read_word: [0.0205806]
+    write_word: [0.0276659]
+  mem_type: dual_port_double_buffered
+  utilization_rate: 0.7
+  nbanks : 1
+
+sram_eyeriss:
+  size_bit: 83886080
+  mem_bw: [320]
+  area: [2.01656]
+  cost:
+    read_word: [0.110469]
+    write_word: [0.115107]
+  mem_type: dual_port_single_buffered
+  utilization_rate: 0.7
+  nbanks : 1
+
+

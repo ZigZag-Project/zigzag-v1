@@ -463,8 +463,8 @@ def loop_order_combinations_stationary(LPF_scheme):
     return lo_ok, bs_next
 
 
-def loop_order_combinations_exhaustive(LPF_scheme):
-    '''
+def loop_order_combinations_exhaustive(blocking_scheme):
+    """
     @param LPF_scheme: Single LPF scheme
     @type LPF_scheme : dict
     @return: a list of valid permutations of the LPF scheme
@@ -478,16 +478,16 @@ def loop_order_combinations_exhaustive(LPF_scheme):
         4. Each partial scheme is appended to a list of partial schemes. The set of LPFs appended is removed from the original LPF scheme
         - For the subsequent iterations, each virtual level is appended on top of the previous partial schemes.
         - Steps 1 to 4 are repeated until all common sets of LPFs (virtual levels) have been appended.
-    '''
+    """
     bs_next = []
     finished = False
-    tmp_LPF_scheme = copy.deepcopy(LPF_scheme)
+    tmp_blocking_scheme = copy.deepcopy(blocking_scheme)
     lo_ok = True
 
     length_bs = {
-        'W': len(LPF_scheme['W']),
-        'I': len(LPF_scheme['I']),
-        'O': len(LPF_scheme['O']),
+        'W': len(blocking_scheme['W']),
+        'I': len(blocking_scheme['I']),
+        'O': len(blocking_scheme['O']),
     }
     bsx = {
         'W': [[]],
@@ -501,36 +501,33 @@ def loop_order_combinations_exhaustive(LPF_scheme):
 
     # The while loop is looped through until all virtual levels are assigned and the schemes are complete
     while not finished:
-
-        # The first step is the identification of the virtual memory level
-        # Basically corresponds to comparing for each operand what is the number of LPFs in the innermost level of the
-        # *TMP_LPF_SCHEME* (which is different from the LPF scheme which is initially fed to the function and is a copy of the
-        # former that gets updated after each iteration by removing the assigned the virtual level) and setting as
-        # virtual memory level the one which has the lowest number of LPFs
-        if any(tmp_LPF_scheme[op] == [[]] for op in tmp_LPF_scheme):
+        if any(tmp_blocking_scheme[op] == [[]] for op in tmp_blocking_scheme):
             min_virtual_roof = 0
         else:
             try:
-                min_virtual_roof = min([len(tmp_LPF_scheme[op][0]) for op in tmp_LPF_scheme])
+                min_virtual_roof = min([len(tmp_blocking_scheme[op][0]) for op in tmp_blocking_scheme])
             except IndexError:
-                print('tmp_LPF_scheme', tmp_LPF_scheme)
+                print(tmp_blocking_scheme)
                 min_virtual_roof = 0
         min_virtual_roof_list = []
+        # Find lowest memory level to be virtualized
 
-        for operand in ['W', 'I', 'O']:
-            if tmp_LPF_scheme[operand]:
-                if len(tmp_LPF_scheme[operand][0]) == min_virtual_roof:
-                    min_virtual_roof_list.append([operand, len(tmp_LPF_scheme[operand][0])])
-        virtual_level = copy.deepcopy(tmp_LPF_scheme[min_virtual_roof_list[0][0]][0])
+        for operand in tmp_blocking_scheme:
+            if tmp_blocking_scheme[operand]:
+                if len(tmp_blocking_scheme[operand][0]) == min_virtual_roof:
+                    min_virtual_roof_list.append([operand, len(tmp_blocking_scheme[operand][0])])
+        virtual_level = copy.deepcopy(tmp_blocking_scheme[min_virtual_roof_list[0][0]][0])
 
-        for operand in ['W', 'I', 'O']:
+        for operand in tmp_blocking_scheme:
             for pf in virtual_level:
                 try:
-                    tmp_LPF_scheme[operand][0].remove(pf)
+                    tmp_blocking_scheme[operand][0].remove(pf)
                 except IndexError:
+                    # print(blocking_scheme)
                     lo_ok = False
                     return lo_ok, bs_next
                 except ValueError:
+                    # print(blocking_scheme)
                     lo_ok = False
                     return lo_ok, bs_next
 
@@ -549,35 +546,26 @@ def loop_order_combinations_exhaustive(LPF_scheme):
         # Create a new bs_next list that contains the new schemes
         bs_old = copy.deepcopy(bs_next)
         bs_next = []
-        if tmp_virtual_level == []:
-            tmp_bs = copy.deepcopy(bs_old[0])
-            bs_next.append(tmp_bs)
-            for op in ['W', 'I', 'O']:
-                if op in [opx[0] for opx in min_virtual_roof_list]:
-                    if len(tmp_bs[op]) != length_bs[op]:
-                        tmp_bs[op].append([])
-        else:
-            for bs in bs_old:
-                for vl in virtual_level_comb:
-                    tmp_bs = copy.deepcopy(bs)
-                    for operand in ['W', 'I', 'O']:
-                        tmp_bs[operand][len(bs[operand]) - 1] += vl
-                        if operand in [opx[0] for opx in min_virtual_roof_list]:
-                            if len(tmp_bs[operand]) != length_bs[operand]:
-                                tmp_bs[operand].append([])
-                    bs_next.append(tmp_bs)
+        for bs in bs_old:
+            for vl in virtual_level_comb:
+                tmp_bs = copy.deepcopy(bs)
+                for operand in ['W', 'I', 'O']:
+                    tmp_bs[operand][len(bs[operand]) - 1] += vl
+                    if operand in [opx[0] for opx in min_virtual_roof_list]:
+                        if len(tmp_bs[operand]) != length_bs[operand]:
+                            tmp_bs[operand].append([])
+                # if tmp_bs not in bs_next:
+                #     bs_next.append(tmp_bs)
+                bs_next.append(tmp_bs)
 
-        # Remove the virtual level from tmp_LPF_scheme
-        for operand in ['W', 'I', 'O']:
-            if tmp_LPF_scheme[operand]:
-                if not tmp_LPF_scheme[operand][0]:
-                    tmp_LPF_scheme[operand].remove(tmp_LPF_scheme[operand][0])
+        for operand in tmp_blocking_scheme:
+            if tmp_blocking_scheme[operand]:
+                if not tmp_blocking_scheme[operand][0]:
+                    tmp_blocking_scheme[operand].remove(tmp_blocking_scheme[operand][0])
 
-        # The assignement process of different virtual levels terminates when tmp_LPF_scheme is an empty scheme,
+        # The assignment process of different virtual levels terminates when tmp_LPF_scheme is an empty scheme,
         # having had all its virtual levels removed in previous iterations
-        if tmp_LPF_scheme['W'] or tmp_LPF_scheme['I'] or tmp_LPF_scheme['O']:
-            finished = False
-        else:
+        if all(not tmp_blocking_scheme[op] for op in tmp_blocking_scheme):
             finished = True
 
     return lo_ok, bs_next

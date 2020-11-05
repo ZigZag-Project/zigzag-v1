@@ -95,7 +95,7 @@ def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_
                                                       schedule_info, loop_fractional,
                                                       msc.mem_fifo, msc, input_settings.precision,
                                                       utilization, ii))
-
+                # TODO
                 # loop.array_wire_distance[operand].append(
                 #     cmf.get_operand_level_wire_distance(operand, level,
                 #                                         schedule_info,
@@ -196,7 +196,8 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
                                                                               mem_scheme.spatial_unrolling[ii_su],
                                                                               layer_post,
                                                                               input_settings.precision,
-                                                                              mem_scheme.mem_utilization_rate)
+                                                                              mem_scheme.mem_utilization_rate,
+                                                                              spatial_loop.unit_unique)
     if not input_settings.utilization_optimizer_pruning:
         good_scheme = True
     tl_list = []

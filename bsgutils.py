@@ -118,16 +118,14 @@ def check_comb_fit(LPF_scheme, spatial_unrolling, comb, min_roof, mem_size, mem_
         tmp_LPF_scheme = copy.deepcopy(LPF_scheme)
         # Append the LPFs contained in comb to the LPF scheme
         tmp_LPF_scheme[shared_min_roof_levels[i][0]][shared_min_roof_levels[i][1]] = copy.deepcopy(
-            tmp_LPF_scheme[shared_min_roof_levels[i][0]][
-                shared_min_roof_levels[i][1]] + list(comb))
+            tmp_LPF_scheme[shared_min_roof_levels[i][0]][shared_min_roof_levels[i][1]] + list(comb))
 
         # Compute the size in bits of the LPF contained in the tmp LPF scheme if operand is 'I' or otherwise
         # While for the other operands is enough to compute the product of the sizes of the relevant LPFs, for 'I'
         # it is necessary to take into account FX, OX, FY, OY, stride values
         if shared_min_roof_levels[i][0] == 'I':
             block_size = input_relevant_size_below(tmp_LPF_scheme, shared_min_roof_levels[i][1], layer_loop_info) * \
-                         precision[
-                             shared_min_roof_levels[i][0]]
+                         precision[shared_min_roof_levels[i][0]]
         else:
             block_size = precision[shared_min_roof_levels[i][0]]
             for z in range(0, shared_min_roof_levels[i][1] + 1):
@@ -241,7 +239,7 @@ def update_roof(LPF_scheme, spatial_unrolling, fitting_combination, old_roof, me
     return new_roof
 
 
-def utilization_rate_optimizer(mem_scheme, spatial_unroll, layer, precision, utilization_rate):
+def utilization_rate_optimizer(mem_scheme, spatial_unroll, layer, precision, utilization_rate, unit_unique):
     # Adjusts the utilization rate set by the user in the input file
     # so as to meet the max utilization rate of the memory levels that exceed the memory requirements for the 
     # operands in the layer
@@ -267,7 +265,7 @@ def utilization_rate_optimizer(mem_scheme, spatial_unroll, layer, precision, uti
 
     for operand in ['W', 'I', 'O']:
         for level, level_size in enumerate(mem_scheme[operand]):
-            max_utilization = operand_size[operand] / level_size
+            max_utilization = operand_size[operand] / level_size / unit_unique[operand][level+1]
             if max_utilization < utilization_rate[operand][level]:
                 utilization_rate[operand][level] = max_utilization * 0.9
     return utilization_rate, True

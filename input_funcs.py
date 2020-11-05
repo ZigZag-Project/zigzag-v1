@@ -160,8 +160,8 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
 
     precision = {'W': fl['precision']['W'], 'I': fl['precision']['I'], 'O': fl['precision']['O_partial'],
                  'O_final': fl['precision']['O_final']}
-    mac_array_info['single_mac_energy'] = fl['single_mac_energy']
-    mac_array_info['idle_mac_energy'] = fl['idle_mac_energy']
+    mac_array_info['single_mac_energy'] = fl['single_mac_energy_active']
+    mac_array_info['idle_mac_energy'] = fl['single_mac_energy_idle']
     p_aux = [precision['W'], precision['I']]
     mac_array_info['precision'] = max(p_aux)
     mac_array_info['headroom'] = precision['O'] - precision['O_final']

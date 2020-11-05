@@ -1,0 +1,43 @@
+
+# OUTPUT FILE
+result_path : './results_baseline_architecture_1'
+result_filename : Eyeriss_Birds
+
+# OUTPUT FILE PRINTING MODE
+# 'concise' for printing the basic information for each optimal design point found, i.e. energy and performance.
+# 'complete' for printing all detailed information for each optimal design point found for in-depth analysis.
+result_print_mode : complete
+
+# SEARCH SETTINGS
+# 'False' for searching the corresponding space.
+fixed_architecture : True
+fixed_spatial_unrolling : True
+fixed_temporal_mapping : False
+# RESULT SAVING SETTINGS
+# 'False' for only saving the best result.
+# Be careful to put they to True, because it can generate large result files.
+save_all_architecture_result : False
+save_all_spatial_unrolling_result : False
+save_all_temporal_mapping_result : False
+
+# WORKLOAD
+# layer_indices can be a single-element list or a multiple-element list.
+# For now, please keep it as a single-element list.
+layer_filename : './NN_layers/layers_of_interest1'
+layer_indices :  [5002,5003,5004,5005,5006,5007,5008,5009,5010,5011,5012,5013,5014,5015,5016,5017,5018,5019,5020,5021,5022,5023,5024,5025,5026,5027,5028,5029,5030,5031,5032,5033,5034,5035,5036,5037,5038,5039,5040,5041,5042,5043,5044,5045,5046,5047,5048,5049,5050,5051,5052,5053,5054,5055,5056,5057,5058,5059,5060,5061,5062,5063,5064,5065]
+# MULTIPROCESSING
+# run the framework in multiprocessing mode to speedup the search procedure.
+layer_multiprocessing : 1
+architecture_search_multiprocessing : 100
+spatial_unrolling_multiprocessing : 100
+
+# TEMPORAL MAPPING GENERATOR SETTINGS
+# search_method : exhaustive / heuristic_v1 / heuristic_v2 / iterative
+temporal_mapping_search_method : exhaustive
+
+# SPATIAL MAPPING GENERATOR SETTINGS
+# search method : exhaustive / heuristic_v1 / heuristic_v2 / hint_driven
+# If 'hint_driven' is chosen, 'spatial_mapping_list' in the mapping file will be used,
+# and 'spatial_utilization_threshold' below will be ignored.
+spatial_unrolling_search_method : hint_driven
+spatial_utilization_threshold : 0

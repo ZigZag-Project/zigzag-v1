@@ -1,0 +1,107 @@
+rf512:  
+   size_bit: 512
+   area: [2847]
+   cost:
+     read_word: [1.858]
+     write_word: [2.573]
+   mem_bw: [32]
+   mem_type: dual_port_single_buffered
+   utilization_rate: 0.7
+      
+sram16kb:
+  size_bit: 16384
+  area: [5159]
+  cost:
+    read_word: [4.089]
+    write_word: [4.451]
+  mem_bw: [32]
+  mem_type: dual_port_single_buffered
+  utilization_rate: 0.7
+    
+sram32kb:  
+  size_bit: 32768
+  area: [8481]
+  cost:
+    read_word: [4.455]
+    write_word: [5.308]
+  mem_bw: [32]
+  mem_type: dual_port_single_buffered
+  utilization_rate: 0.7
+ 
+sram128kb:
+  #  Scratch RAM 2 Byte page
+  size_bit: 131072
+  area: [31970]
+  cost:
+    read_word: [9.544]
+    write_word: [10.488]
+  mem_bw: [32]
+  mem_type: dual_port_single_buffered
+  utilization_rate: 0.7
+
+sram1024kb:  
+  size_bit: 1048576
+  area: [207747]
+  cost:
+    read_word: [21.311]
+    write_word: [23.041]
+  mem_bw: [32]
+  mem_type: dual_port_single_buffered
+  utilization_rate: 0.7
+
+sram16Mb:
+  size_bit : 167772160000000000
+  mem_bw : [128]
+  area : [1000000]
+  cost :
+      read_word : [240]
+      write_word : [240]
+  mem_type : dual_port_single_buffered
+  utilization_rate : 0.7
+#
+#
+#
+# rf512:  
+#   # Scratch RAM 64 Byte
+#   size_bit: 512
+#   area: [2847]
+#   cost:
+#     read_word: [1.858]
+#     write_word: [2.573]
+#   mem_bw: [32]
+#   mem_type: 3
+#   utilization_rate: 0.7
+#   
+  
+#rf4096:
+#  # Scratch RAM 64 Byte
+#  size_bit: 4096
+#  area: [2717]
+#  cost:
+#    read_word: [3.683]
+#    write_word: [3.702]
+#  mem_bw: [32]
+#  mem_type: 2
+#  utilization_rate: 0.7
+
+#sram512kb:  
+##  # Scratch RAM 2 Byte page
+#  size_bit: 524288
+#  area: [110020]
+#  cost:
+#    read_word: [16.311]
+#    write_word: [20.591]
+#  mem_bw: [128]
+#  mem_type: 3
+#  utilization_rate: 0.7
+#
+#sram64kb:  
+#  # Scratch RAM 2 Byte page
+#  size_bit: 65536
+#  area: [17138]
+#  cost:
+#    read_word: [7.749]
+#    write_word: [8.144]
+#  mem_bw: [32]
+#  mem_type: 2
+#  utilization_rate: 0.7
