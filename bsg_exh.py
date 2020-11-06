@@ -792,29 +792,91 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
                 # 1. Generate all possible combinations of loop blocks with length k
                 # 2. For each combination generated check if they fit within the roof (check_comb_fit function)
                 # 3. If they fit, append the combination to fitting_combination
-                for k in k_range:
-                    tmp_comb = combinations(loop_blocks, k)
-                    comb = []
-                    for x in tmp_comb:
-                        if sorted(x) not in comb:
-                            comb.append(sorted(x))
-                    mlft = len(fitting_combination)
-                    for j in range(0, len(comb)):
-                        is_fit = True
-                        for r in roof_list:
-                            is_min_roof = False
-                            if r[0] in mr_list_operand:
-                                is_min_roof = True
-                            is_fit = su.check_comb_fit(LPF_scheme, spatial_unrolling, comb[j], r, mem_size, mem_share,
-                                                       utilization_rate, precision, operand_irrelevant, is_min_roof,
-                                                       layer_loop_info)
-                            if not is_fit:
+
+
+
+
+                # for k in k_range:
+                #     tmp_comb = combinations(loop_blocks, k)
+                #     comb = []
+                #     for x in tmp_comb:
+                #         if sorted(x) not in comb:
+                #             comb.append(sorted(x))
+                #     mlft = len(fitting_combination)
+                #     for j in range(0, len(comb)):
+                #         is_fit = True
+                #         for r in roof_list:
+                #             is_min_roof = False
+                #             if r[0] in mr_list_operand:
+                #                 is_min_roof = True
+                #             is_fit = su.check_comb_fit(LPF_scheme, spatial_unrolling, comb[j], r, mem_size, mem_share,
+                #                                        utilization_rate, precision, operand_irrelevant, is_min_roof,
+                #                                        layer_loop_info)
+                #             if not is_fit:
+                #                 break
+                #         if not is_fit:
+                #             continue
+                #         fitting_combination.append(comb[j])
+                #     if len(fitting_combination) > 0 and len(fitting_combination) == mlft:
+                #         break
+
+
+
+
+                    ur = copy.deepcopy(utilization_rate)
+                    any_rel = []
+                    xx = True
+                    while not any(any_rel) and all([ur[rx[0]][rx[1]]>0.001 for rx in roof_list]):
+                        any_rel.clear()
+                        #print(roof, all([ur[rx[0]][rx[1]]>0.01 for rx in roof_list]), any(any_rel))
+                        for k in k_range:
+                            tmp_comb = combinations(loop_blocks, k)
+                            comb = []
+                            for x in tmp_comb:
+                                if sorted(x) not in comb:
+                                    comb.append(sorted(x))
+                            mlft = len(fitting_combination)
+                            for j in range(0, len(comb)):
+                                is_fit = True
+                                #relx = {}
+                                for r in roof_list:
+                                    is_min_roof = False
+                                    if r[0] in mr_list_operand:
+                                        is_min_roof = True
+                                    is_fit = su.check_comb_fit(LPF_scheme, spatial_unrolling, comb[j], r, mem_size, mem_share,
+                                                           ur, precision, operand_irrelevant, is_min_roof,
+                                                           layer_loop_info)
+                                    if is_min_roof:
+                                        rel = any([x[0] not in operand_irrelevant[r[0]] for x in comb[j]])
+                                    #print(comb[j], r[0], rel)
+                                    if not is_fit:
+                                        break
+                                if not is_fit:
+                                    continue
+                                if rel:
+                                    fitting_combination.append(comb[j])
+
+                                any_rel.append(rel)
+                            if len(fitting_combination) > 0 and len(fitting_combination) == mlft:
                                 break
-                        if not is_fit:
-                            continue
-                        fitting_combination.append(comb[j])
-                    if len(fitting_combination) > 0 and len(fitting_combination) == mlft:
-                        break
+                        if not any(any_rel):
+                            for r in roof_list:
+                                if r[0] in mr_list_operand:
+                                    ur[r[0]][r[1]] *= 0.8
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 # Clean up all duplicate combinations from fitting_combination (order is not important yet)
                 # The sanitized list of fitting combinations of LPF within the roof is contained in min_list_fitting_combinations
                 # ------------------------------------------------------------------------------Here--------------------
