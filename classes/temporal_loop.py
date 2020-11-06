@@ -34,26 +34,30 @@ class TemporalLoop(object):
                    'O': [1, 2, 5]}
 
         temporal_loop_copy = copy.deepcopy(temporal_loop)
-    
-        for operand in ['W', 'I', 'O']:
-            temporal_loop_st[operand] = []
-            for level, li in enumerate(temporal_loop[operand]):
-                temporal_loop_st[operand].append([])
-                if level == 0 or not li:
-                    temporal_loop_st[operand][level] = copy.deepcopy(li)
-                else:
-                    li_save = copy.deepcopy(li)
-                    for lo in li_save:
-                        if lo[0] in ir_loop[operand]:
-                            temporal_loop_st[operand][level-1].append(lo)
-                            temporal_loop_copy[operand][level].remove(lo)
-                        else:
-                            temporal_loop_st[operand][level] = copy.deepcopy(temporal_loop_copy[operand][level])
-                            break
-        
-
-
-
+        temporal_loop_previous = copy.deepcopy(temporal_loop)
+        not_finish = True
+        while not_finish:
+            for operand in ['W', 'I', 'O']:
+                temporal_loop_st[operand] = []
+                for level, li in enumerate(temporal_loop_previous[operand]):
+                    temporal_loop_st[operand].append([])
+                    if level == 0 or not li:
+                        temporal_loop_st[operand][level] = copy.deepcopy(li)
+                    else:
+                        li_save = copy.deepcopy(li)
+                        for lo in li_save:
+                            if lo[0] in ir_loop[operand]:
+                                temporal_loop_st[operand][level-1].append(lo)
+                                temporal_loop_copy[operand][level].remove(lo)
+                            else:
+                                temporal_loop_st[operand][level] = copy.deepcopy(temporal_loop_copy[operand][level])
+                                break
+            if temporal_loop_st != temporal_loop_previous:
+                temporal_loop_previous = copy.deepcopy(temporal_loop_st)
+                temporal_loop_copy = copy.deepcopy(temporal_loop_st)
+                continue
+            else:
+                not_finish = False
 
         B = {}
         K = {}

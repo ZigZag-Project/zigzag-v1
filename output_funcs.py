@@ -162,7 +162,10 @@ def spatial_loop_same_term_merge(unrolling, flooring):
                 for XY_idx, XY_list in enumerate(level_list):
                     spatial_list[operand][-1].append([])
                     for va in XY_list:
-                        spatial_list[operand][-1][-1].append(list(unrolling[operand][level].pop(0)))
+                        try:
+                            spatial_list[operand][-1][-1].append(list(unrolling[operand][level].pop(0)))
+                        except:
+                            a=1
 
     spatial_list_clean = deepcopy(spatial_list)
     for operand in ['W', 'I', 'O']:

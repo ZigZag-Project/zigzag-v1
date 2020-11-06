@@ -191,13 +191,14 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
     idle_mac_cost = cmf.get_idle_mac_cost(layer, layer_rounded, input_settings.mac_array_info['array_size'],
                                           input_settings.mac_array_info['idle_mac_energy'],
                                           mem_scheme.spatial_unrolling)
-
+    print('user-defined mem ut', mem_scheme.mem_utilization_rate)
     mem_scheme.mem_utilization_rate, good_scheme = utilization_rate_optimizer(mem_scheme.mem_size,
                                                                               mem_scheme.spatial_unrolling[ii_su],
                                                                               layer_post,
                                                                               input_settings.precision,
                                                                               mem_scheme.mem_utilization_rate,
                                                                               spatial_loop.unit_unique)
+    print('generated mem ut', mem_scheme.mem_utilization_rate)
     if not input_settings.utilization_optimizer_pruning:
         good_scheme = True
     tl_list = []
@@ -546,8 +547,8 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
 
         return
 
-    # for su_idx, su_ in enumerate(spatial_unrolling):
-    #     print('-SU', su_idx + 1, '/', len(mem_scheme.spatial_unrolling), mem_scheme.spatial_unrolling[su_idx])
+    for su_idx, su_ in enumerate(spatial_unrolling):
+        print('-SU', su_idx + 1, '/', len(mem_scheme.spatial_unrolling), mem_scheme.spatial_unrolling[su_idx])
 
     ''' input_settings.su_parallel_processing SU parallel '''
     TIMEOUT = 36000

@@ -239,7 +239,7 @@ def update_roof(LPF_scheme, spatial_unrolling, fitting_combination, old_roof, me
     return new_roof
 
 
-def utilization_rate_optimizer(mem_scheme, spatial_unroll, layer, precision, utilization_rate, unit_unique):
+def utilization_rate_optimizer(mem_size, spatial_unroll, layer, precision, utilization_rate, unit_unique):
     # Adjusts the utilization rate set by the user in the input file
     # so as to meet the max utilization rate of the memory levels that exceed the memory requirements for the 
     # operands in the layer
@@ -252,7 +252,7 @@ def utilization_rate_optimizer(mem_scheme, spatial_unroll, layer, precision, uti
     layerc2a = {7: 'B', 6: 'K', 5: 'C', 4: 'OY', 3: 'OX', 2: 'FY', 1: 'FX'}
     for operand in ['W', 'I', 'O']:
         layer_cleaned = copy.deepcopy(layer)
-        if len(spatial_unroll[operand]) - 1 == len(mem_scheme[operand]) and spatial_unroll[operand][-1]:
+        if len(spatial_unroll[operand]) - 1 == len(mem_size[operand]) and spatial_unroll[operand][-1]:
             layer_cleaned[layerc2a[spatial_unroll[operand][-1][0][0]]] /= spatial_unroll[operand][-1][0][1]
         if operand == 'W':
             operand_size['W'] = layer_cleaned['FX'] * layer_cleaned['FY'] * layer_cleaned['C'] * layer_cleaned['K'] * precision[operand]
@@ -264,7 +264,7 @@ def utilization_rate_optimizer(mem_scheme, spatial_unroll, layer, precision, uti
                                 layer_cleaned['C'] * layer_cleaned['B'] * precision[operand]
 
     for operand in ['W', 'I', 'O']:
-        for level, level_size in enumerate(mem_scheme[operand]):
+        for level, level_size in enumerate(mem_size[operand]):
             max_utilization = operand_size[operand] / level_size / unit_unique[operand][level+1]
             if max_utilization < utilization_rate[operand][level]:
                 utilization_rate[operand][level] = max_utilization * 0.9
