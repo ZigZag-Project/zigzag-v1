@@ -201,7 +201,7 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
     # redo_flag check if generated memory utilization Th is respected.
     redo_flag = True
     iterate_time = 0
-    mem_ut_iter_max = 5
+    mem_ut_iter_max = 10
     while redo_flag and iterate_time < mem_ut_iter_max:
         print('generated mem ut', mem_scheme.mem_utilization_rate)
         if not input_settings.utilization_optimizer_pruning:

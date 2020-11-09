@@ -277,7 +277,7 @@ def check_mem_ut_after_CM(actual_mem_ut1, actual_mem_ut2, req_mem_ut):
     for op in ['W', 'I', 'O']:
         for level, ut in enumerate(req_mem_ut[op]):
             if actual_mem_ut1[op][level] < ut or actual_mem_ut2[op][level] < ut:
-                req_mem_ut_update[op][level] *= 0.7
+                req_mem_ut_update[op][level] *= 0.5
                 redo_flag = True
     return redo_flag, req_mem_ut_update
 

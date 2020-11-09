@@ -25,8 +25,11 @@ save_all_temporal_mapping_result : False
 # For now, please keep it as a single-element list.
 layer_filename : './Steven2/layers_of_interest1'
 #layer_indices :  [3002]
-layer_indices :  [15032]
-
+#layer_indices :  [15032]
+#layer_indices :  [10023]
+#layer_indices :  [10035]
+#layer_indices :  [10038]
+layer_indices :  [11020]
 # MULTIPROCESSING
 # run the framework in multiprocessing mode to speedup the search procedure.
 layer_multiprocessing : 1
@@ -50,4 +53,4 @@ spatial_utilization_threshold : 0.9
 # Input  matrix [B|OY|OX, C|FY|FX]
 # Output matrix [K,       B|OY|OX]
 # For pointwise layers (FX=FY=1), recommend to put im2col_enable True.
-im2col_enable : True
+im2col_enable : False
