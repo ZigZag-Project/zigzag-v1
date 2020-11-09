@@ -971,6 +971,7 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
         list_LPF_schemes = data_reuse_cleanup(layer_loop_info, list_LPF_schemes, spatial_unrolling, precision)
         # print('\n  |-> drc: ', len(list_LPF_schemes),'/',len(list_scheme_nodes))
 
+    # print('Loop blocking finished. Loop ordering starts.')
     total = []
     for ii_bs, bs in enumerate(list_LPF_schemes):
         # print('\r  |-> ordering: ', ii_bs, '/', len(list_LPF_schemes), end='', flush=True)

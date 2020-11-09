@@ -191,7 +191,7 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
     idle_mac_cost = cmf.get_idle_mac_cost(layer, layer_rounded, input_settings.mac_array_info['array_size'],
                                           input_settings.mac_array_info['idle_mac_energy'],
                                           mem_scheme.spatial_unrolling)
-    print('user-defined mem ut', mem_scheme.mem_utilization_rate)
+    # print('user-defined mem ut', mem_scheme.mem_utilization_rate)
     mem_scheme.mem_utilization_rate, good_scheme = utilization_rate_optimizer(mem_scheme.mem_size,
                                                                               mem_scheme.spatial_unrolling[ii_su],
                                                                               layer_post,
@@ -201,9 +201,10 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
     # redo_flag check if generated memory utilization Th is respected.
     redo_flag = True
     iterate_time = 0
-    mem_ut_iter_max = 10
+    mem_ut_iter_max = 5
+    previous_TM_found = 0
     while redo_flag and iterate_time < mem_ut_iter_max:
-        print('generated mem ut', mem_scheme.mem_utilization_rate)
+        # print('generated mem ut', mem_scheme.mem_utilization_rate)
         if not input_settings.utilization_optimizer_pruning:
             good_scheme = True
         tl_list = []
@@ -275,83 +276,88 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
                       '/', len(mem_scheme.spatial_unrolling), ' No TM found')
                 return
 
-            now = datetime.now()
-            current_time = now.strftime("%H:%M:%S")
-            print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, ', M',
-                  mem_scheme_index + 1, '/', mem_scheme_count, ', SU', ii_su + 1,
-                  '/', len(mem_scheme.spatial_unrolling), ' CM  started')
+            current_TM_found = len(tl_list)
+            # if previous_TM_found is equal to current_TM_found, no need to activate CM.
+            # if previous_TM_found > current_TM_found:
+            #     raise ValueError('memory utilization updating process went wrong.')
+            if previous_TM_found < current_TM_found or iterate_time == mem_ut_iter_max-1:
+                now = datetime.now()
+                current_time = now.strftime("%H:%M:%S")
+                print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, ', M',
+                      mem_scheme_index + 1, '/', mem_scheme_count, ', SU', ii_su + 1,
+                      '/', len(mem_scheme.spatial_unrolling), ' CM  started')
 
-            # Convert tl_list to chunked list to pass to parallel cores
-            n_processes = min(cpu_count(), input_settings.temporal_mapping_multiprocessing)
-            chunk_size = int(tl_combinations / n_processes) + (tl_combinations % n_processes > 0)  # avoids import math
-            tl_count = len(tl_list)
-            tl_list = [tl_list[i:i + chunk_size] for i in range(0, tl_combinations, chunk_size)]
+                # Convert tl_list to chunked list to pass to parallel cores
+                n_processes = min(cpu_count(), input_settings.temporal_mapping_multiprocessing)
+                chunk_size = int(tl_combinations / n_processes) + (tl_combinations % n_processes > 0)  # avoids import math
+                tl_count = len(tl_list)
+                tl_list = [tl_list[i:i + chunk_size] for i in range(0, tl_combinations, chunk_size)]
 
-            # 'layer' is the original 7D layer
-            # 'im2col_layer' is the original 3D/7D layer, depending on im2col_enable
-            # 'layer_rounded' is the rounded 3D/7D layer, depending on im2col_enable
-            if input_settings.im2col_enable:
-                layer = [im2col_layer, layer_rounded]
-            else:
-                layer = [im2col_layer, layer_rounded]
+                # 'layer' is the original 7D layer
+                # 'im2col_layer' is the original 3D/7D layer, depending on im2col_enable
+                # 'layer_rounded' is the rounded 3D/7D layer, depending on im2col_enable
+                if input_settings.im2col_enable:
+                    layer = [im2col_layer, layer_rounded]
+                else:
+                    layer = [im2col_layer, layer_rounded]
 
-            # Create list of repeated arguments passed to parallel tl_worker functions
-            fixed_args = [input_settings, mem_scheme, layer, spatial_loop, spatial_loop_fractional, spatial_loop_comb,
-                          ii_su, active_mac_cost, idle_mac_cost[ii_su], im2col_need_correct]
+                # Create list of repeated arguments passed to parallel tl_worker functions
+                fixed_args = [input_settings, mem_scheme, layer, spatial_loop, spatial_loop_fractional, spatial_loop_comb,
+                              ii_su, active_mac_cost, idle_mac_cost[ii_su], im2col_need_correct]
 
-            # Call the worker function for each chunk
-            pool = Pool(processes=n_processes)
-            results = pool.starmap(tl_worker, [[tl_chunk] + fixed_args for tl_chunk in tl_list])
+                # Call the worker function for each chunk
+                pool = Pool(processes=n_processes)
+                results = pool.starmap(tl_worker, [[tl_chunk] + fixed_args for tl_chunk in tl_list])
 
-            best_output_energy = None
-            best_output_utilization = None
-            best_energy = float('inf')
-            best_energy_utilization = 0
-            best_utilization = 0
-            best_utilization_energy = float('inf')
+                best_output_energy = None
+                best_output_utilization = None
+                best_energy = float('inf')
+                best_energy_utilization = 0
+                best_utilization = 0
+                best_utilization_energy = float('inf')
 
-            # Create pickle file to append to if pickle_enable
-            if pickle_enable:
-                parent_folder = "%s/all_tm_results/" % (input_settings.results_path)
-                rf = "%s/%s_L_%d_SU_%d" % (parent_folder, input_settings.results_filename, layer_index, ii_su + 1)
-                rf_en = rf + '_energy.pickle'
-                rf_ut = rf + '_utilization.pickle'
-                rf_lat = rf + '_latency.pickle'
-                rf_en_ut = rf + '_combined.pickle'
-                # Create parent folder if it does not exist
-                Path(parent_folder).mkdir(parents=True, exist_ok=True)
-
-            # Loop through the best energy/ut found by the parallel processes to find the overall best one
-            for (min_en, min_en_ut, min_en_output, max_ut_en, max_ut, max_ut_output, en_collect, ut_collect, lat_collect) in results:
-                if (min_en < best_energy or (min_en == best_energy and min_en_ut > best_energy_utilization)):
-                    best_energy = min_en
-                    best_energy_utilization = min_en_ut
-                    best_output_energy = min_en_output
-                if (max_ut > best_utilization or (max_ut == best_utilization and max_ut_en < best_utilization_energy)):
-                    best_utilization_energy = max_ut_en
-                    best_utilization = max_ut
-                    best_output_utilization = max_ut_output
-
-                # Save the collected (energy,ut) from every temporal mapping if required
+                # Create pickle file to append to if pickle_enable
                 if pickle_enable:
-                    # Save energy
-                    with open(rf_en, 'ab') as f:
-                        pickle.dump(en_collect, f)
-                        f.close()
-                    # Save utilization
-                    # with open(rf_ut, 'ab') as f:
-                    #     pickle.dump(ut_collect, f)
-                    #     f.close()
-                    # Save latency
-                    with open(rf_lat, 'ab') as f:
-                        pickle.dump(lat_collect, f)
-                        f.close()
-                    # Save combined (en,ut) tuples
-                    # combined = zip(en_collect, ut_collect)
-                    # with open(rf_en_ut, 'ab') as f:
-                    #     for elem in combined:
-                    #         pickle.dump(elem, f)
-                    #     f.close()
+                    parent_folder = "%s/all_tm_results/" % (input_settings.results_path)
+                    rf = "%s/%s_L_%d_SU_%d" % (parent_folder, input_settings.results_filename, layer_index, ii_su + 1)
+                    rf_en = rf + '_energy.pickle'
+                    rf_ut = rf + '_utilization.pickle'
+                    rf_lat = rf + '_latency.pickle'
+                    rf_en_ut = rf + '_combined.pickle'
+                    # Create parent folder if it does not exist
+                    Path(parent_folder).mkdir(parents=True, exist_ok=True)
+
+                # Loop through the best energy/ut found by the parallel processes to find the overall best one
+                for (min_en, min_en_ut, min_en_output, max_ut_en, max_ut, max_ut_output, en_collect, ut_collect, lat_collect) in results:
+                    if (min_en < best_energy or (min_en == best_energy and min_en_ut > best_energy_utilization)):
+                        best_energy = min_en
+                        best_energy_utilization = min_en_ut
+                        best_output_energy = min_en_output
+                    if (max_ut > best_utilization or (max_ut == best_utilization and max_ut_en < best_utilization_energy)):
+                        best_utilization_energy = max_ut_en
+                        best_utilization = max_ut
+                        best_output_utilization = max_ut_output
+
+                    # Save the collected (energy,ut) from every temporal mapping if required
+                    if pickle_enable:
+                        # Save energy
+                        with open(rf_en, 'ab') as f:
+                            pickle.dump(en_collect, f)
+                            f.close()
+                        # Save utilization
+                        # with open(rf_ut, 'ab') as f:
+                        #     pickle.dump(ut_collect, f)
+                        #     f.close()
+                        # Save latency
+                        with open(rf_lat, 'ab') as f:
+                            pickle.dump(lat_collect, f)
+                            f.close()
+                        # Save combined (en,ut) tuples
+                        # combined = zip(en_collect, ut_collect)
+                        # with open(rf_en_ut, 'ab') as f:
+                        #     for elem in combined:
+                        #         pickle.dump(elem, f)
+                        #     f.close()
 
         # TODO this is a fast fixing, not the final solution
         #  in order to remove the memory utilization TH from user-defined parameter
@@ -364,7 +370,12 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
                                   mem_scheme.mem_utilization_rate)
         iterate_time += 1
         if redo_flag and iterate_time < mem_ut_iter_max:
-            print('Internal memory utilization threshold adjusting ...')
+            now = datetime.now()
+            current_time = now.strftime("%H:%M:%S")
+            print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, ', M',
+                  mem_scheme_index + 1, '/', mem_scheme_count, ', SU', ii_su + 1, '/',
+                  spatial_unrolling_count, ' Internal memory utilization threshold adjusting ...')
+            previous_TM_found = current_TM_found
 
     now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
@@ -435,7 +446,7 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
     else:
         layer_info = deepcopy(multi_manager.layer_spec.layer_info)
         im2col_need_correct = False
-    print('Layer', layer_index, layer_info[layer_index])
+    # print('Layer', layer_index, layer_info[layer_index])
 
     t1 = time.time()
     min_energy_utilization = 0
@@ -565,8 +576,8 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
 
         return
 
-    for su_idx, su_ in enumerate(spatial_unrolling):
-        print('-SU', su_idx + 1, '/', len(mem_scheme.spatial_unrolling), mem_scheme.spatial_unrolling[su_idx])
+    # for su_idx, su_ in enumerate(spatial_unrolling):
+    #     print('-SU', su_idx + 1, '/', len(mem_scheme.spatial_unrolling), mem_scheme.spatial_unrolling[su_idx])
 
     ''' input_settings.su_parallel_processing SU parallel '''
     TIMEOUT = 36000

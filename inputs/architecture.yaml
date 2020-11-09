@@ -8,8 +8,8 @@ precision:
   O_partial : 16
   O_final : 16
 
-single_mac_energy : 16
-idle_mac_energy : 0.05
+single_mac_energy_active : 16
+single_mac_energy_idle : 0.05
 
 mac_array_stall :
   systolic: 1
@@ -32,7 +32,7 @@ L1_size:
 memory_hint:
   sramx:
       memory_instance : sram16Mb
-      bank_instances : 1
+      memory_unroll : 1
       operand_stored : [O,I,W]
 #################################################################################
 
@@ -40,22 +40,27 @@ memory_hint:
 memory_hierarchy:
   rf_psum:
       memory_instance : spad_48byte
-      bank_instances : 168
+      memory_unroll : 168
       operand_stored : [O]
   rf_input:
       memory_instance: spad_24byte
-      bank_instances: 168
+      memory_unroll: 168
       operand_stored: [I]
   rf_weight:
       memory_instance: spad_448byte
-      bank_instances: 168
+      memory_unroll: 168
       operand_stored: [W]
   global_buffer:
       memory_instance: buffer_108Kbyte
-      bank_instances: 1
+      memory_unroll: 1
       operand_stored: [I, O]
   top_sram:
       memory_instance: sram_eyeriss
-      bank_instances: 1
+      memory_unroll: 1
       operand_stored: [W,I,O]
 #################################################################################
+
+# If the below parameter is set as True and fixed_spatial_unrolling (in settings.yaml) is False,
+# and spatial_unrolling_search_method is exhaustive / heuristic_v1 / heuristic_v2,
+# the tool will try out all possible memory unrolling combinations.
+memory_unroll_fully_flexible: False

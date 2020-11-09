@@ -10,7 +10,7 @@ result_print_mode : complete
 
 # SEARCH SETTINGS
 # 'False' for searching the corresponding space.
-fixed_architecture : False
+fixed_architecture : True
 fixed_spatial_unrolling : False
 fixed_temporal_mapping : False
 
@@ -24,7 +24,7 @@ save_all_temporal_mapping_result : False
 # WORKLOAD
 # layer_indices can be a single-element list or a multiple-element list.
 layer_filename : './NN_layers/AlexNet'
-layer_indices : [3,5]
+layer_indices : [3,4,5]
 
 # MULTIPROCESSING
 # run the framework in multiprocessing mode to speedup the search procedure.
@@ -39,8 +39,8 @@ temporal_mapping_search_method : heuristic_v1
 
 # SPATIAL MAPPING GENERATOR SETTINGS
 # search method : exhaustive / heuristic_v1 / heuristic_v2 / hint_driven / greedy_mapping_with_hint / greedy_mapping_without_hint
-# If 'hint_driven' or 'greedy_mapping_with_hint' is chosen, 'spatial_mapping_list' in the mapping file will be used.
-# Greedy mapping allows MAC array to be always fully utilized except the last time,
+# If 'hint_driven' or 'greedy_mapping_with_hint' is chosen, 'spatial_mapping_list' in the mapping.yaml file will be used.
+# Greedy mapping allows MAC array to be always fully utilized except for the last time,
   # e.g. to map (C,10) on a row of 8 PEs, without greedy mapping enabled, the tool will map (C,5), (C,5);
   # with greedy mapping enabled, it will map (C,8), (C,2).
 spatial_unrolling_search_method : hint_driven
@@ -51,5 +51,6 @@ spatial_utilization_threshold : 0.9
 # Input  matrix [B|OY|OX, C|FY|FX]
 # Output matrix [K,       B|OY|OX]
 # Process convolution as matrix-matrix multiplication.
+# For pointwise layers (FX=FY=1), recommend to put im2col_enable True.
 im2col_enable : False
 

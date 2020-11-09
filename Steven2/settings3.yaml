@@ -25,11 +25,13 @@ save_all_temporal_mapping_result : False
 # For now, please keep it as a single-element list.
 layer_filename : './Steven2/layers_of_interest1'
 #layer_indices :  [3002]
-#layer_indices :  [15032]
+layer_indices :  [15032]
 #layer_indices :  [10023]
 #layer_indices :  [10035]
 #layer_indices :  [10038]
-layer_indices :  [11020]
+#layer_indices :  [11020]
+#layer_indices :  [11028]
+
 # MULTIPROCESSING
 # run the framework in multiprocessing mode to speedup the search procedure.
 layer_multiprocessing : 1

@@ -94,12 +94,16 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
         mbw = []
         for mb in fl[m]['mem_bw']:
             mbw.append([mb, mb])
+        try:
+            mem_utilization_rate = fl[m]['utilization_rate']
+        except:
+            mem_utilization_rate = 0.7
         m_tmp = {
             'name': m,
             'size_bit': fl[m]['size_bit'],
             'mem_bw': mbw,
             'area': fl[m]['area'],
-            'utilization_rate': fl[m]['utilization_rate'],
+            'utilization_rate': mem_utilization_rate,
             'mem_type': mt_tmp,
             'cost': [list(a) for a in zip(fl[m]['cost']['read_word'], fl[m]['cost']['write_word'])],
             'unroll': 1,
