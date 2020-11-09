@@ -24,8 +24,8 @@ save_all_temporal_mapping_result : False
 # layer_indices can be a single-element list or a multiple-element list.
 # For now, please keep it as a single-element list.
 layer_filename : './Steven2/layers_of_interest1'
-layer_indices :  [3002]
-#layer_indices :  [15032]
+#layer_indices :  [3002]
+layer_indices :  [15032]
 
 # MULTIPROCESSING
 # run the framework in multiprocessing mode to speedup the search procedure.

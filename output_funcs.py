@@ -720,7 +720,7 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
             mem_utilize.tail = str(digit_truncate(cost_model_output.utilization.mem_utilize, 2))
             mem_utilize_shared = ET.SubElement(basic_info, 'actual_mem_utilization_shared')
             mem_utilize_shared.tail = str(digit_truncate(cost_model_output.utilization.mem_utilize_shared, 2))
-            #print('final memory ut', cost_model_output.utilization.mem_utilize_shared)
+            print('final memory ut', cost_model_output.utilization.mem_utilize_shared)
             effective_mem_size = ET.SubElement(basic_info, 'effective_mem_size_bit')
             effective_mem_size.tail = str(elem2bit(digit_truncate(cost_model_output.loop.effective_mem_size, 0),
                                                    common_settings.precision))
