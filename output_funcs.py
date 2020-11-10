@@ -497,6 +497,119 @@ def print_good_su_format(su, mem_name, file_path_name):
     print_printing_block(file_path_name, su_block, 'w+')
 
 
+def handle_grouped_convolutions(
+    layer_specification: Layer, cost_model_output: "CostModelOutput", 
+    ) -> Any:
+    """
+    Corrects various values to account for the grouped convolutions.
+
+    Arguments
+    =========
+     - layer_specification: A description of the input layer that ZigZag has
+        optimized.
+     - cost_model_output: The cost computed by ZigZag for running the given
+        layer on the hardware.
+
+    Returns
+    =======
+    A tuple of 16 elements, in order:
+     - size_list_output_print,
+     - total_MAC_op_number,
+     - mem_access_elem,
+     - total_cost,
+     - operand_cost,
+     - mac_cost_active,
+     - mac_cost_idle,
+     - latency_tot_number,
+     - latency_no_load_number,
+     - total_cycles_number,
+     - cc_load_tot_number,
+     - cc_load_number,
+     - cc_load_comb_number,
+     - cc_mem_stall_tot_number,
+     - stall_cc_number,
+     - stall_cc_mem_share_number,
+    """
+    # If layer has a number of groups > 1, transform relevant variables.
+    # At this point, the results are those of one group, so multiply by number of groups.
+    group_count = layer_specification.G
+
+    # SPECIFICATION
+    size_list_output_print = deepcopy(layer_specification.size_list_output_print)
+    size_list_output_print['C'] *= group_count
+    size_list_output_print['K'] *= group_count
+
+    # COMPUTATIONS
+    total_MAC_op_number = group_count * layer_specification.total_MAC_op
+
+    # DATA SIZE
+    total_data_size_number = deepcopy(layer_specification.total_data_size)
+    total_data_size_number['W'] *= group_count
+    total_data_size_number['I'] *= group_count
+    total_data_size_number['O'] *= group_count
+
+    # MEMORY ACCESS
+    mem_access_elem = digit_truncate(deepcopy(cost_model_output.loop.mem_access_elem), 0)
+    mem_access_elem['W'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['W']]
+    mem_access_elem['I'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['I']]
+    mem_access_elem['O'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['O']]
+    mem_access_elem['O_partial'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['O_partial']]
+    mem_access_elem['O_final'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['O_final']]
+
+    # ENERGY
+    total_cost = round(group_count * cost_model_output.total_cost, 1)
+    operand_cost = energy_clean(deepcopy(cost_model_output.operand_cost))
+    operand_cost['W'] = [group_count * elem for elem in operand_cost['W']]
+    operand_cost['I'] = [group_count * elem for elem in operand_cost['I']]
+    operand_cost['O'] = [group_count * elem for elem in operand_cost['O']]
+    mac_cost_active = round(group_count * cost_model_output.mac_cost[0], 1)
+    mac_cost_idle = round(group_count * cost_model_output.mac_cost[1], 1)
+
+    # LATENCY
+    latency_tot_number = group_count * cost_model_output.utilization.latency_tot
+    latency_no_load_number = group_count * cost_model_output.utilization.latency_no_load
+    total_cycles_number = group_count * cost_model_output.temporal_loop.total_cycles
+
+    cc_load_tot_number = group_count * cost_model_output.utilization.cc_load_tot
+    cc_load_number = deepcopy(cost_model_output.utilization.cc_load)
+    cc_load_number['W'] = [group_count * elem for elem in cc_load_number['W']]
+    cc_load_number['I'] = [group_count * elem for elem in cc_load_number['I']]
+    cc_load_comb_number = deepcopy(cost_model_output.utilization.cc_load_comb)
+    cc_load_comb_number['W'] *= group_count
+    cc_load_comb_number['I'] *= group_count
+
+    cc_mem_stall_tot_number = group_count * cost_model_output.utilization.cc_mem_stall_tot
+    stall_cc_number = deepcopy(cost_model_output.utilization.stall_cc)
+    stall_cc_number['W'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_number['W']]
+    stall_cc_number['I'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_number['I']]
+    stall_cc_number['O'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_number['O']]
+    stall_cc_mem_share_number = deepcopy(cost_model_output.utilization.stall_cc_mem_share)
+    stall_cc_mem_share_number['W'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_mem_share_number['W']]
+    stall_cc_mem_share_number['I'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_mem_share_number['I']]
+    stall_cc_mem_share_number['O'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_mem_share_number['O']]
+
+    # Returning the tuple of values corrected for the grouped convolution.
+    return (
+        size_list_output_print,
+        total_MAC_op_number,
+        mem_access_elem,
+        total_cost,
+        operand_cost,
+        mac_cost_active,
+        mac_cost_idle,
+        latency_tot_number,
+        latency_no_load_number,
+        total_cycles_number,
+        cc_load_tot_number,
+        cc_load_number,
+        cc_load_comb_number,
+        cc_mem_stall_tot_number,
+        stall_cc_number,
+        stall_cc_mem_share_number,
+    )
+
+
+
 def print_xml(results_filename, layer_specification, mem_scheme, cost_model_output, common_settings,
               hw_pool_sizes, elapsed_time, result_print_mode):
     dir_path = ''
@@ -522,65 +635,25 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
     result_generate_time.tail = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if cost_model_output not in [None, [], {}]:
 
-        # If layer has a number of groups > 1, transform relevant variables.
-        # At this point, the results are those of one group, so multiply by number of groups.
-        group_count = layer_specification.G
-
-        # SPECIFICATION
-        size_list_output_print = deepcopy(layer_specification.size_list_output_print)
-        size_list_output_print['C'] *= group_count
-        size_list_output_print['K'] *= group_count
-
-        # COMPUTATIONS
-        total_MAC_op_number = group_count * layer_specification.total_MAC_op
-
-        # DATA SIZE
-        total_data_size_number = deepcopy(layer_specification.total_data_size)
-        total_data_size_number['W'] *= group_count
-        total_data_size_number['I'] *= group_count
-        total_data_size_number['O'] *= group_count
-
-        # MEMORY ACCESS
-        mem_access_elem = digit_truncate(deepcopy(cost_model_output.loop.mem_access_elem), 0)
-        mem_access_elem['W'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['W']]
-        mem_access_elem['I'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['I']]
-        mem_access_elem['O'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['O']]
-        mem_access_elem['O_partial'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['O_partial']]
-        mem_access_elem['O_final'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['O_final']]
-
-        # ENERGY
-        total_cost = round(group_count * cost_model_output.total_cost, 1)
-        operand_cost = energy_clean(deepcopy(cost_model_output.operand_cost))
-        operand_cost['W'] = [group_count * elem for elem in operand_cost['W']]
-        operand_cost['I'] = [group_count * elem for elem in operand_cost['I']]
-        operand_cost['O'] = [group_count * elem for elem in operand_cost['O']]
-        mac_cost_active = round(group_count * cost_model_output.mac_cost[0], 1)
-        mac_cost_idle = round(group_count * cost_model_output.mac_cost[1], 1)
-
-        # LATENCY
-        latency_tot_number = group_count * cost_model_output.utilization.latency_tot
-        latency_no_load_number = group_count * cost_model_output.utilization.latency_no_load
-        total_cycles_number = group_count * cost_model_output.temporal_loop.total_cycles
-
-        cc_load_tot_number = group_count * cost_model_output.utilization.cc_load_tot
-        cc_load_number = deepcopy(cost_model_output.utilization.cc_load)
-        cc_load_number['W'] = [group_count * elem for elem in cc_load_number['W']]
-        cc_load_number['I'] = [group_count * elem for elem in cc_load_number['I']]
-        cc_load_comb_number = deepcopy(cost_model_output.utilization.cc_load_comb)
-        cc_load_comb_number['W'] *= group_count
-        cc_load_comb_number['I'] *= group_count
-
-        cc_mem_stall_tot_number = group_count * cost_model_output.utilization.cc_mem_stall_tot
-        stall_cc_number = deepcopy(cost_model_output.utilization.stall_cc)
-        stall_cc_number['W'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_number['W']]
-        stall_cc_number['I'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_number['I']]
-        stall_cc_number['O'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_number['O']]
-        stall_cc_mem_share_number = deepcopy(cost_model_output.utilization.stall_cc_mem_share)
-        stall_cc_mem_share_number['W'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_mem_share_number['W']]
-        stall_cc_mem_share_number['I'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_mem_share_number['I']]
-        stall_cc_mem_share_number['O'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_mem_share_number['O']]
-
-
+        # Correcting the outputed values to account for the grouped convolution.
+        (
+            size_list_output_print,
+            total_MAC_op_number,
+            mem_access_elem,
+            total_cost,
+            operand_cost,
+            mac_cost_active,
+            mac_cost_idle,
+            latency_tot_number,
+            latency_no_load_number,
+            total_cycles_number,
+            cc_load_tot_number,
+            cc_load_number,
+            cc_load_comb_number,
+            cc_mem_stall_tot_number,
+            stall_cc_number,
+            stall_cc_mem_share_number,
+        ) = handle_grouped_convolutions(layer_specification, cost_model_output)
 
         if result_print_mode == 'complete':
             layer = ET.SubElement(sim, 'layer')
@@ -1104,6 +1177,27 @@ def print_yaml(
     # A boolean telling us if we should print optional outputs.
     verbose = result_print_mode == "complete"
 
+    # Correcting the outputed values to account for the grouped convolution.
+    (
+        size_list_output_print,
+        total_MAC_op_number,
+        mem_access_elem,
+        total_cost,
+        operand_cost,
+        mac_cost_active,
+        mac_cost_idle,
+        latency_tot_number,
+        latency_no_load_number,
+        total_cycles_number,
+        cc_load_tot_number,
+        cc_load_number,
+        cc_load_comb_number,
+        cc_mem_stall_tot_number,
+        stall_cc_number,
+        stall_cc_mem_share_number,
+    ) = handle_grouped_convolutions(layer_specification, cost_model_output)
+
+
     # Creating the "simulation" section.
     simulation: Dict[str, Any] = dict()
     # Adding the section to our YAML dictionary.
@@ -1130,8 +1224,8 @@ def print_yaml(
     if verbose:
         layer["layer_index"] = c(common_settings.layer_index)
 
-    layer["layer_specification"] = c(layer_specification.size_list_output_print)
-    layer["total_MAC_operation"] = c(layer_specification.total_MAC_op)
+    layer["layer_specification"] = c(size_list_output_print)
+    layer["total_MAC_operation"] = c(total_MAC_op_number)
     layer["total_data_size_element"] = c(layer_specification.total_data_size)
 
     if verbose:
@@ -1391,28 +1485,15 @@ def print_yaml(
             cost_model_output.spatial_loop.unit_duplicate
         )
 
-        # TODO
-        # Here again, why are we doing this?
-        try:
-            del cost_model_output.loop.mem_access_elem["I_base"]
-            del cost_model_output.loop.mem_access_elem["I_zig_zag"]
-        except:
-            pass
-
         # MEMORY ACCESS COUNT ELEMENT SECTION
         access_count: Dict[str, Any] = dict()
         basic_information["access_count"] = access_count
 
-        # We perform a digit truncation on the output (for some reason).
-        truncated_access = digit_truncate(
-            cost_model_output.loop.mem_access_elem, 0
-        )
-
-        access_count["W"] = c(truncated_access["W"])
-        access_count["I"] = c(truncated_access["I"])
-        access_count["O"] = c(truncated_access["O"])
-        access_count["O_partial"] = c(truncated_access["O_partial"])
-        access_count["O_final"] = c(truncated_access["O_final"])
+        access_count["W"] = c(mem_access_elem["W"])
+        access_count["I"] = c(mem_access_elem["I"])
+        access_count["O"] = c(mem_access_elem["O"])
+        access_count["O_partial"] = c(mem_access_elem["O_partial"])
+        access_count["O_final"] = c(mem_access_elem["O_final"])
         # END OF ACCESS COUNT SECTION
 
         basic_information["array_element_distance"] = c(
@@ -1426,21 +1507,25 @@ def print_yaml(
     energy: Dict[str, Any] = dict()
     results["energy"] = energy
 
-    energy["total_energy"] = c(round(cost_model_output.total_cost, 1))
+    energy["total_energy"] = c(round(total_cost, 1))
 
     # ENERGY BREAKDOWN SECTION
     energy_breakdown: Dict[str, Any] = dict()
     energy["energy_breakdown"] = energy_breakdown
 
     # We clean the output for some reason.
-    cleaned_energy = energy_clean(cost_model_output.operand_cost)
+    cleaned_energy = energy_clean(operand_cost)
 
     energy_breakdown["W"] = c(cleaned_energy["W"])
     energy_breakdown["I"] = c(cleaned_energy["I"])
     energy_breakdown["O"] = c(cleaned_energy["O"])
     # END OF ENERGY BREAKDOWN SECTION
 
-    energy["mac_energy"] = c(round(cost_model_output.mac_cost, 1))
+    energy["mac_energy"] = {
+        "active": c(mac_cost_active),
+        "idle": c(mac_cost_idle)
+    }
+
     # END OF ENERGY SECTION
 
     # PERFORMANCE SECTION
@@ -1481,10 +1566,10 @@ def print_yaml(
         performance["latency"] = latency
 
         latency["latency_cycle_with_data_loading"] = c(
-            cost_model_output.utilization.latency_tot
+           latency_tot_number
         )
         latency["latency_cycle_without_data_loading"] = c(
-            cost_model_output.utilization.latency_no_load
+            latency_no_load_number
         )
         latency["ideal_computing_cycle"] = c(
             cost_model_output.temporal_loop.total_cycles
@@ -1495,13 +1580,13 @@ def print_yaml(
         latency["data_loading"] = data_loading
 
         data_loading["load_cycle_total"] = c(
-            cost_model_output.utilization.cc_load_tot
+            cc_load_tot_number
         )
         data_loading["load_cycle_individual"] = c(
-            cost_model_output.utilization.cc_load
+            cc_load_number
         )
         data_loading["load_cycle_combined"] = c(
-            cost_model_output.utilization.cc_load_comb
+            cc_load_comb_number
         )
         # END OF DATA LODAING SECTION
 
@@ -1510,13 +1595,13 @@ def print_yaml(
         latency["memory_stalling"] = memory_stalling
 
         memory_stalling["memory_stalling_cycle_count"] = c(
-            cost_model_output.utilization.cc_mem_stall_tot
+            cc_mem_stall_tot_number
         )
         memory_stalling["memory_stalling_cycle_individual"] = c(
-            cost_model_output.utilization.stall_cc
+            stall_cc_number
         )
         memory_stalling["memory_stalling_cycle_shared"] = c(
-            cost_model_output.utilization.stall_cc_mem_share
+            stall_cc_mem_share_number
         )
         memory_stalling["required_memory_bandwidth_per_cycle_individual"] = c(
             digit_truncate(cost_model_output.utilization.req_mem_bw_bit, 1)
