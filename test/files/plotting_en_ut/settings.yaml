@@ -7,6 +7,7 @@ result_filename : Eyeriss_AlexNet
 # 'concise' for printing the basic information for each optimal design point found, i.e. energy and performance.
 # 'complete' for printing all detailed information for each optimal design point found for in-depth analysis.
 result_print_mode : complete
+result_print_type : yaml
 
 # SEARCH SETTINGS
 # 'False' for searching the corresponding space.
@@ -33,6 +34,7 @@ layer_indices : [1,2,3,4,5]
 layer_multiprocessing : 7
 architecture_search_multiprocessing : 7
 spatial_unrolling_multiprocessing : 7
+temporal_mapping_multiprocessing : 7
 
 # TEMPORAL MAPPING GENERATOR SETTINGS
 # search_method : exhaustive / heuristic_v1 / heuristic_v2 / iterative
@@ -46,3 +48,5 @@ spatial_unrolling_search_method : heuristic_v2
 spatial_utilization_threshold : 0.75
 ## combination of iter and v2 doesn't work 
 ## v2 and v2 does n't work
+
+im2col_enable : False

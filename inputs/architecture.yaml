@@ -44,7 +44,7 @@ memory_hint:
 memory_hierarchy:
   rf_psum:
       memory_instance : spad_48byte              # element in the memory pool which is taken;
-      bank_instances : 168                       # number of separate instances present in the architecture
+      memory_unroll : 168                       # number of separate instances present in the architecture
       operand_stored : [O]
   rf_input:
       memory_instance: spad_24byte
