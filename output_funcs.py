@@ -383,7 +383,7 @@ def print_good_su_format(su, mem_name, file_path_name):
             su_block = modify_printing_block(su_block, 2 * (i + 1) + 1 + 12, 0, '-' * tot_col)
 
         su_block = modify_printing_block(su_block, finish_row + 2, 1,
-                                         "(Notes: Unrolled loops' order doesn't matters; D1 and D2 are PE "
+                                         "(Notes: Unrolled loops' order doesn't matter; D1 and D2 are PE "
                                          "array's two geometric dimensions. )")
         # print mem name to each level
         XY_name = {0: 'D1', 1: 'D2'}
@@ -458,7 +458,7 @@ def print_good_su_format(su, mem_name, file_path_name):
             su_block = modify_printing_block(su_block, 2 * (i + 1) + 1 + 12, 0, '-' * tot_col)
 
         su_block = modify_printing_block(su_block, finish_row + 2, 1,
-                                         "(Notes: Unrolled loops' order doesn't matters; D1 and D2 are PE "
+                                         "(Notes: Unrolled loops' order doesn't matter; D1 and D2 are PE "
                                          "array's two geometric dimensions. )")
         # print mem name to each level
         XY_name = {0: 'D1', 1: 'D2'}
@@ -1066,7 +1066,7 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
 
 def yaml_compatible(argument: Any) -> Any:
     """
-    Returns a YAML compatiable representation of the argument. This function
+    Returns a YAML compatible representation of the argument. This function
     will behave differently depending on the type of the argument.
 
     Arguments
@@ -1126,7 +1126,7 @@ def print_yaml(
     result_print_mode: str,
 ):
     """
-    Saves the ouptut of ZigZag to the YAML format.
+    Saves the output of ZigZag to the YAML format.
 
     Arguments
     =========
@@ -1411,17 +1411,17 @@ def print_yaml(
             s_loop_name_transfer(cost_model_output.spatial_scheme["O"])
         )
     except:
-        recovered_spatial_scheme = spatial_loop_same_term_merge(
+        cost_model_output.spatial_scheme = spatial_loop_same_term_merge(
             cost_model_output.spatial_scheme, cost_model_output.flooring
         )
         spatial_mapping["W"] = c(
-            s_loop_name_transfer(recovered_spatial_scheme["W"])
+            s_loop_name_transfer(cost_model_output.spatial_scheme["W"])
         )
         spatial_mapping["I"] = c(
-            s_loop_name_transfer(recovered_spatial_scheme["I"])
+            s_loop_name_transfer(cost_model_output.spatial_scheme["I"])
         )
         spatial_mapping["O"] = c(
-            s_loop_name_transfer(recovered_spatial_scheme["O"])
+            s_loop_name_transfer(cost_model_output.spatial_scheme["O"])
         )
     # END OF SPATIAL MAPPING SECTION
 
@@ -1445,7 +1445,7 @@ def print_yaml(
     if verbose:
         # TODO
         # Why are we doing this? This is changing the argument data without
-        # printing anything. I guess thishas something to do with the
+        # printing anything. I guess this has something to do with the
         # digit_truncate call later on, but I have very little clue here.
         try:
             del cost_model_output.loop.data_reuse["I_base"]

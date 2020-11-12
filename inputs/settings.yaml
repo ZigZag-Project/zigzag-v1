@@ -8,7 +8,7 @@ result_filename : AlexNet
 # 'complete' for printing all detailed information for each optimal design point found for in-depth analysis.
 result_print_mode : complete
 # type of output file to generate : yaml or xml
-result_print_type : yaml
+result_print_type : xml
 
 # SEARCH SETTINGS
 # 'False' for searching the corresponding space.
