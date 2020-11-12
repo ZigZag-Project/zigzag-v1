@@ -1,3 +1,13 @@
+---
+
+Copyright 2020 Nokia
+
+Licensed under the BSD 3-Clause License
+
+SPDX-License-Identifier: BSD-3-Clause
+
+---
+
 # TEST
 
 This folder holds the basic testing framework for ZigZag.
@@ -27,10 +37,6 @@ To create a new simple test :arrow_down_small:
 You can then push your test to the appropriate branch and report it.
 
 ## Document Metadata
-
-:pencil: Contributors : TABLEAU ROCHE Vincent
-
-:email: Contact : vincent.tableau\_roche.ext@nokia.com
 
 :date: File creation : Thu Oct  8 13:07:40 2020
 

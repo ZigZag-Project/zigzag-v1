@@ -2,6 +2,10 @@
 
 #################################### HEADER ####################################
 
+# Copyright 2020 Nokia
+# Licensed under the BSD 3-Clause License
+# SPDX-License_Identifier: BSD-3-Clause
+
 # File creation : Thu Oct  8 12:42:00 2020
 # Language : Python3
 
