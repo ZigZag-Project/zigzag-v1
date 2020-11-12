@@ -7,11 +7,13 @@ result_filename : AlexNet
 # 'concise' for printing the basic information for each optimal design point found, i.e. energy and performance.
 # 'complete' for printing all detailed information for each optimal design point found for in-depth analysis.
 result_print_mode : complete
+# type of output file to generate : yaml or xml
+result_print_type : yaml
 
 # SEARCH SETTINGS
 # 'False' for searching the corresponding space.
 fixed_architecture : True
-fixed_spatial_unrolling : False
+fixed_spatial_unrolling : True
 fixed_temporal_mapping : False
 
 # RESULT SAVING SETTINGS
@@ -53,4 +55,3 @@ spatial_utilization_threshold : 0.9
 # Process convolution as matrix-matrix multiplication.
 # For pointwise layers (FX=FY=1), recommend to put im2col_enable True.
 im2col_enable : False
-

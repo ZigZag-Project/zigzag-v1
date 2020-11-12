@@ -1,24 +1,22 @@
 PE_array:                                       
   Col : 14
-  Row : 12
+  Row : 14
 
 precision:
-  I : 16
-  W : 16
+  I : 8
+  W : 8
   O_partial : 16
-  O_final : 16
+  O_final : 8
 
-single_mac_energy_active : 16
-single_mac_energy_idle : 0.05
-
+single_mac_energy_active : 8
+single_mac_energy_idle : 8
 # The characteristics of the systolic flow of data in the array: 
 # 0 is horizontal
 # 1 is vertical
 # 2 is diagonal
 mac_array_stall :
-  systolic: 
+  systolic: 2
 
-############### you need to set them if doing architecture search ###############
 area_max : 3.5e6
 area_utilization : 0.75
 mem_ratio : 8                                   # minimum ratio between two adjacent levels in the memory hierarchy
@@ -35,36 +33,34 @@ L1_size:
 
 memory_hint:
   sramx:
-      memory_instance : sram16Mb
+      memory_instance : sram16Mb                         
       memory_unroll : 1
+      nbanks : 1
       operand_stored : [O,I,W]
-#################################################################################
 
-############# you need to set them if not doing architecture search #############
 memory_hierarchy:
-  rf_psum:
+  rf:
       memory_instance : spad_48byte              # element in the memory pool which is taken;
-      memory_unroll : 168                       # number of separate instances present in the architecture
-      operand_stored : [O]
-  rf_input:
-      memory_instance: spad_24byte
-      memory_unroll: 168
-      operand_stored: [I]
-  rf_weight:
-      memory_instance: spad_448byte
-      memory_unroll: 168
-      operand_stored: [W]
+      memory_unroll : 196                       # number of separate instances present in the architecture
+      operand_stored : [I,W,O]
+      nbanks : 1                                 # is this used ?
+  # rf_input:
+  #     memory_instance: spad_24byte
+  #     memory_unroll: 196
+  #     operand_stored: [I]
+  #     nbanks : 1
+  # rf_weight:
+  #     memory_instance: spad_448byte
+  #     memory_unroll: 14
+  #     operand_stored: [I,W,O]
+  #     nbanks : 1
   global_buffer:
       memory_instance: buffer_108Kbyte
       memory_unroll: 1
-      operand_stored: [I, O]
+      operand_stored: [I,W, O]
+      nbanks : 1
   top_sram:
       memory_instance: sram_eyeriss
       memory_unroll: 1
       operand_stored: [W,I,O]
-#################################################################################
-
-# If the below parameter is set as True and fixed_spatial_unrolling (in settings.yaml) is False,
-# and spatial_unrolling_search_method is exhaustive / heuristic_v1 / heuristic_v2,
-# the tool will try out all possible memory unrolling combinations.
-memory_unroll_fully_flexible: False
+      nbanks : 1
