@@ -512,9 +512,10 @@ def handle_grouped_convolutions(
 
     Returns
     =======
-    A tuple of 16 elements, in order:
+    A tuple of 17 elements, in order:
      - size_list_output_print,
      - total_MAC_op_number,
+     - total_data_size_number,
      - mem_access_elem,
      - total_cost,
      - operand_cost,
@@ -592,6 +593,7 @@ def handle_grouped_convolutions(
     return (
         size_list_output_print,
         total_MAC_op_number,
+        total_data_size_number,
         mem_access_elem,
         total_cost,
         operand_cost,
@@ -639,6 +641,7 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
         (
             size_list_output_print,
             total_MAC_op_number,
+            total_data_size_number,
             mem_access_elem,
             total_cost,
             operand_cost,
@@ -1181,6 +1184,7 @@ def print_yaml(
     (
         size_list_output_print,
         total_MAC_op_number,
+        total_data_size_number,
         mem_access_elem,
         total_cost,
         operand_cost,
