@@ -804,7 +804,7 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
                         is_fit = True
                         for r in roof_list:
                             is_min_roof = False
-                            if r[0] in mr_list_operand:
+                            if r[0] == min_roof[0]: # in mr_list_operand:
                                 is_min_roof = True
                             is_fit = su.check_comb_fit(LPF_scheme, spatial_unrolling, comb[j], r, mem_size, mem_share,
                                                        utilization_rate, precision, operand_irrelevant, is_min_roof,
