@@ -29,7 +29,7 @@ if __name__ == "__main__":
     Neural Network info can be defined by user (./NN_layer/XXNet.py) or be imported externally.
     By default, user-defined layer dimension is used (./NN_layer/XXNet.py).
     An example of loading model externally from Keras is provided.
-    To try it, the below line "layer_spec = input_funcs.get_layer_spec(..." need to be commented.
+    To try it, the below line "layer_spec, _ = input_funcs.get_layer_spec(..." need to be commented.
     '''
     # ---------------------------------------------------------------------------
     # import keras.applications
