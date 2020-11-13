@@ -97,3 +97,13 @@ sram:
       read_word : [240]
       write_word : [240]
   mem_type : dual_port_single_buffered
+
+# just for testing, not real data
+sram_big:
+  size_bit : 10000000000
+  mem_bw : [128]
+  area : [1]
+  cost :
+      read_word : [240]
+      write_word : [240]
+  mem_type : dual_port_single_buffered

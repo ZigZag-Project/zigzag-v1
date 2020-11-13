@@ -272,8 +272,15 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
         im2col_enable = fl['im2col_enable']
     except:
         im2col_enable = False
+
+    if type(fl['layer_indices']) is list:
+        layer_indices = fl['layer_indices']
+    else:
+        NN = importlib.machinery.SourceFileLoader('%s' % (fl['layer_filename']), '%s.py' % (fl['layer_filename'])).load_module()
+        layer_indices = [kk for kk in NN.layer_info.keys()]
+
     input_settings = InputSettings(fl['result_path'], fl['result_filename'], fl['layer_filename'],
-                                   fl['layer_indices'], fl['layer_multiprocessing'], precision,
+                                   layer_indices, fl['layer_multiprocessing'], precision,
                                    mac_array_info, mac_array_stall, fl['fixed_architecture'],
                                    fl['architecture_search_multiprocessing'], memory_scheme_hint,
                                    fl['fixed_spatial_unrolling'], sm_fixed, flooring_fixed,
@@ -292,6 +299,49 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
     return input_settings
 
 
+class layer_spec1(object):
+    def __init__(self):
+        self.layer_info = {}
+
+
+def get_layer_spec(model):
+    """
+    Function that gets the layer_spec according from the input_settings
+    If a Keras model is provided, it will update the layer spec accordingly
+
+    Arguments
+    =========
+    - model: A keras model that constitutes of a number of Conv2D layers
+    """
+    print()
+    layer_spec = layer_spec1()
+
+    if model is not None:
+        layer_numbers = update_layer_spec(layer_spec, model)
+
+    for layer_number, specs in layer_spec.layer_info.items():
+        if layer_number in layer_numbers:  # Only care about layers we have to process
+            # G = specs.get('G', 1)
+            # C = specs['C']
+            # K = specs['K']
+            #
+            # if G != 1:
+            #     div_C, mod_C = divmod(C, G)
+            #     div_K, mod_K = divmod(K, G)
+            #
+            #     assert (
+            #                 mod_C == 0 and mod_K == 0), "C and/or K not divisible by number of groups for layer %d" % layer_number
+            #     layer_spec.layer_info[layer_number]['C'] = div_C
+            #     layer_spec.layer_info[layer_number]['K'] = div_K
+
+                print(
+                    "Grouped convolution detected for Layer %d. Terminal prints will show total energy of all groups combined."
+                    % layer_number)
+    print()
+    return layer_spec, layer_numbers
+
+
+
 def get_layer_spec(input_settings, model=None):
     """
     Function that gets the layer_spec according from the input_settings
@@ -306,16 +356,18 @@ def get_layer_spec(input_settings, model=None):
     - model: A keras model that constitutes of a number of Conv2D layers
 
     """
-    print()
-    layer_filename = input_settings.layer_filename
-    layer_spec = importlib.machinery.SourceFileLoader('%s' % (layer_filename), '%s.py' % (layer_filename)).load_module()
+    if input_settings:
+        layer_filename = input_settings.layer_filename
+        layer_spec = importlib.machinery.SourceFileLoader('%s' % (layer_filename), '%s.py' % (layer_filename)).load_module()
+        layer_numbers = input_settings.layer_number
+    else:
+        layer_spec = layer_spec1()
 
     if model is not None:
-        update_layer_spec(layer_spec, input_settings, model)
+        layer_numbers = update_layer_spec(layer_spec, model)
 
     for layer_number, specs in layer_spec.layer_info.items():
-
-        if layer_number in input_settings.layer_number: # Only care about layers we have to process
+        if layer_number in layer_numbers: # Only care about layers we have to process
             G = specs.get('G',1)
             C = specs['C']
             K = specs['K']
@@ -326,15 +378,15 @@ def get_layer_spec(input_settings, model=None):
 
                 assert (mod_C == 0 and mod_K == 0), "C and/or K not divisible by number of groups for layer %d" % layer_number
                 layer_spec.layer_info[layer_number]['C'] = div_C
-                layer_spec.layer_info[layer_number]['K']= div_K
+                layer_spec.layer_info[layer_number]['K'] = div_K
 
                 print("Grouped convolution detected for Layer %d. Terminal prints will show total energy of all groups combined."
                     % layer_number)
     print()
-    return layer_spec
+    return layer_spec, layer_numbers
 
 
-def update_layer_spec(layer_spec, input_settings, model):
+def update_layer_spec(layer_spec, model):
     """
     Function that changes the layer_spec according to a keras model.
 
@@ -347,38 +399,134 @@ def update_layer_spec(layer_spec, input_settings, model):
     - model: A keras model that constitutes of a number of Conv2D layers
 
     """
+    import keras
 
     # Clear any entries present in layer_spec
     layer_spec.layer_info = {}
     layer_numbers = []
-
+    layer_ii = 0
     # Iterate through model layers
     for layer_idx, layer in enumerate(model.layers):
         layer_number = layer_idx + 1
+        print(layer_idx, type(layer))
 
         # Get the specs for this layer
-        if isinstance(layer, keras.layers.Conv2D):
+        if isinstance(layer, keras.layers.Conv1D) or \
+                isinstance(layer, keras.layers.Conv2D) or \
+                isinstance(layer, keras.layers.Conv3D) or \
+                isinstance(layer, keras.layers.SeparableConv1D) or \
+                isinstance(layer, keras.layers.SeparableConv2D) or \
+                isinstance(layer, keras.layers.DepthwiseConv2D) or \
+                isinstance(layer, keras.layers.Dense):
+            layer_ii += 1
             b = layer.input_shape[0]
             if b is None:
                 b = 1
-            c = layer.input_shape[3]
-            ox = layer.output_shape[1]
-            oy = layer.output_shape[2]
-            k = layer.output_shape[3]
-            fx = layer.kernel_size[0]
-            fy = layer.kernel_size[1]
-            sx = layer.strides[0]
-            sy = layer.strides[1]
-            sfx = layer.dilation_rate[0]
-            sfy = layer.dilation_rate[1]
-            px = 0
-            py = 0
-            g = 1
-            if isinstance(layer, keras.layers.DepthwiseConv2D):
+            if isinstance(layer, keras.layers.SeparableConv1D) or \
+                    isinstance(layer, keras.layers.SeparableConv2D):
+
+                # manually split a SeparableConv into 2 layers: depthwise & pointwise
+                c = layer.input_shape[3]
+                ox = layer.output_shape[1]
+                oy = layer.output_shape[2]
+                k = layer.input_shape[3] * layer.depth_multiplier
+                fx = layer.kernel_size[0]
+                fy = layer.kernel_size[1]
+                sx = layer.strides[0]
+                sy = layer.strides[1]
+                sfx = layer.dilation_rate[0]
+                sfy = layer.dilation_rate[1]
+                px = 0
+                py = 0
+                g = layer.input_shape[3]
+
+                # Update the layer_spec variable
+                layer_spec.layer_info[layer_ii] = {
+                    'B': b,
+                    'K': k,
+                    'C': c,
+                    'OY': oy,
+                    'OX': ox,
+                    'FY': fy,
+                    'FX': fx,
+                    'SY': sy,
+                    'SX': sx,
+                    'SFY': sfy,
+                    'SFX': sfx,
+                    'PY': py,
+                    'PX': px,
+                    'G': g
+                }
+
+                # Add this layer number to layer_numbers
+                layer_numbers.append(layer_ii)
+                layer_ii += 1
+
+                c = layer.output_shape[3] * layer.depth_multiplier
+                ox = layer.output_shape[1]
+                oy = layer.output_shape[2]
+                k = layer.output_shape[3]
+                fx = 1
+                fy = 1
+                sx = 1
+                sy = 1
+                sfx = 1
+                sfy = 1
+                px = 0
+                py = 0
+                g = 1
+
+
+            elif isinstance(layer, keras.layers.DepthwiseConv2D):
+                c = layer.input_shape[3]
+                ox = layer.output_shape[1]
+                oy = layer.output_shape[2]
+                k = layer.output_shape[3]
+                fx = layer.kernel_size[0]
+                fy = layer.kernel_size[1]
+                sx = layer.strides[0]
+                sy = layer.strides[1]
+                sfx = layer.dilation_rate[0]
+                sfy = layer.dilation_rate[1]
+                px = 0
+                py = 0
                 g = c
+                if c != k:
+                    raise ("ERROR: C!=K")
+
+            elif isinstance(layer, keras.layers.Dense):
+                # fully-connected layer
+                c = layer.input_shape[1]
+                ox = 1
+                oy = 1
+                k = layer.output_shape[1]
+                fx = 1
+                fy = 1
+                sx = 1
+                sy = 1
+                sfx = 1
+                sfy = 1
+                px = 0
+                py = 0
+                g = 1
+
+            else:
+                c = layer.input_shape[3]
+                ox = layer.output_shape[1]
+                oy = layer.output_shape[2]
+                k = layer.output_shape[3]
+                fx = layer.kernel_size[0]
+                fy = layer.kernel_size[1]
+                sx = layer.strides[0]
+                sy = layer.strides[1]
+                sfx = layer.dilation_rate[0]
+                sfy = layer.dilation_rate[1]
+                px = 0
+                py = 0
+                g = 1
 
             # Update the layer_spec variable
-            layer_spec.layer_info[layer_number] = {
+            layer_spec.layer_info[layer_ii] = {
                 'B': b,
                 'K': k,
                 'C': c,
@@ -396,7 +544,6 @@ def update_layer_spec(layer_spec, input_settings, model):
             }
 
             # Add this layer number to layer_numbers
-            layer_numbers.append(layer_number)
+            layer_numbers.append(layer_ii)
 
-    # Update the input_settings.layer_number to correct layer numbers
-    input_settings.layer_number = layer_numbers
+    return layer_numbers

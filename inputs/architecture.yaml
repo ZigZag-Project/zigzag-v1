@@ -61,7 +61,7 @@ memory_hierarchy:
       memory_unroll: 1
       operand_stored: [I, O]
   top_sram:
-      memory_instance: sram_eyeriss
+      memory_instance: sram_big
       memory_unroll: 1
       operand_stored: [W,I,O]
 #################################################################################

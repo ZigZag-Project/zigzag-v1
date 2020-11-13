@@ -711,7 +711,7 @@ def mem_scheme_not_ordered_check(mem_scheme_set_list, memory_hierarchy_ratio, ar
 #
 #     return mem_scheme_fit
 
-def mem_scheme_fit_check(mem_scheme, precision, layer, layer_number):
+def mem_scheme_fit_check(mem_idx, mem_scheme, precision, layer, layer_number):
     mem_scheme_fit = True
 
     for layer_idx, each_layer in layer.items():
@@ -734,12 +734,19 @@ def mem_scheme_fit_check(mem_scheme, precision, layer, layer_number):
                         total_size = np.sum([operand_size[op] for op in operand_size if op in shared_mem_list])
                         if mem_scheme.mem_size[operand][-1] < total_size:
                             mem_scheme_fit = False
+                            print('Memory Scheme %d cannot hold all the data in NN Layer %d.' %(mem_idx,layer_idx),
+                                  end=' | ')
+                            print('Required memory size:', operand_size[operand], '<-> Available memory size:',
+                                  mem_scheme.mem_size[operand][-1], '(unit: bit)')
                             return mem_scheme_fit
                 if total_size == 0:
                     if mem_scheme.mem_size[operand][-1] < operand_size[operand]:
                         mem_scheme_fit = False
+                        print('Memory Scheme %d cannot hold all the data in NN Layer %d.' %(mem_idx,layer_idx),
+                              end=' | ')
+                        print('Required memory size:', operand_size[operand], '<-> Available memory size:',
+                              mem_scheme.mem_size[operand][-1], 'Operand:', operand, '(unit: bit)')
                         return mem_scheme_fit
-                        # raise ValueError('The memory system cannot hold all the data in NN layer %d.', layer_idx)
 
     return mem_scheme_fit
 

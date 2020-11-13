@@ -24,9 +24,21 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     input_settings = input_funcs.get_input_settings(args.set, args.map, args.mempool, args.arch)
-    
-    # Get the layer_spec. model could be any Keras model
-    layer_spec = input_funcs.get_layer_spec(input_settings, model=None)
+
+    '''
+    Neural Network info can be defined by user (./NN_layer/XXNet.py) or be imported externally.
+    By default, user-defined layer dimension is used (./NN_layer/XXNet.py).
+    An example of loading model externally from Keras is provided.
+    To try it, the below line "layer_spec = input_funcs.get_layer_spec(..." need to be commented.
+    '''
+    # ---------------------------------------------------------------------------
+    # import keras.applications
+    # load_model = keras.applications.MobileNet()
+    # layer_spec, layer_numbers = input_funcs.get_layer_spec(None, model=load_model)
+    # input_settings.layer_number = layer_numbers
+    # input_settings.layer_filename = '../../' + load_model.name
+    # ---------------------------------------------------------------------------
+    layer_spec, _ = input_funcs.get_layer_spec(input_settings, model=None)
 
     # Extract the layer information from the layer_spec
     layers = [cls.Layer.extract_layer_info(layer_spec.layer_info[layer_number])
@@ -98,8 +110,9 @@ if __name__ == "__main__":
     # CHECKS IF THE LAST LEVEL IN MEMORY HIERARCHY MEETS STORAGE REQUIREMENTS FOR OPERANDS
     if not mem_scheme_sim:
         raise ValueError('No memory hierarchy found. Consider changing constraints in the architecture file.')
-    for idx, each_mem_scheme in enumerate(mem_scheme_sim):
-        mem_scheme_fit = mem_scheme_fit_check(each_mem_scheme, input_settings.precision, layer_spec.layer_info,
+    mem_scheme_sim_copy = deepcopy(mem_scheme_sim)
+    for idx, each_mem_scheme in enumerate(mem_scheme_sim_copy):
+        mem_scheme_fit = mem_scheme_fit_check(idx+1, each_mem_scheme, input_settings.precision, layer_spec.layer_info,
                                               input_settings.layer_number)
         if not mem_scheme_fit:
             del mem_scheme_sim[idx]
