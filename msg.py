@@ -1525,9 +1525,15 @@ def iterative_data_format_clean(original_dict):
     return new_dict
 
 
-def get_mem_scheme_area(mem_scheme, unit_count):
+def get_mem_scheme_area(mem_scheme, unit_count, spatial_utilization):
+    """
+    This function computes total memory occupied area.
+    It distinguishes active area and total area.
+    total area = active area + dark silicon area
+    """
+
     total_area = 0
-    level_area = 0
+    active_area = 0
     if type(mem_scheme.mem_area['W'][0]) in [list, tuple]:
         mem_scheme.mem_area = iterative_data_format_clean(mem_scheme.mem_area)
     for op in ['W', 'I', 'O']:
@@ -1535,13 +1541,22 @@ def get_mem_scheme_area(mem_scheme, unit_count):
             index_unroll_shared = [tuple([op, level]) in mem_scheme.mem_share[x] for x in
                                    mem_scheme.mem_share]
             if any(index_unroll_shared):
-                level_area = mem_area * unit_count[op][level + 1] / len(
+                level_area_active = mem_area * unit_count[op][level + 1] / len(
                     mem_scheme.mem_share[index_unroll_shared.index(True)])
+                if unit_count[op][level + 1] > 1:
+                    level_area_total = level_area_active / spatial_utilization
+                else:
+                    level_area_total = level_area_active
             else:
-                level_area = mem_area * unit_count[op][level + 1]
-            total_area += level_area
+                level_area_active = mem_area * unit_count[op][level + 1]
+                if unit_count[op][level + 1] > 1:
+                    level_area_total = level_area_active / spatial_utilization
+                else:
+                    level_area_total = level_area_active
+            active_area += level_area_active
+            total_area += level_area_total
 
-    return total_area
+    return total_area, active_area
 
 
 def update_mem_scheme_bw(mem_scheme, utilization):

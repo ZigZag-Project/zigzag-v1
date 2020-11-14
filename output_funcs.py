@@ -924,7 +924,12 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
             mem_bw_req_meet.tail = str(mem_bw_req_meet_list)
 
             area = ET.SubElement(results, 'area')
-            area.tail = str(cost_model_output.area)
+            total_area = ET.SubElement(area, 'total_area')
+            total_area.tail = str(round(cost_model_output.area[0],1))
+            active_area = ET.SubElement(area, 'active_area')
+            active_area.tail = str(round(cost_model_output.area[1],1))
+            dark_silicon = ET.SubElement(area, 'dark_silicon_percentage')
+            dark_silicon.tail = str(100-round(cost_model_output.area[1]/cost_model_output.area[0]*100, 1)) + ' %'
         else:
             layer = ET.SubElement(sim, 'layer')
             # layer_index = ET.SubElement(layer, 'layer_index')
@@ -1049,7 +1054,13 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
             # total_cycles.tail = str(cost_model_output.temporal_loop.total_cycles)
 
             area = ET.SubElement(results, 'area')
-            area.tail = str(cost_model_output.area)
+            total_area = ET.SubElement(area, 'total_area')
+            total_area.tail = str(round(cost_model_output.area[0],1))
+            active_area = ET.SubElement(area, 'active_area')
+            active_area.tail = str(round(cost_model_output.area[1],1))
+            dark_silicon = ET.SubElement(area, 'dark_silicon_percentage')
+            dark_silicon.tail = str(100-round(cost_model_output.area[1]/cost_model_output.area[0]*100, 1)) + ' %'
+
     elapsed_time_node = ET.SubElement(sim, 'elapsed_time_second')
     elapsed_time_node.tail = str(round(elapsed_time, 3))
     tree = ET.ElementTree(root)
@@ -1629,7 +1640,9 @@ def print_yaml(
         )
     # END OF PERFORMANCE LATENCY SECTION
 
-    results["area"] = c(cost_model_output.area)
+    results["total_area"] = c(round(cost_model_output.area[0], 1))
+    results["active_area"] = c(round(cost_model_output.area[1], 1))
+    results["dark_silicon_percentage"] = c(100 - round(cost_model_output.area[1] / cost_model_output.area[0] * 100, 1))
     # END OF RESULTS SECTION
 
     simulation["elapsed_time_second"] = c(round(elapsed_time, 3))

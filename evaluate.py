@@ -76,7 +76,9 @@ def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_
                                                       input_settings.mac_array_stall,
                                                       input_settings.precision, msc.mem_bw)
 
-        occupied_area = msg.get_mem_scheme_area(msc, spatial_loop.unit_count)
+        # TODO MAC area (multiplier and adder) is not included.
+        # occupied_area format: [total_area, active_area]
+        occupied_area = msg.get_mem_scheme_area(msc, spatial_loop.unit_count, utilization.mac_utilize_spatial)
 
         total_cost_layer = 0
         # loop.array_wire_distance = {'W': [], 'I': [], 'O': []}
@@ -392,12 +394,12 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
         if input_settings.fixed_temporal_mapping:
             print(
                 ' | Elapsed time: {0:d} sec | (energy, mac_utilization, area): ({1:.3E}, {2:.3f}, {3:.3E})'.format(
-                    int(t_cm), int(round(group_count*best_energy)), best_energy_utilization, int(best_output_energy.area)))
+                    int(t_cm), int(round(group_count*best_energy)), best_energy_utilization, int(round(best_output_energy.area[0]))))
         else:
             print(
                 ' | Elapsed time: {0:d} sec | [min en: ({1:.3E}, {2:.3f}, {3:.3E}) max ut: ({4:.3E}, {5:.3f}, {6:.3E})] in all TMs'.format(
-                    int(t_cm), int(round(group_count*best_energy)), best_energy_utilization, int(best_output_energy.area),
-                    int(round(group_count*best_utilization_energy)), best_utilization, int(best_output_utilization.area)))
+                    int(t_cm), int(round(group_count*best_energy)), best_energy_utilization, int(round(best_output_energy.area[0])),
+                    int(round(group_count*best_utilization_energy)), best_utilization, int(round(best_output_utilization.area[0]))))
 
         if input_settings.fixed_temporal_mapping or input_settings.tmg_search_method != 0:
             tm_count = tl_count
@@ -685,11 +687,11 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
             print(
                 '{0:s} {1:s} L {2:d},  M {3:d},  SU {4:s}  Min En: ({5:.3E}, {6:.3f}, {7:.3E}) in all SUs and TMs'.format(
                     current_time, str(input_settings.layer_filename.split('/')[-1]), layer_index, mem_scheme_index + 1,
-                    best_en_mem_su_str.split('_')[-1], int(group_count*best_en), best_en_ut, int(best_en_output.area)))
+                    best_en_mem_su_str.split('_')[-1], int(group_count*best_en), best_en_ut, int(round(best_en_output.area[0]))))
             print(
                 '{0:s} {1:s} L {2:d},  M {3:d},  SU {4:s}  Max Ut: ({5:.3E}, {6:.3f}, {7:.3E}) in all SUs and TMs'.format(
                     current_time, str(input_settings.layer_filename.split('/')[-1]), layer_index, mem_scheme_index + 1,
-                    best_ut_mem_su_str.split('_')[-1], int(group_count*best_ut_en), best_ut, int(best_ut_output.area)))
+                    best_ut_mem_su_str.split('_')[-1], int(group_count*best_ut_en), best_ut, int(round(best_ut_output.area[0]))))
 
 
 def mem_scheme_list_evaluate(input_settings, mem_scheme, mem_scheme_index, layers, multi_manager):
@@ -866,7 +868,7 @@ def optimal_su_evaluate(input_settings, layers, multi_manager):
             current_time = now.strftime("%H:%M:%S")
 
             network_name = str(input_settings.layer_filename.split('/')[-1])
-            memory_area = int(min_en_output.area)
+            memory_area = int(round(min_en_output.area[0]))
 
             print(
                 '{0:s} {1:s} M {2:d}: Minimal energy for all layers:      (energy, latency, area) = ({3:.3E}, {4:.3E}, {5:.3E})'.format(
