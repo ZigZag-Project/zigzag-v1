@@ -114,34 +114,263 @@ def C_col2im_decouple(C_below, layer_origin):
                     return C, FY, FX
 
 
-def su_col2im(mem_scheme, layer_7D_origin, layer_3D_origin, layer_3D_rounded):
+# def su_col2im(mem_scheme, layer_7D_origin, layer_3D_origin, layer_3D_rounded):
+#     """
+#     This function updates col2im parameters in mem_scheme, namely,
+#     col2im_flooring, col2im_fraction_spatial_unrolling, col2im_spatial_unrolling.
+#     These parameters will later be used to calculate accurate Input access count for
+#     those Input memory levels above the im2col_top_mem_level (defined in setting file),
+#     which can get benefit from Input FIFO effect.
+#     """
+#
+#     ideal_su = mem_scheme.spatial_unrolling
+#     fraction_su = mem_scheme.fraction_spatial_unrolling
+#     flooring = mem_scheme.flooring
+#
+#     col2im_ideal_su = {'W': [], 'I': [], 'O': []}
+#     col2im_fraction_su = {'W': [], 'I': [], 'O': []}
+#     col2im_flooring = {'W': [], 'I': [], 'O': []}
+#
+#     for ii_su in range(len(ideal_su)):
+#         for op in ['W', 'I', 'O']:
+#             for su_per_level in ideal_su[ii_su][op]:
+#                 col2im_ideal_su[op].append([])
+#                 if su_per_level:
+#                     for su_single in su_per_level:
+#                         su_type = su_single[0]
+#                         if su_type == 6:
+#                             col2im_ideal_su[op][-1].append(su_single)
+#                         else:
+#                             su_single_update = su_single_decouple(su_single, layer_7D_origin)
+#                             col2im_ideal_su[op][-1].append(su_single_update)
+#
+#     a = 1
+
+
+def pw_layer_col2im(spatial_scheme, flooring, temporal_scheme, original_layer):
     """
-    This function updates col2im parameters in mem_scheme, namely,
-    col2im_flooring, col2im_fraction_spatial_unrolling, col2im_spatial_unrolling.
-    These parameters will later be used to calculate accurate Input access count for
-    those Input memory levels above the im2col_top_mem_level (defined in setting file),
-    which can get benefit from Input FIFO effect.
+    This function change a pointwise layer, which has been auto-transferred (im2col), back to its original shape.
+    Recover 3D (B, K, C) back to 5D (B, K, C, OY, OX) in spatial_scheme, flooring, temporal_scheme.
     """
 
-    ideal_su = mem_scheme.spatial_unrolling
-    fraction_su = mem_scheme.fraction_spatial_unrolling
-    flooring = mem_scheme.flooring
+    OX = {'W': original_layer[3], 'I': original_layer[3], 'O': original_layer[3]}
+    OY = {'W': original_layer[4], 'I': original_layer[4], 'O': original_layer[4]}
+    B = {'W': original_layer[7], 'I': original_layer[7], 'O': original_layer[7]}
 
-    col2im_ideal_su = {'W': [], 'I': [], 'O': []}
-    col2im_fraction_su = {'W': [], 'I': [], 'O': []}
-    col2im_flooring = {'W': [], 'I': [], 'O': []}
+    # su_transfer_count is used to convert flooring, 7 -> 3 or 3,4 or 3,4,7
+    su_transfer_op = {'W': [], 'I': [], 'O': []}
 
-    for ii_su in range(len(ideal_su)):
-        for op in ['W', 'I', 'O']:
-            for su_per_level in ideal_su[ii_su][op]:
-                col2im_ideal_su[op].append([])
-                if su_per_level:
-                    for su_single in su_per_level:
-                        su_type = su_single[0]
-                        if su_type == 6:
-                            col2im_ideal_su[op][-1].append(su_single)
+    spatial_scheme_saved = deepcopy(spatial_scheme)
+    for op in ['W', 'I', 'O']:
+        for level, su_list in enumerate(spatial_scheme_saved[op]):
+            su_transfer_op[op].append([])
+            if su_list:
+                for idx, su_single in enumerate(su_list):
+                    if su_single[0] == 7:
+                        su_transfer_op[op][-1].append([])
+                        if su_single[1] <= OX[op]:
+                            find_7_item = next((x for x in spatial_scheme[op][level] if x[0] == 7), None)
+                            find_7_idx = spatial_scheme[op][level].index(find_7_item)
+                            OX_position_value = spatial_scheme_saved[op][level][idx][1]
+                            spatial_scheme[op][level].insert(find_7_idx, [3, OX_position_value])
+                            su_transfer_op[op][-1][-1] = [3]  # B -> OX
+                            try:
+                                spatial_scheme[op][level].remove((7, su_single[1]))
+                            except:
+                                spatial_scheme[op][level].remove([7, su_single[1]])
+                            OX[op] = round(OX[op] / OX_position_value)
+
+                        elif OX[op] < su_single[1] < OX[op] * OY[op]:
+                            if OX[op] > 1:
+                                find_7_item = next((x for x in spatial_scheme[op][level] if x[0] == 7), None)
+                                find_7_idx = spatial_scheme[op][level].index(find_7_item)
+                                spatial_scheme[op][level].insert(find_7_idx, [3, OX[op]])
+                                OY_posision_value = round(spatial_scheme_saved[op][level][idx][1] / OX[op])
+                                spatial_scheme[op][level].insert(find_7_idx + 1, [4, OY_posision_value])
+                                su_transfer_op[op][-1][-1] = [3, 4]  # B -> OX, OY
+                                try:
+                                    spatial_scheme[op][level].remove((7, su_single[1]))
+                                except:
+                                    spatial_scheme[op][level].remove([7, su_single[1]])
+
+                            else:
+                                find_7_item = next((x for x in spatial_scheme[op][level] if x[0] == 7), None)
+                                find_7_idx = spatial_scheme[op][level].index(find_7_item)
+                                OY_posision_value = spatial_scheme_saved[op][level][idx][1]
+                                spatial_scheme[op][level].insert(find_7_idx, [4, OY_posision_value])
+                                su_transfer_op[op][-1][-1] = [4]  # B -> OY
+                                try:
+                                    spatial_scheme[op][level].remove((7, su_single[1]))
+                                except:
+                                    spatial_scheme[op][level].remove([7, su_single[1]])
+                            OX[op] = 1
+                            OY[op] = round(OY[op] / OY_posision_value)
+
+                        elif su_single[1] == OX[op] * OY[op]:
+                            if OX[op] > 1:
+                                find_7_item = next((x for x in spatial_scheme[op][level] if x[0] == 7), None)
+                                find_7_idx = spatial_scheme[op][level].index(find_7_item)
+                                spatial_scheme[op][level].insert(find_7_idx, [3, OX[op]])
+                                spatial_scheme[op][level].insert(find_7_idx + 1, [4, OY[op]])
+                                su_transfer_op[op][-1][-1] = [3, 4]  # B -> OX, OY
+                                try:
+                                    spatial_scheme[op][level].remove((7, su_single[1]))
+                                except:
+                                    spatial_scheme[op][level].remove([7, su_single[1]])
+
+                            else:
+                                find_7_item = next((x for x in spatial_scheme[op][level] if x[0] == 7), None)
+                                find_7_idx = spatial_scheme[op][level].index(find_7_item)
+                                spatial_scheme[op][level].insert(find_7_idx, [4, OY[op]])
+                                su_transfer_op[op][-1][-1] = [4]  # B -> OY
+                                try:
+                                    spatial_scheme[op][level].remove((7, su_single[1]))
+                                except:
+                                    spatial_scheme[op][level].remove([7, su_single[1]])
+                            OX[op] = 1
+                            OY[op] = 1
+
+                        elif su_single[1] > OX[op] * OY[op]:
+                            if OX[op] > 1 and OY[op] > 1:
+                                find_7_item = next((x for x in spatial_scheme[op][level] if x[0] == 7), None)
+                                find_7_idx = spatial_scheme[op][level].index(find_7_item)
+                                spatial_scheme[op][level].insert(find_7_idx, [3, OX[op]])
+                                spatial_scheme[op][level].insert(find_7_idx + 1, [4, OY[op]])
+                                B_posision_value = round(spatial_scheme_saved[op][level][idx][1] / OX[op] / OY[op])
+                                spatial_scheme[op][level].insert(find_7_idx + 2, [7, B_posision_value])
+                                su_transfer_op[op][-1][-1] = [3, 4, 7]  # B -> OX, OY, B
+                                try:
+                                    spatial_scheme[op][level].remove((7, su_single[1]))
+                                except:
+                                    spatial_scheme[op][level].remove([7, su_single[1]])
+
+                            elif OX[op] == 1 and OY[op] > 1:
+                                find_7_item = next((x for x in spatial_scheme[op][level] if x[0] == 7), None)
+                                find_7_idx = spatial_scheme[op][level].index(find_7_item)
+                                spatial_scheme[op][level].insert(find_7_idx, [4, OY[op]])
+                                B_posision_value = round(spatial_scheme_saved[op][level][idx][1] / OY[op])
+                                spatial_scheme[op][level].insert(find_7_idx + 1, [7, B_posision_value])
+                                su_transfer_op[op][-1][-1] = [4, 7]  # B -> OY, B
+                                try:
+                                    spatial_scheme[op][level].remove((7, su_single[1]))
+                                except:
+                                    spatial_scheme[op][level].remove([7, su_single[1]])
+
+                            elif OX[op] == 1 and OY[op] == 1:
+                                B_posision_value = spatial_scheme_saved[op][level][idx][1]
+                                su_transfer_op[op][-1][-1] = [7]  # B -> B
+                            else:
+                                raise ValueError('ERROR 1 (su)')
+                            OX[op] = 1
+                            OY[op] = 1
+                            B[op] = round(B[op] / B_posision_value)
+
                         else:
-                            su_single_update = su_single_decouple(su_single, layer_7D_origin)
-                            col2im_ideal_su[op][-1].append(su_single_update)
+                            raise ValueError('ERROR 2 (su)')
 
-    a = 1
+    if B['W'] != B['I'] != B['O'] or OY['W'] != OY['I'] != OY['O'] or OX['W'] != OX['I'] != OX['O']:
+        raise ValueError('ERROR 3')
+
+    try:
+        flooring_saved = deepcopy(flooring)
+        for op in ['W', 'I', 'O']:
+            for level, floor_list in enumerate(flooring_saved[op]):
+                i = 0
+                for XY, floor_XY in enumerate(floor_list):
+                    for floor_single in floor_XY:
+                        if floor_single == 7:
+                            find_7_idx = flooring[op][level][XY].index(7)
+                            for x in reversed(su_transfer_op[op][level][i]):
+                                flooring[op][level][XY].insert(find_7_idx, x)
+                            i += 1
+                            flooring[op][level][XY].remove(7)
+    except:
+        print(flooring)
+
+    temporal_scheme_saved = deepcopy(temporal_scheme)
+    for op in ['W', 'I', 'O']:
+        for level, loop_list in enumerate(temporal_scheme_saved[op]):
+            # su_transfer_op[op].append([])
+            if loop_list:
+                for idx, loop_single in enumerate(loop_list):
+                    if loop_single[0] == 7:
+                        # su_transfer_op[op][-1].append([])
+                        if loop_single[1] <= OX[op]:
+                            find_7_item = next((x for x in temporal_scheme[op][level] if x[0] == 7), None)
+                            find_7_idx = temporal_scheme[op][level].index(find_7_item)
+                            OX_position_value = temporal_scheme_saved[op][level][idx][1]
+                            temporal_scheme[op][level].insert(find_7_idx, (3, OX_position_value))
+                            # su_transfer_op[op][-1][-1] = [3]  # B -> OX
+                            temporal_scheme[op][level].remove((7, loop_single[1]))
+                            OX[op] = round(OX[op] / OX_position_value)
+
+                        elif OX[op] < loop_single[1] < OX[op] * OY[op]:
+                            if OX[op] > 1:
+                                find_7_item = next((x for x in temporal_scheme[op][level] if x[0] == 7), None)
+                                find_7_idx = temporal_scheme[op][level].index(find_7_item)
+                                temporal_scheme[op][level].insert(find_7_idx, (3, OX[op]))
+                                OY_posision_value = round(temporal_scheme_saved[op][level][idx][1] / OX[op])
+                                temporal_scheme[op][level].insert(find_7_idx + 1, (4, OY_posision_value))
+                                # su_transfer_op[op][-1][-1] = [3, 4]  # B -> OX, OY
+                                temporal_scheme[op][level].remove((7, loop_single[1]))
+                            else:
+                                find_7_item = next((x for x in temporal_scheme[op][level] if x[0] == 7), None)
+                                find_7_idx = temporal_scheme[op][level].index(find_7_item)
+                                OY_posision_value = temporal_scheme_saved[op][level][idx][1]
+                                temporal_scheme[op][level].insert(find_7_idx, (4, OY_posision_value))
+                                # su_transfer_op[op][-1][-1] = [4]  # B -> OY
+                                temporal_scheme[op][level].remove((7, loop_single[1]))
+                            OX[op] = 1
+                            OY[op] = round(OY[op] / OY_posision_value)
+
+                        elif loop_single[1] == OX[op] * OY[op]:
+                            if OX[op] > 1:
+                                find_7_item = next((x for x in temporal_scheme[op][level] if x[0] == 7), None)
+                                find_7_idx = temporal_scheme[op][level].index(find_7_item)
+                                temporal_scheme[op][level].insert(find_7_idx, (3, OX[op]))
+                                temporal_scheme[op][level].insert(find_7_idx + 1, (4, OY[op]))
+                                # su_transfer_op[op][-1][-1] = [3, 4]  # B -> OX, OY
+                                temporal_scheme[op][level].remove((7, loop_single[1]))
+                            else:
+                                find_7_item = next((x for x in temporal_scheme[op][level] if x[0] == 7), None)
+                                find_7_idx = temporal_scheme[op][level].index(find_7_item)
+                                temporal_scheme[op][level].insert(find_7_idx, (4, OY[op]))
+                                # su_transfer_op[op][-1][-1] = [4]  # B -> OY
+                                temporal_scheme[op][level].remove((7, loop_single[1]))
+                            OX[op] = 1
+                            OY[op] = 1
+
+                        elif loop_single[1] > OX[op] * OY[op]:
+                            if OX[op] > 1 and OY[op] > 1:
+                                find_7_item = next((x for x in temporal_scheme[op][level] if x[0] == 7), None)
+                                find_7_idx = temporal_scheme[op][level].index(find_7_item)
+                                temporal_scheme[op][level].insert(find_7_idx, (3, OX[op]))
+                                temporal_scheme[op][level].insert(find_7_idx + 1, (4, OY[op]))
+                                B_posision_value = round(temporal_scheme_saved[op][level][idx][1] / OX[op] / OY[op])
+                                temporal_scheme[op][level].insert(find_7_idx + 2, (7, B_posision_value))
+                                # su_transfer_op[op][-1][-1] = [3, 4, 7]  # B -> OX, OY, B
+                                temporal_scheme[op][level].remove((7, loop_single[1]))
+                            elif OX[op] == 1 and OY[op] > 1:
+                                find_7_item = next((x for x in temporal_scheme[op][level] if x[0] == 7), None)
+                                find_7_idx = temporal_scheme[op][level].index(find_7_item)
+                                temporal_scheme[op][level].insert(find_7_idx, (4, OY[op]))
+                                B_posision_value = round(temporal_scheme_saved[op][level][idx][1] / OY[op])
+                                temporal_scheme[op][level].insert(find_7_idx + 1, (7, B_posision_value))
+                                # su_transfer_op[op][-1][-1] = [4, 7]  # B -> OY, B
+                                temporal_scheme[op][level].remove((7, loop_single[1]))
+                            elif OX[op] == 1 and OY[op] == 1:
+                                B_posision_value = temporal_scheme_saved[op][level][idx][1]
+                                # su_transfer_op[op][-1][-1] = [7]  # B -> B
+                            else:
+                                raise ValueError('ERROR 1 (tm)')
+                            OX[op] = 1
+                            OY[op] = 1
+                            B[op] = round(B[op] / B_posision_value)
+
+                        else:
+                            raise ValueError('ERROR 2 (tm)')
+
+    if not (B['W'] == B['I'] == B['O'] == 1 and B['W'] == B['I'] == B['O'] == 1 and B['W'] == B['I'] == B['O'] == 1):
+        raise ValueError('ERROR 4')
+
+    return spatial_scheme, flooring, temporal_scheme

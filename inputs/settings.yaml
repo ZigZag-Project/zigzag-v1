@@ -54,5 +54,10 @@ spatial_utilization_threshold : 0.9
 # Input  matrix [B|OY|OX, C|FY|FX]
 # Output matrix [K,       B|OY|OX]
 # Process convolution as matrix-matrix multiplication.
-# For pointwise layers (FX=FY=1), recommend to put im2col_enable True.
-im2col_enable : False
+# For pointwise layers (FX=FY=1), im2col transfer can speedup mapping search process without losing results' optimality.
+# For non-pointwise layers, im2col transfer can speedup mapping search process but with overhead
+  # that input figure map needs to be repetitively stored/accessed in the memory.
+# Set im2col_enable_for_all_layers True will auto apply in2col transfer to all the NN layers under test.
+# Set im2col_enable_for_pointwise_layers True will auto apply in2col transfer to all the pointwise NN layers under test.
+im2col_enable_for_all_layers : False
+im2col_enable_for_pointwise_layers : True

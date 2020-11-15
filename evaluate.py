@@ -205,6 +205,8 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
     iterate_time = 0
     mem_ut_iter_max = 5
     previous_TM_found = 0
+    previous_best_en = [None, None]
+    previous_best_ut = [None, None]
     while redo_flag and iterate_time < mem_ut_iter_max:
         # print('generated mem ut', mem_scheme.mem_utilization_rate)
         if not input_settings.utilization_optimizer_pruning:
@@ -295,13 +297,10 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
                 tl_count = len(tl_list)
                 tl_list = [tl_list[i:i + chunk_size] for i in range(0, tl_combinations, chunk_size)]
 
-                # 'layer' is the original 7D layer
+                # 'layer' is the original 7D layer, now it's got to be overwritten.
                 # 'im2col_layer' is the original 3D/7D layer, depending on im2col_enable
                 # 'layer_rounded' is the rounded 3D/7D layer, depending on im2col_enable
-                if input_settings.im2col_enable:
-                    layer = [im2col_layer, layer_rounded]
-                else:
-                    layer = [im2col_layer, layer_rounded]
+                layer = [im2col_layer, layer_rounded]
 
                 # Create list of repeated arguments passed to parallel tl_worker functions
                 fixed_args = [input_settings, mem_scheme, layer, spatial_loop, spatial_loop_fractional, spatial_loop_comb,
@@ -364,20 +363,32 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
         # TODO this is a fast fixing, not the final solution
         #  in order to remove the memory utilization TH from user-defined parameter
         #  while making sure find the optimum design point.
+
+        group_count = layer[0].G
+        current_best_en = [int(round(group_count*best_energy)), best_energy_utilization]
+        current_best_ut = [int(round(group_count*best_utilization_energy)), best_utilization]
+
         # Check whether the internal generated memory utilization threshold is respected.
-        # If not, redo the whole bsg with a reduced memory utilizaiton TH.
+        # If not, redo the whole bsg with a reduced memory utilization TH.
         redo_flag, mem_scheme.mem_utilization_rate = \
             check_mem_ut_after_CM(best_output_energy.utilization.mem_utilize_shared,
                                   best_output_utilization.utilization.mem_utilize_shared,
-                                  mem_scheme.mem_utilization_rate)
+                                  mem_scheme.mem_utilization_rate, current_best_en, current_best_ut,
+                                  previous_best_en, previous_best_ut)
+        # print('previous_best_en', previous_best_en)
+        # print('current_best_en', current_best_en)
+        # print('previous_best_ut', previous_best_ut)
+        # print('current_best_ut', current_best_ut)
         iterate_time += 1
         if redo_flag and iterate_time < mem_ut_iter_max:
             now = datetime.now()
             current_time = now.strftime("%H:%M:%S")
             print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, ', M',
                   mem_scheme_index + 1, '/', mem_scheme_count, ', SU', ii_su + 1, '/',
-                  spatial_unrolling_count, ' Internal memory utilization threshold adjusting ...')
+                  spatial_unrolling_count, ' Internal memory utilization threshold adjusting ... (%d)' % iterate_time)
             previous_TM_found = current_TM_found
+            previous_best_en = current_best_en
+            previous_best_ut = current_best_ut
 
     now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
@@ -436,7 +447,7 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
               'is a duplicate of L', layer.parent, '. Skipping exploration.')
         return
 
-    if input_settings.im2col_enable:
+    if input_settings.im2col_enable_all:
         layer_info = deepcopy(multi_manager.layer_info_im2col)
         current_layer = multi_manager.layer_spec.layer_info[layer_index]
         if (current_layer['FX'] == 1 and current_layer['FY'] == 1) or \
@@ -708,7 +719,7 @@ def mem_scheme_list_evaluate(input_settings, mem_scheme, mem_scheme_index, layer
 
     layer_chunk_list = [layers[i:i + input_settings.layer_parallel_processing] for i in
                         range(0, len(layers), input_settings.layer_parallel_processing)]
-    if input_settings.im2col_enable:
+    if input_settings.im2col_enable_all:
         im2col_layer_chunk_list = [multi_manager.layers_im2col[i:i + input_settings.layer_parallel_processing] for i in
                                    range(0, len(multi_manager.layers_im2col), input_settings.layer_parallel_processing)]
     else:

@@ -15,7 +15,8 @@ class InputSettings:
                  memory_hierarchy_ratio, mem_pool, banking, L1_size, L2_size, unrolling_size_list, unrolling_scheme_list,
                  unrolling_scheme_list_text, memory_scheme_hint, spatial_utilization_threshold, spatial_unrolling_mode,
                  stationary_optimization_enable, su_parallel_processing, arch_search_result_saving, su_search_result_saving,
-                 tm_search_result_saving, result_print_mode, im2col_enable, memory_unroll_fully_flexible, result_print_type):
+                 tm_search_result_saving, result_print_mode, im2col_enable_all, im2col_enable_pw, memory_unroll_fully_flexible,
+                 result_print_type):
 
         self.results_path = results_path
         self.results_filename = results_filename
@@ -62,7 +63,8 @@ class InputSettings:
         self.su_search_result_saving = su_search_result_saving
         self.tm_search_result_saving = tm_search_result_saving
         self.result_print_mode = result_print_mode
-        self.im2col_enable = im2col_enable
+        self.im2col_enable_all = im2col_enable_all
+        self.im2col_enable_pw = im2col_enable_pw
         # TODO im2col_top_mem_level
         self.im2col_top_mem_level = 100
         self.memory_unroll_fully_flexible = memory_unroll_fully_flexible
@@ -268,10 +270,6 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
         sumx = sumode.index(fl['spatial_unrolling_search_method'])
     else:
         sumx = 0
-    try:
-        im2col_enable = fl['im2col_enable']
-    except:
-        im2col_enable = False
 
     if type(fl['layer_indices']) is list:
         layer_indices = fl['layer_indices']
@@ -293,7 +291,8 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
                                    fl['spatial_utilization_threshold'], sumx, stationary_optimization_enable,
                                    fl['spatial_unrolling_multiprocessing'], fl['save_all_architecture_result'],
                                    fl['save_all_spatial_unrolling_result'], fl['save_all_temporal_mapping_result'],
-                                   fl['result_print_mode'], im2col_enable, memory_unroll_fully_flexible,
+                                   fl['result_print_mode'], fl['im2col_enable_for_all_layers'],
+                                   fl['im2col_enable_for_pointwise_layers'], memory_unroll_fully_flexible,
                                    fl['result_print_type'])
 
     return input_settings

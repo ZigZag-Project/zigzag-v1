@@ -271,14 +271,23 @@ def utilization_rate_optimizer(mem_size, spatial_unroll, layer, precision, utili
     return utilization_rate, True
 
 
-def check_mem_ut_after_CM(actual_mem_ut1, actual_mem_ut2, req_mem_ut):
+def check_mem_ut_after_CM(actual_mem_ut1, actual_mem_ut2, req_mem_ut, current_best_en, current_best_ut,
+                          previous_best_en, previous_best_ut):
+    """
+    This function compare current best design points found with the previous ones.
+    If the current design points are better, it also checks ig the memory utilization TH is met or not,
+    based on which, it decides whether to continue internal memory utilization threshold adjusting while loop.
+    """
     redo_flag = False
     req_mem_ut_update = deepcopy(req_mem_ut)
-    for op in ['W', 'I', 'O']:
-        for level, ut in enumerate(req_mem_ut[op]):
-            if actual_mem_ut1[op][level] < ut or actual_mem_ut2[op][level] < ut:
-                req_mem_ut_update[op][level] *= 0.5
-                redo_flag = True
+    if not (current_best_en == previous_best_en and current_best_ut == previous_best_ut):
+        for op in ['W', 'I', 'O']:
+            for level, ut in enumerate(req_mem_ut[op]):
+                if actual_mem_ut1[op][level] < ut or actual_mem_ut2[op][level] < ut:
+                    req_mem_ut_update[op][level] = min(actual_mem_ut1[op][level], actual_mem_ut2[op][level])*0.95
+                    # req_mem_ut_update[op][level] *= 0.8
+                    redo_flag = True
+
     return redo_flag, req_mem_ut_update
 
 

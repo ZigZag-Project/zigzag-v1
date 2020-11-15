@@ -9,6 +9,7 @@ from copy import deepcopy
 from pathlib import Path
 from datetime import datetime
 import classes as cls
+from im2col_funcs import pw_layer_col2im
 import time
 
 # Standard library
@@ -1692,7 +1693,7 @@ def print_yaml(
         )
 
 
-def print_helper(input_settings, layers, multi_manager):
+def print_helper(input_settings, layers, layers_saved, multi_manager):
 
     # Use this for other print types (such as yaml) in the future
     # print_type = 'xml'
@@ -1731,10 +1732,10 @@ def print_helper(input_settings, layers, multi_manager):
     list_sim_time_ut = multi_manager.list_sim_time_ut
 
     # Iterate through the processed layers
-    for i, layer_index in enumerate(input_settings.layer_number):
+    for j, layer_index in enumerate(input_settings.layer_number):
 
         layer_idx_str = 'L_%d' % layer_index
-        layer = layers[i]
+        layer = layers[j]
 
         if save_all_arch or input_settings.mem_hierarchy_single_simulation:
             for mem_scheme_index in range(multi_manager.mem_scheme_count):
@@ -1745,7 +1746,7 @@ def print_helper(input_settings, layers, multi_manager):
                 su_count = list_su_count[mem_scheme_str][layer_idx_str]
                 if su_count is None:
                     # su count is None for duplicate layers, get su count from parent
-                    parent_str = 'L_%d' % layers[i].parent
+                    parent_str = 'L_%d' % layers[j].parent
                     su_count = list_su_count[mem_scheme_str][parent_str]
 
                 if save_all_su:
@@ -1780,6 +1781,21 @@ def print_helper(input_settings, layers, multi_manager):
 
                         rf_en = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str + rf_ending_en
                         rf_ut = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str + rf_ending_ut
+
+                        if input_settings.im2col_enable_pw and (input_settings.spatial_unrolling_mode not in [4, 5]):
+                            if multi_manager.pw_im2col_flag[j]:
+                                best_output_energy.spatial_scheme, \
+                                best_output_energy.flooring, \
+                                best_output_energy.temporal_scheme = \
+                                    pw_layer_col2im(best_output_energy.spatial_scheme,
+                                                    best_output_energy.flooring,
+                                                    best_output_energy.temporal_scheme, layers_saved[j].size_list)
+                                best_output_utilization.spatial_scheme, \
+                                best_output_utilization.flooring, \
+                                best_output_utilization.temporal_scheme = \
+                                    pw_layer_col2im(best_output_utilization.spatial_scheme,
+                                                    best_output_utilization.flooring,
+                                                    best_output_utilization.temporal_scheme, layers_saved[j].size_list)
 
                         if print_type == "xml":
                             print_xml(rf_en, layer, msc, best_output_energy, common_settings, tm_count_en, sim_time, input_settings.result_print_mode)
@@ -1822,6 +1838,22 @@ def print_helper(input_settings, layers, multi_manager):
 
                     rf_en = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_en + rf_ending_en
                     rf_ut = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_ut + rf_ending_ut
+
+                    if input_settings.im2col_enable_pw and (input_settings.spatial_unrolling_mode not in [4, 5]):
+                        if multi_manager.pw_im2col_flag[j]:
+                            best_output_energy.spatial_scheme, \
+                            best_output_energy.flooring, \
+                            best_output_energy.temporal_scheme = \
+                                pw_layer_col2im(best_output_energy.spatial_scheme,
+                                                best_output_energy.flooring,
+                                                best_output_energy.temporal_scheme, layers_saved[j].size_list)
+                            best_output_utilization.spatial_scheme, \
+                            best_output_utilization.flooring, \
+                            best_output_utilization.temporal_scheme = \
+                                pw_layer_col2im(best_output_utilization.spatial_scheme,
+                                                best_output_utilization.flooring,
+                                                best_output_utilization.temporal_scheme, layers_saved[j].size_list)
+
                     if print_type == "xml":
                         print_xml(rf_en, layer, msc, best_output_energy, common_settings_en, tm_count_en, sim_time_en, input_settings.result_print_mode)
                         print_xml(rf_ut, layer, msc, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut, input_settings.result_print_mode)
@@ -1874,6 +1906,21 @@ def print_helper(input_settings, layers, multi_manager):
             rf_en = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_en + rf_ending_en
             rf_ut = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_ut + rf_ending_ut
 
+            if input_settings.im2col_enable_pw and (input_settings.spatial_unrolling_mode not in [4, 5]):
+                if multi_manager.pw_im2col_flag[j]:
+                    best_output_energy.spatial_scheme, \
+                    best_output_energy.flooring, \
+                    best_output_energy.temporal_scheme = \
+                        pw_layer_col2im(best_output_energy.spatial_scheme,
+                                        best_output_energy.flooring,
+                                        best_output_energy.temporal_scheme, layers_saved[j].size_list)
+                    best_output_utilization.spatial_scheme, \
+                    best_output_utilization.flooring, \
+                    best_output_utilization.temporal_scheme = \
+                        pw_layer_col2im(best_output_utilization.spatial_scheme,
+                                        best_output_utilization.flooring,
+                                        best_output_utilization.temporal_scheme, layers_saved[j].size_list)
+
             if print_type == "xml":
                 print_xml(rf_en, layer, msc_en, best_output_energy, common_settings_en, tm_count_en, sim_time_en, input_settings.result_print_mode)
                 print_xml(rf_ut, layer, msc_ut, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut, input_settings.result_print_mode)
@@ -1919,6 +1966,21 @@ def print_helper(input_settings, layers, multi_manager):
 
             rf_en = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_en + rf_ending_en
             rf_ut = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_ut + rf_ending_ut
+
+            if input_settings.im2col_enable_pw and (input_settings.spatial_unrolling_mode not in [4, 5]):
+                if multi_manager.pw_im2col_flag[j]:
+                    best_output_energy.spatial_scheme, \
+                    best_output_energy.flooring, \
+                    best_output_energy.temporal_scheme = \
+                        pw_layer_col2im(best_output_energy.spatial_scheme,
+                                        best_output_energy.flooring,
+                                        best_output_energy.temporal_scheme, layers_saved[j].size_list)
+                    best_output_utilization.spatial_scheme, \
+                    best_output_utilization.flooring, \
+                    best_output_utilization.temporal_scheme = \
+                        pw_layer_col2im(best_output_utilization.spatial_scheme,
+                                        best_output_utilization.flooring,
+                                        best_output_utilization.temporal_scheme, layers_saved[j].size_list)
 
             if print_type == "xml":
                 print_xml(rf_en, layer, msc_en, best_output_energy, common_settings_en, tm_count_en, sim_time_en, input_settings.result_print_mode)
@@ -1993,7 +2055,7 @@ class CommonSetting:
                            'Row': input_settings.mac_array_info['array_size'][1]}
         self.spatial_unrolling_mode = input_settings.spatial_unrolling_mode
         self.spatial_mapping_hint_list = input_settings.unrolling_scheme_list_text
-        self.im2col_enable = input_settings.im2col_enable
+        self.im2col_enable = input_settings.im2col_enable_all
 
         try:
             mem_access_cost = {'W': [], 'I': [], 'O': []}
