@@ -271,21 +271,18 @@ def pw_layer_col2im(spatial_scheme, flooring, temporal_scheme, original_layer):
     if B['W'] != B['I'] != B['O'] or OY['W'] != OY['I'] != OY['O'] or OX['W'] != OX['I'] != OX['O']:
         raise ValueError('ERROR 3')
 
-    try:
-        flooring_saved = deepcopy(flooring)
-        for op in ['W', 'I', 'O']:
-            for level, floor_list in enumerate(flooring_saved[op]):
-                i = 0
-                for XY, floor_XY in enumerate(floor_list):
-                    for floor_single in floor_XY:
-                        if floor_single == 7:
-                            find_7_idx = flooring[op][level][XY].index(7)
-                            for x in reversed(su_transfer_op[op][level][i]):
-                                flooring[op][level][XY].insert(find_7_idx, x)
-                            i += 1
-                            flooring[op][level][XY].remove(7)
-    except:
-        print(flooring)
+    flooring_saved = deepcopy(flooring)
+    for op in ['W', 'I', 'O']:
+        for level, floor_list in enumerate(flooring_saved[op]):
+            i = 0
+            for XY, floor_XY in enumerate(floor_list):
+                for floor_single in floor_XY:
+                    if floor_single == 7:
+                        find_7_idx = flooring[op][level][XY].index(7)
+                        for x in reversed(su_transfer_op[op][level][i]):
+                            flooring[op][level][XY].insert(find_7_idx, x)
+                        i += 1
+                        flooring[op][level][XY].remove(7)
 
     temporal_scheme_saved = deepcopy(temporal_scheme)
     for op in ['W', 'I', 'O']:
@@ -370,7 +367,7 @@ def pw_layer_col2im(spatial_scheme, flooring, temporal_scheme, original_layer):
                         else:
                             raise ValueError('ERROR 2 (tm)')
 
-    if not (B['W'] == B['I'] == B['O'] == 1 and B['W'] == B['I'] == B['O'] == 1 and B['W'] == B['I'] == B['O'] == 1):
+    if not (B['W'] == B['I'] == B['O'] == 1 and OY['W'] == OY['I'] == OY['O'] == 1 and OX['W'] == OX['I'] == OX['O'] == 1):
         raise ValueError('ERROR 4')
 
     return spatial_scheme, flooring, temporal_scheme
