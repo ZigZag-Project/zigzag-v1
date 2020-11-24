@@ -289,21 +289,27 @@ class Reader:
 
         # MAC energy
         mac_energy["min_en"] = [
-            layer_energy["mac_energy"]["active"] + layer_energy["mac_energy"]["idle"]
+            layer_energy["mac_energy"]["active"]
+            + layer_energy["mac_energy"]["idle"]
             for layer_energy in nested_energy["min_en"].values()
         ]
         mac_energy["max_ut"] = [
-            layer_energy["mac_energy"]["active"] + layer_energy["mac_energy"]["idle"]
+            layer_energy["mac_energy"]["active"]
+            + layer_energy["mac_energy"]["idle"]
             for layer_energy in nested_energy["max_ut"].values()
         ]
 
         # Memory energy
         memory_energy["min_en"] = [
-            layer_energy["total_energy"] - layer_energy["mac_energy"]["active"] - layer_energy["mac_energy"]["idle"]
+            layer_energy["total_energy"]
+            - layer_energy["mac_energy"]["active"]
+            - layer_energy["mac_energy"]["idle"]
             for layer_energy in nested_energy["min_en"].values()
         ]
         memory_energy["max_ut"] = [
-            layer_energy["total_energy"] - layer_energy["mac_energy"]["active"] - layer_energy["mac_energy"]["idle"]
+            layer_energy["total_energy"]
+            - layer_energy["mac_energy"]["active"]
+            - layer_energy["mac_energy"]["idle"]
             for layer_energy in nested_energy["max_ut"].values()
         ]
 
@@ -400,7 +406,8 @@ class Reader:
         )
         # We also need our mac energy to put it at the end of the list.
         mac_energy_for_minimum_energy = tuple(
-            layer_energy["mac_energy"]["active"] + layer_energy["mac_energy"]["idle"]
+            layer_energy["mac_energy"]["active"]
+            + layer_energy["mac_energy"]["idle"]
             for layer_energy in nested_energy["min_en"].values()
         )
         # We can store the concatenation of the four list in out dictionary. We
@@ -443,7 +450,8 @@ class Reader:
         )
         # We also need our mac energy to put it at the end of the list.
         mac_energy_for_maximum_utilization = tuple(
-            layer_energy["mac_energy"]["active"] + layer_energy["mac_energy"]["idle"]
+            layer_energy["mac_energy"]["active"]
+            + layer_energy["mac_energy"]["idle"]
             for layer_energy in nested_energy["max_ut"].values()
         )
         # We can store the concatenation of the four list in out dictionary. We
@@ -940,7 +948,9 @@ def memory_flat(layers: Dict[str, LayerOutput]) -> pd.DataFrame:
     ]
 
     # We return the built view.
-    return pd.DataFrame(pandas_data, index=labels, columns=columns)
+    data_frame = pd.DataFrame(pandas_data, index=labels, columns=columns)
+    data_frame.index = data_frame.index.set_names(["full_name", "memory"])
+    return data_frame
 
 
 ##################################### MAIN #####################################
