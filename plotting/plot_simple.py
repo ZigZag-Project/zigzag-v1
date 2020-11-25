@@ -34,7 +34,7 @@ def main():
     # First, we load all the provided locations into the Reader.
     reader = Reader(*sys.argv[1:])
     # Plotting global energy information.
-    data_frame = reader.flatten()
+    data_frame = reader.flatten().sort_values(by="full_name")
     # Computin the memory share of energy consumption.
     data_frame["memory_energy"] = (
         data_frame["total_energy"] - data_frame["mac_energy"]
