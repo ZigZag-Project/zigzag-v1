@@ -98,14 +98,19 @@ class Loop(object):
             temporal parts (IY/IX) need to take stride (SY/SX/SFY/SFX) into consideration, while
             spatial parts (IYu/IXu) don't need to take stride (SY/SX/SFY/SFX) into consideration.
             '''
-            IY = int(layer.SY * ((np.prod(temporal_loop.OY['I'][0:level + 1] +
-                                          spatial_loop.OYu['I'][0:level + 1])).item() - 1) +
-                     layer.SFY * ((np.prod(temporal_loop.FY['I'][0:level + 1] +
-                                           spatial_loop.FYu['I'][0:level + 1])).item() - 1) + 1)
-            IX = int(layer.SX * ((np.prod(temporal_loop.OX['I'][0:level + 1] +
-                                          spatial_loop.OXu['I'][0:level + 1])).item() - 1) +
-                     layer.SFX * ((np.prod(temporal_loop.FX['I'][0:level + 1] +
-                                           spatial_loop.FXu['I'][0:level + 1])).item() - 1) + 1)
+            if temporal_loop.interleaved_storage_IY[level]:
+                IY = int(((np.prod(temporal_loop.OY['I'][0:level + 1] + spatial_loop.OYu['I'][0:level + 1])).item() - 1) +
+                         ((np.prod(temporal_loop.FY['I'][0:level + 1] + spatial_loop.FYu['I'][0:level + 1])).item() - 1) + 1)
+            else:
+                IY = int(layer.SY * ((np.prod(temporal_loop.OY['I'][0:level + 1] + spatial_loop.OYu['I'][0:level + 1])).item() - 1) +
+                         layer.SFY * ((np.prod(temporal_loop.FY['I'][0:level + 1] + spatial_loop.FYu['I'][0:level + 1])).item() - 1) + 1)
+
+            if temporal_loop.interleaved_storage_IX[level]:
+                IX = int(((np.prod(temporal_loop.OX['I'][0:level + 1] + spatial_loop.OXu['I'][0:level + 1])).item() - 1) +
+                         ((np.prod(temporal_loop.FX['I'][0:level + 1] + spatial_loop.FXu['I'][0:level + 1])).item() - 1) + 1)
+            else:
+                IX = int(layer.SX * ((np.prod(temporal_loop.OX['I'][0:level + 1] + spatial_loop.OXu['I'][0:level + 1])).item() - 1) +
+                         layer.SFX * ((np.prod(temporal_loop.FX['I'][0:level + 1] + spatial_loop.FXu['I'][0:level + 1])).item() - 1) + 1)
 
             req_mem_size['I'][level] = int((np.prod(
                 temporal_loop.B['I'][0:level + 1] + temporal_loop.C['I'][0:level + 1] + [IY] + [IX] +

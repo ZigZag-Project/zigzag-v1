@@ -143,6 +143,9 @@ class TemporalLoop(object):
 
         num_of_MAC_Op = [1] * loop_levels['I']
 
+        interleaved_storage_IY = [False] * loop_levels['I']
+        interleaved_storage_IX = [False] * loop_levels['I']
+
         for level in range(loop_levels['I']):
             ifmap_size['B'][level] = (np.prod(B['I'][0:level + 1] + spatial_loop.Bu['I'][0:level + 2])).item()
             ifmap_size['C'][level] = (np.prod(C['I'][0:level + 1] + spatial_loop.Cu['I'][0:level + 2])).item()
@@ -151,19 +154,19 @@ class TemporalLoop(object):
                     np.prod(FY['I'][0:level + 1] + spatial_loop.FYu['I'][0:level + 2]) == 1:
                 IY = int((np.prod(OY['I'][0:level + 1] + spatial_loop.OYu['I'][0:level + 2])).item() +
                          (np.prod(FY['I'][0:level + 1] + spatial_loop.FYu['I'][0:level + 2])).item() - 1)
+                interleaved_storage_IY[level] = True
             else:
                 IY = int(layer.SY * ((np.prod(OY['I'][0:level + 1] + spatial_loop.OYu['I'][0:level + 2])).item() - 1) +
-                         layer.SFY * ((np.prod(
-                    FY['I'][0:level + 1] + spatial_loop.FYu['I'][0:level + 2])).item() - 1) + 1)
+                         layer.SFY * ((np.prod(FY['I'][0:level + 1] + spatial_loop.FYu['I'][0:level + 2])).item() - 1) + 1)
 
             if np.prod(OX['I'][0:level + 1] + spatial_loop.OXu['I'][0:level + 2]) == 1 or \
                     np.prod(FX['I'][0:level + 1] + spatial_loop.FXu['I'][0:level + 2]) == 1:
                 IX = int((np.prod(OX['I'][0:level + 1] + spatial_loop.OXu['I'][0:level + 2])).item() +
                          (np.prod(FX['I'][0:level + 1] + spatial_loop.FXu['I'][0:level + 2])).item() - 1)
+                interleaved_storage_IX[level] = True
             else:
                 IX = int(layer.SX * ((np.prod(OX['I'][0:level + 1] + spatial_loop.OXu['I'][0:level + 2])).item() - 1) +
-                         layer.SFX * ((np.prod(
-                    FX['I'][0:level + 1] + spatial_loop.FXu['I'][0:level + 2])).item() - 1) + 1)
+                         layer.SFX * ((np.prod(FX['I'][0:level + 1] + spatial_loop.FXu['I'][0:level + 2])).item() - 1) + 1)
             ifmap_size['IY'][level] = IY
             ifmap_size['IX'][level] = IX
 
@@ -337,6 +340,9 @@ class TemporalLoop(object):
 
         self.MAC_level_stationary = MAC_level_stationary
         self.available_update_cycles = available_update_cycles
+
+        self.interleaved_storage_IY = interleaved_storage_IY
+        self.interleaved_storage_IX = interleaved_storage_IX
 
     @classmethod
     def extract_loop_info(cls, layer, temporal_loop, spatial_loop):
