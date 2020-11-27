@@ -303,44 +303,6 @@ class layer_spec1(object):
         self.layer_info = {}
 
 
-def get_layer_spec(model):
-    """
-    Function that gets the layer_spec according from the input_settings
-    If a Keras model is provided, it will update the layer spec accordingly
-
-    Arguments
-    =========
-    - model: A keras model that constitutes of a number of Conv2D layers
-    """
-    print()
-    layer_spec = layer_spec1()
-
-    if model is not None:
-        layer_numbers = update_layer_spec(layer_spec, model)
-
-    for layer_number, specs in layer_spec.layer_info.items():
-        if layer_number in layer_numbers:  # Only care about layers we have to process
-            # G = specs.get('G', 1)
-            # C = specs['C']
-            # K = specs['K']
-            #
-            # if G != 1:
-            #     div_C, mod_C = divmod(C, G)
-            #     div_K, mod_K = divmod(K, G)
-            #
-            #     assert (
-            #                 mod_C == 0 and mod_K == 0), "C and/or K not divisible by number of groups for layer %d" % layer_number
-            #     layer_spec.layer_info[layer_number]['C'] = div_C
-            #     layer_spec.layer_info[layer_number]['K'] = div_K
-
-                print(
-                    "Grouped convolution detected for Layer %d. Terminal prints will show total energy of all groups combined."
-                    % layer_number)
-    print()
-    return layer_spec, layer_numbers
-
-
-
 def get_layer_spec(input_settings, model=None):
     """
     Function that gets the layer_spec according from the input_settings
