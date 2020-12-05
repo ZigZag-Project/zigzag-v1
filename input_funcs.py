@@ -162,7 +162,7 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
                 m_tmp = m_tmp[0]
                 memory_pool.remove(m_tmp)
                 m_tmp = MemoryNode(m_tmp, (), 0, 1)
-                m_tmp.memory_level['unroll'] = fl['memory_hint'][m]['bank_instances']
+                m_tmp.memory_level['unroll'] = fl['memory_hint'][m]['memory_unroll']
                 m_tmp.memory_level['nbanks'] = 1
                 m_tmp.operand = tuple(fl['memory_hint'][m]['operand_stored'])
 
