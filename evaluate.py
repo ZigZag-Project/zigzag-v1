@@ -505,7 +505,8 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
                 su_hint_idx = aux_layer_to_su_hint_table[aux_layer_idx]
                 spatial_unrolling_, flooring_, mem_scheme, not_good = msg.spatial_unrolling_generator_with_hint(
                     mem_scheme, input_settings.mac_array_info['array_size'],
-                    layer_info[layer_index][aux_layer_idx], [unrolling_scheme_list[su_hint_idx]])
+                    layer_info[layer_index][aux_layer_idx], [unrolling_scheme_list[su_hint_idx]],
+                    input_settings.memory_unroll_fully_flexible)
                 if not spatial_unrolling_:
                     continue
                 if layer_rounded.greedy_mapping_flag[idd]:
@@ -541,7 +542,8 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
                 spatial_unrolling_, flooring_, mem_scheme, not_good = msg.spatial_unrolling_generator_with_hint(
                     mem_scheme, input_settings.mac_array_info['array_size'],
                     layer_info[layer_index][aux_layer_idx],
-                    [input_settings.unrolling_scheme_list[su_hint_idx]])
+                    [input_settings.unrolling_scheme_list[su_hint_idx]],
+                    input_settings.memory_unroll_fully_flexible)
                 if layer_rounded.greedy_mapping_flag[idd]:
                     spatial_unrolling_, fraction_spatial_unrolling_ = \
                         msg.su_reformat(spatial_unrolling_, ideal_su[aux_layer_idx], fraction_su[aux_layer_idx])
@@ -556,7 +558,7 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
         elif input_settings.spatial_unrolling_mode == 3:
             spatial_unrolling, flooring, mem_scheme, not_good = msg.spatial_unrolling_generator_with_hint(
                 mem_scheme, input_settings.mac_array_info['array_size'], layer_info[layer_index],
-                input_settings.unrolling_scheme_list)
+                input_settings.unrolling_scheme_list, input_settings.memory_unroll_fully_flexible)
             mem_scheme.fraction_spatial_unrolling = spatial_unrolling
             mem_scheme.greedy_mapping_flag = [False] * len(spatial_unrolling)
             mem_scheme.footer_info = [0] * len(spatial_unrolling)
