@@ -271,7 +271,7 @@ def fitting_memories(array_mem_pool, area, max_area, utilization_rate, L1_size, 
         return fitting_comb
     array_mem_pool_index = list(range(0, len(array_mem_pool)))
     for k in range(0, len(array_mem_pool) ** 2):
-        # print('\r memory combination ', k + 1, '/', len(array_mem_pool) + 1, ' fitting list:', len(fitting_comb), end ="")
+        print('\r memory combination ', k + 1, '/', len(array_mem_pool) + 1, ' fitting list:', len(fitting_comb), end ="")
         # Create combination with repetition of memories from array_mem_pool
         # The repetition is due to the fact that the same memory can hold a different operand
         mem_combinations = combinations_with_replacement(array_mem_pool_index, k)
@@ -368,7 +368,7 @@ def memory_scheme_generator_cluster(memory_comb, memory_pool, array_dimension, m
             # Moreover, the k can be defined separately for memory within the PE array and outside
 
             if size_bit_list[index_smallest_memory] in L1_size:  # PE_RF_size_threshold:
-                k_list = [1]
+                k_list = [1, 2, 3]  # for group 1
             elif size_bit_list[index_smallest_memory] in L2_size:  # PE_RF_size_threshold:
                 k_list = [3]
             else:
@@ -1130,7 +1130,8 @@ def get_input_data_reuse(pf_list, layer):
     return xval * yval * k_tot
 
 
-def spatial_unrolling_generator_with_hint(mem_scheme, array_dimension, layer, unrolling_scheme_list):
+def spatial_unrolling_generator_with_hint(mem_scheme, array_dimension, layer, unrolling_scheme_list,
+                                          memory_unroll_fully_flexible):
     spatial_loop_list = []
     flooring_list = []
 
@@ -1146,7 +1147,7 @@ def spatial_unrolling_generator_with_hint(mem_scheme, array_dimension, layer, un
     }
     for loop_type in loops_pf:
         loops_pf[loop_type] = su.prime_factors(layer[ll[loop_type]])
-    for unrolling_scheme in unrolling_scheme_list:
+    for i, unrolling_scheme in enumerate(unrolling_scheme_list):
         cluster_scheme = []
         good_scheme = True
         for unroll_dim in unrolling_scheme:
@@ -1192,100 +1193,160 @@ def spatial_unrolling_generator_with_hint(mem_scheme, array_dimension, layer, un
                 break
         if not good_scheme:
             continue
-        operand_irrelevant = {'W': [7, 3, 4], 'I': [6], 'O': [1, 2, 5]}
-        spatial_loop = {'W': [[]], 'I': [[]], 'O': [[]]}
-        flooring = {'W': [[]], 'I': [[]], 'O': [[]]}
-        for operand in ['W', 'I', 'O']:
-            if len(spatial_loop[operand]) < len(mem_scheme.mem_size[operand]) + 1:
-                spatial_loop[operand] += [[]] * ((len(mem_scheme.mem_size[operand]) + 1) - len(spatial_loop[operand]))
-            if len(flooring[operand]) < len(mem_scheme.mem_size[operand]) + 1:
-                flooring[operand] += [[]] * ((len(mem_scheme.mem_size[operand]) + 1) - len(flooring[operand]))
 
-        not_good = False
-        for operand in ['W', 'I', 'O']:
-            spatial_loop[operand][0] = deepcopy(cluster_scheme)
-            aux = [[x[0]] for x in cluster_scheme]
-            flooring[operand][0] = deepcopy(unrolling_scheme)
-        for operand in ['W', 'I', 'O']:
+        if not memory_unroll_fully_flexible:
+            operand_irrelevant = {'W': [7, 3, 4], 'I': [6], 'O': [1, 2, 5]}
+            spatial_loop = {'W': [[]], 'I': [[]], 'O': [[]]}
+            flooring = {'W': [[]], 'I': [[]], 'O': [[]]}
+            for operand in ['W', 'I', 'O']:
+                if len(spatial_loop[operand]) < len(mem_scheme.mem_size[operand]) + 1:
+                    spatial_loop[operand] += [[]] * ((len(mem_scheme.mem_size[operand]) + 1) - len(spatial_loop[operand]))
+                if len(flooring[operand]) < len(mem_scheme.mem_size[operand]) + 1:
+                    flooring[operand] += [[]] * ((len(mem_scheme.mem_size[operand]) + 1) - len(flooring[operand]))
 
-            if mem_scheme.mem_unroll[operand][-1] != 1:
-                print('issue: Last level of hierarchy is unrolled >1')
-                not_good = True
-                break
-            if len(mem_scheme.mem_unroll[operand]) > 1:
-                for ii_mu, mu in enumerate(mem_scheme.mem_unroll[operand][1:]):
-                    if mem_scheme.mem_unroll[operand][ii_mu] < mem_scheme.mem_unroll[operand][ii_mu + 1]:
-                        # print('issue: Unfeasible unrolling')
+            not_good = False
+            for operand in ['W', 'I', 'O']:
+                spatial_loop[operand][0] = deepcopy(cluster_scheme)
+                aux = [[x[0]] for x in cluster_scheme]
+                flooring[operand][0] = deepcopy(unrolling_scheme)
+            for operand in ['W', 'I', 'O']:
+                if mem_scheme.mem_unroll[operand][-1] != 1:
+                    print('issue: Last level of hierarchy is unrolled >1')
+                    not_good = True
+                    break
+                if len(mem_scheme.mem_unroll[operand]) > 1:
+                    for ii_mu, mu in enumerate(mem_scheme.mem_unroll[operand][1:]):
+                        if mem_scheme.mem_unroll[operand][ii_mu] < mem_scheme.mem_unroll[operand][ii_mu + 1]:
+                            # print('issue: Unfeasible unrolling')
+                            # return [], [], [], True
+                            not_good = True
+                            break
+                if not_good:
+                    break
+                for ii_level, unroll in enumerate(mem_scheme.mem_unroll[operand]):
+                    if array_dimension[0] < unroll <= array_dimension[0] * array_dimension[1] and \
+                       array_dimension[1] < unroll <= array_dimension[0] * array_dimension[1]:
+                        unroll = np.prod([x[1] for x in cluster_scheme])
+                    elif unroll != 1:
+                        unroll = np.prod([x[1] for x in cluster_scheme if x[0] not in operand_irrelevant[operand]])
+                    shared_set = [tuple([operand, ii_level])]
+                    unroll_level = 1
+                    unroll_level_below = 1
+                    for level in spatial_loop[operand][ii_level + 1:]:
+                        unroll_level *= np.prod([l[1] for l in level])
+                    try:
+                        unroll_level_below *= np.prod([l[1] for l in spatial_loop[operand][ii_level]])
+                    except:
+                        # print('Unfeasible unrolling scheme')
                         # return [], [], [], True
                         not_good = True
                         break
-            if not_good:
-                break
-            for ii_level, unroll in enumerate(mem_scheme.mem_unroll[operand]):
-                if array_dimension[0] < unroll <= array_dimension[0] * array_dimension[1] and \
-                   array_dimension[1] < unroll <= array_dimension[0] * array_dimension[1]:
-                    unroll = np.prod([x[1] for x in cluster_scheme])
-                elif unroll != 1:
-                    unroll = np.prod([x[1] for x in cluster_scheme if x[0] not in operand_irrelevant[operand]])
-                shared_set = [tuple([operand, ii_level])]
-                unroll_level = 1
-                unroll_level_below = 1
-                for level in spatial_loop[operand][ii_level + 1:]:
-                    unroll_level *= np.prod([l[1] for l in level])
-                try:
-                    unroll_level_below *= np.prod([l[1] for l in spatial_loop[operand][ii_level]])
-                except:
-                    # print('Unfeasible unrolling scheme')
-                    # return [], [], [], True
-                    not_good = True
-                    break
 
-                if unroll_level == unroll:
-                    continue
-                else:
-                    if unroll_level_below == unroll:
-                        unrolling = deepcopy(spatial_loop[operand][ii_level])
-                        for shared_level in shared_set:
-                            spatial_loop[shared_level[0]][shared_level[1] + 1] = deepcopy(unrolling)
-                            flooring[shared_level[0]][shared_level[1] + 1] = deepcopy(unrolling_scheme)
-                            for ii_level_shared, level_shared in enumerate(
-                                    spatial_loop[shared_level[0]][shared_level[1]:shared_level[1] + 1]):
-                                for ur in unrolling:
-                                    try:
-                                        spatial_loop[shared_level[0]][
-                                            ii_level_shared + shared_level[1]] = []  # .remove(ur)
-                                        flooring[shared_level[0]][ii_level_shared + shared_level[1]] = []
-                                    except:
-                                        continue
+                    if unroll_level == unroll:
+                        continue
                     else:
-                        unrolling_list = []
-                        for ii in range(0, ii_level + 1):
-                            unrolling_list += [uf for uf in spatial_loop[operand][ii] if uf[1] * unroll_level == unroll]
-                        if len(unrolling_list) > 1:
-                            unrolling_list = [uf for uf in unrolling_list if uf[0] not in operand_irrelevant[operand]]
-                        try:
-                            unrolling = unrolling_list[0]
-                        except:
-                            not_good = True
-                            break
-                        for shared_level in shared_set:
-                            spatial_loop[shared_level[0]][shared_level[1] + 1] = [unrolling]
-                            flooring[shared_level[0]][shared_level[1] + 1] = [[unrolling[0]]]
-                            for ii_level_shared, level_shared in enumerate(
-                                    spatial_loop[shared_level[0]][:shared_level[1] + 1]):
-                                try:
-                                    spatial_loop[shared_level[0]][ii_level_shared].remove(unrolling)
-                                    flooring[shared_level[0]][ii_level_shared].remove([unrolling[0]])
-                                except ValueError:
-                                    continue
-            if not_good:
-                break
-        if not not_good:
+                        if unroll_level_below == unroll:
+                            unrolling = deepcopy(spatial_loop[operand][ii_level])
+                            for shared_level in shared_set:
+                                spatial_loop[shared_level[0]][shared_level[1] + 1] = deepcopy(unrolling)
+                                flooring[shared_level[0]][shared_level[1] + 1] = deepcopy(unrolling_scheme)
+                                for ii_level_shared, level_shared in enumerate(
+                                        spatial_loop[shared_level[0]][shared_level[1]:shared_level[1] + 1]):
+                                    for ur in unrolling:
+                                        try:
+                                            spatial_loop[shared_level[0]][
+                                                ii_level_shared + shared_level[1]] = []  # .remove(ur)
+                                            flooring[shared_level[0]][ii_level_shared + shared_level[1]] = []
+                                        except:
+                                            continue
+                        else:
+                            unrolling_list = []
+                            for ii in range(0, ii_level + 1):
+                                unrolling_list += [uf for uf in spatial_loop[operand][ii] if uf[1] * unroll_level == unroll]
+                            if len(unrolling_list) > 1:
+                                unrolling_list = [uf for uf in unrolling_list if uf[0] not in operand_irrelevant[operand]]
+                            try:
+                                unrolling = unrolling_list[0]
+                            except:
+                                not_good = True
+                                break
+                            for shared_level in shared_set:
+                                spatial_loop[shared_level[0]][shared_level[1] + 1] = [unrolling]
+                                flooring[shared_level[0]][shared_level[1] + 1] = [[unrolling[0]]]
+                                for ii_level_shared, level_shared in enumerate(
+                                        spatial_loop[shared_level[0]][:shared_level[1] + 1]):
+                                    try:
+                                        spatial_loop[shared_level[0]][ii_level_shared].remove(unrolling)
+                                        flooring[shared_level[0]][ii_level_shared].remove([unrolling[0]])
+                                    except ValueError:
+                                        continue
+                if not_good:
+                    break
+            if not not_good:
+                spatial_loop_list.append(spatial_loop)
+                flooring_list.append(flooring)
+        else:
+            unroll_i = distinguish_XY(cluster_scheme, unrolling_scheme)
+            mem_unroll_candidate = memory_unroll_candidate_gen([cluster_scheme], layer)
+
+            spatial_loop = {'W': [], 'I': [], 'O': []}
+            flooring = {'W': [], 'I': [], 'O': []}
+            for operand in ['W', 'I', 'O']:
+                spatial_loop[operand] = [[] for _ in range(len(mem_scheme.mem_size[operand]) + 1)]
+                flooring[operand] = [[[], []] for _ in range(len(mem_scheme.mem_size[operand]) + 1)]
+
+            for XY_dim, XY_list in enumerate(unroll_i):
+                for XY_elem in XY_list:
+                    # Weight
+                    if XY_elem[0] in [7, 4, 3]:
+                        spatial_loop['W'][0].append(XY_elem)
+                        flooring['W'][0][XY_dim].append(XY_elem[0])
+                    else:
+                        spatial_loop['W'][1].append(XY_elem)
+                        flooring['W'][1][XY_dim].append(XY_elem[0])
+                    # Input
+                    if XY_elem[0] in [6]:
+                        spatial_loop['I'][0].append(XY_elem)
+                        flooring['I'][0][XY_dim].append(XY_elem[0])
+                    else:
+                        spatial_loop['I'][1].append(XY_elem)
+                        flooring['I'][1][XY_dim].append(XY_elem[0])
+                    # Output
+                    if XY_elem[0] in [5, 2, 1]:
+                        spatial_loop['O'][0].append(XY_elem)
+                        flooring['O'][0][XY_dim].append(XY_elem[0])
+                    else:
+                        spatial_loop['O'][1].append(XY_elem)
+                        flooring['O'][1][XY_dim].append(XY_elem[0])
+
+            for op in ['W', 'I', 'O']:
+                for level, level_list in enumerate(flooring[op]):
+                    if level_list == [[], []]:
+                        flooring[op][level] = []
             spatial_loop_list.append(spatial_loop)
             flooring_list.append(flooring)
+            print('mem_unroll', i+1, mem_unroll_candidate)
+            print('spatial_loop', i+1, spatial_loop)
+            print('flooring', i+1, flooring)
+            print()
+
     if not 'not_good' in locals():
         not_good = not (good_scheme)
     return spatial_loop_list, flooring_list, mem_scheme, not_good
+
+
+def distinguish_XY(cluster_scheme, floor_scheme):
+    unroll_i = []
+    i = 0
+    for floors in floor_scheme:
+        unroll_i.append([])
+        for floor in floors:
+            if floor == cluster_scheme[i][0]:
+                unroll_i[-1].append(cluster_scheme[i])
+                i += 1
+            else:
+                raise ValueError("For debug: unrolling and flooring do not follow the same order.")
+    return unroll_i
 
 
 def pareto_clean_3D(dr_list):
