@@ -24,7 +24,7 @@ The output of the loop_order_combinations function is a list of temporal loops r
 '''
 
 
-def data_reuse_cleanup(layer_loop_info, list_LPF_schemes, spatial_unrolling, precision):
+def data_reuse_cleanup(layer_loop_info, list_LPF_schemes, spatial_unrolling, mem_size, precision):
     '''
     @param layer_loop_info: The size of the layer loops
     @type layer_loop_info: dict
@@ -43,6 +43,17 @@ def data_reuse_cleanup(layer_loop_info, list_LPF_schemes, spatial_unrolling, pre
     spatial_loop = cls.SpatialLoop.extract_loop_info(spatial_unrolling, layer_loop_info)
     layer = cls.Layer.extract_layer_info(layer_loop_info)
 
+    # i_tot = layer.total_data_size['I']
+    # w_tot = layer.total_data_size['W']
+    # o_tot = layer.total_data_size['O']
+    
+    data_reuse_pruning_levels = {'W':[],'I':[],'O':[]}
+    for op in ['W','I','O']:
+        for level in mem_size[op]:
+            if level <= precision[op] or level >= layer.total_data_size[op] * precision[op]:
+                data_reuse_pruning_levels[op].append(False)
+            else:
+                data_reuse_pruning_levels[op].append(True)
     for bs in list_LPF_schemes:
         temporal_loop = cls.TemporalLoop.extract_loop_info(layer, bs, spatial_loop)
         loop = cls.Loop.extract_loop_info(layer, temporal_loop, spatial_loop, precision, False)
@@ -51,15 +62,19 @@ def data_reuse_cleanup(layer_loop_info, list_LPF_schemes, spatial_unrolling, pre
         discard = False
 
         for operand in ['W', 'O']:
-            for level, level_reuse in enumerate(loop.data_reuse[operand][1:-1]):
-                if level_reuse == 1:
-                    discard = True
-                    # print()
-                    # print(bs)
-                    # print(loop.data_reuse)
-                    break
+            for ii_dr, dr in enumerate(loop.data_reuse[operand][1:]):
+                if data_reuse_pruning_levels[operand][ii_dr]:
+                    if dr == 1 and np.prod([d for d in loop.data_reuse[operand][:ii_dr+1]])/layer.total_data_reuse[operand] != 1:
+                        discard = True
+                        break
             if discard:
                 break
+            # for level, level_reuse in enumerate(loop.data_reuse[operand][1:-1]):
+            #     if level_reuse == 1:
+            #         discard = True
+            #         break
+            # if discard:
+            #     break
         if not discard:
             good_list.append(bs)
     # print('\n  |-> data reuse cleanup:', len(list_LPF_schemes), ' to ', len(good_list))
@@ -968,7 +983,7 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
     # Data reuse cleanup for the LPF schemes
     # If you want this cleanup to be disabled, set drc_enabled = 0 in the input file
     if drc_enabled:
-        list_LPF_schemes = data_reuse_cleanup(layer_loop_info, list_LPF_schemes, spatial_unrolling, precision)
+        list_LPF_schemes = data_reuse_cleanup(layer_loop_info, list_LPF_schemes, spatial_unrolling, mem_size, precision)
         # print('\n  |-> drc: ', len(list_LPF_schemes),'/',len(list_scheme_nodes))
 
     # print('Loop blocking finished. Loop ordering starts.')
