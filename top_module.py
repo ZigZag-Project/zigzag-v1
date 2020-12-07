@@ -75,6 +75,7 @@ if __name__ == "__main__":
         for idx_other, other in enumerate(layers_seen):
             if layer == other:
                 layer.set_duplicate(input_settings.layer_number[idx_other])
+                break
 
     # Setup a layer dictionary of following format for easy access
     # key: layer number

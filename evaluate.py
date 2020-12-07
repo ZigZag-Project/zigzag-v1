@@ -291,24 +291,32 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
                       mem_scheme_index + 1, '/', mem_scheme_count, ', SU', ii_su + 1,
                       '/', len(mem_scheme.spatial_unrolling), ' CM  started')
 
-                # Convert tl_list to chunked list to pass to parallel cores
-                n_processes = min(cpu_count(), input_settings.temporal_mapping_multiprocessing)
-                chunk_size = int(tl_combinations / n_processes) + (tl_combinations % n_processes > 0)  # avoids import math
-                tl_count = len(tl_list)
-                tl_list = [tl_list[i:i + chunk_size] for i in range(0, tl_combinations, chunk_size)]
-
                 # 'layer' is the original 7D layer, now it's got to be overwritten.
                 # 'im2col_layer' is the original 3D/7D layer, depending on im2col_enable
                 # 'layer_rounded' is the rounded 3D/7D layer, depending on im2col_enable
                 layer = [im2col_layer, layer_rounded]
 
-                # Create list of repeated arguments passed to parallel tl_worker functions
-                fixed_args = [input_settings, mem_scheme, layer, spatial_loop, spatial_loop_fractional, spatial_loop_comb,
-                              ii_su, active_mac_cost, idle_mac_cost[ii_su], im2col_need_correct]
+                if input_settings.temporal_mapping_multiprocessing > 1:
+                    # Convert tl_list to chunked list to pass to parallel cores
+                    n_processes = min(cpu_count(), input_settings.temporal_mapping_multiprocessing)
+                    chunk_size = int(tl_combinations / n_processes) + (tl_combinations % n_processes > 0)  # avoids import math
+                    tl_count = len(tl_list)
+                    tl_list = [tl_list[i:i + chunk_size] for i in range(0, tl_combinations, chunk_size)]
 
-                # Call the worker function for each chunk
-                pool = Pool(processes=n_processes)
-                results = pool.starmap(tl_worker, [[tl_chunk] + fixed_args for tl_chunk in tl_list])
+                    # Create list of repeated arguments passed to parallel tl_worker functions
+                    fixed_args = [input_settings, mem_scheme, layer, spatial_loop, spatial_loop_fractional, spatial_loop_comb,
+                                  ii_su, active_mac_cost, idle_mac_cost[ii_su], im2col_need_correct]
+
+                    # Call the worker function for each chunk
+                    pool = Pool(processes=n_processes)
+                    results = pool.starmap(tl_worker, [[tl_chunk] + fixed_args for tl_chunk in tl_list])
+                else:
+                    n_processes = 1
+                    chunk_size = tl_combinations
+                    tl_count = len(tl_list)
+                    results = [tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop,
+                                        spatial_loop_fractional, spatial_loop_comb, ii_su, active_mac_cost,
+                                        idle_mac_cost[ii_su], im2col_need_correct)]
 
                 best_output_energy = None
                 best_output_utilization = None
@@ -778,7 +786,11 @@ def optimal_su_evaluate(input_settings, layers, multi_manager):
         best_en = sys.float_info.max
         best_en_ut = 0
         for idd, su_dict in enumerate(en_best_su_each_mem):
-            m_su_idx, (en, ut) = list(su_dict.items())[0]
+            try:
+                m_su_idx, (en, ut) = list(su_dict.items())[0]
+            except:
+                # No TM was found
+                continue
             if (en < best_en) or (en == best_en and ut > best_en_ut):
                 best_en = en
                 best_en_ut = ut
@@ -798,7 +810,11 @@ def optimal_su_evaluate(input_settings, layers, multi_manager):
         best_ut = 0
         best_ut_en = sys.float_info.max
         for idd, su_dict in enumerate(ut_best_su_each_mem):
-            m_su_idx, (en, ut) = list(su_dict.items())[0]
+            try:
+                m_su_idx, (en, ut) = list(su_dict.items())[0]
+            except:
+                # No TM was found
+                continue
             if ut > best_ut or (ut == best_ut and en < best_ut_en):
                 best_ut = ut
                 best_ut_en = en

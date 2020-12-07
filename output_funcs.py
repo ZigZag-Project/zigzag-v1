@@ -1804,17 +1804,21 @@ def print_helper(input_settings, layers, layers_saved, multi_manager):
 
                 # Save the best SU + TM combination
                 if su_count != 0:
-                    [[mem_scheme_su_str_en, best_output_energy]] = list_min_en_output[mem_scheme_str][layer_idx_str][
-                        'best_su_each_mem'].items()
-                    [[mem_scheme_su_str_en, tm_count_en]] = list_tm_count_en[mem_scheme_str][layer_idx_str][
-                        'best_su_each_mem'].items()
-                    sim_time_en = list_sim_time[mem_scheme_str][layer_idx_str]['best_su_each_mem'][mem_scheme_su_str_en]
+                    try:
+                        [[mem_scheme_su_str_en, best_output_energy]] = list_min_en_output[mem_scheme_str][layer_idx_str][
+                            'best_su_each_mem'].items()
+                        [[mem_scheme_su_str_en, tm_count_en]] = list_tm_count_en[mem_scheme_str][layer_idx_str][
+                            'best_su_each_mem'].items()
+                        sim_time_en = list_sim_time[mem_scheme_str][layer_idx_str]['best_su_each_mem'][mem_scheme_su_str_en]
 
-                    [[mem_scheme_su_str_ut, best_output_utilization]] = list_max_ut_output[mem_scheme_str][layer_idx_str][
-                        'best_su_each_mem'].items()
-                    [[mem_scheme_su_str_ut, tm_count_ut]] = list_tm_count_ut[mem_scheme_str][layer_idx_str][
-                        'best_su_each_mem'].items()
-                    sim_time_ut = list_sim_time[mem_scheme_str][layer_idx_str]['best_su_each_mem'][mem_scheme_su_str_ut]
+                        [[mem_scheme_su_str_ut, best_output_utilization]] = list_max_ut_output[mem_scheme_str][layer_idx_str][
+                            'best_su_each_mem'].items()
+                        [[mem_scheme_su_str_ut, tm_count_ut]] = list_tm_count_ut[mem_scheme_str][layer_idx_str][
+                            'best_su_each_mem'].items()
+                        sim_time_ut = list_sim_time[mem_scheme_str][layer_idx_str]['best_su_each_mem'][mem_scheme_su_str_ut]
+                    except:
+                        # For all the mem_schemes, there was no TM found (for this layer)
+                        continue
 
                     mem_scheme_count_str = '%d/%d' % (mem_scheme_index + 1, multi_manager.mem_scheme_count)
                     spatial_unrolling_count_en = str(mem_scheme_su_str_en.split('_')[-1]) + '/' + str(
