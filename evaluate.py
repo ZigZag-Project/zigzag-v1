@@ -36,6 +36,8 @@ def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_
     min_energy_utilization = 0
     max_utilization = 0
     max_utilization_energy = float('inf')
+    best_output_energy = None
+    best_output_utilization = None
 
     try:
         greedy_mapping_flag = mem_scheme.greedy_mapping_flag[ii_su]
@@ -149,7 +151,7 @@ def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_
         energy_collect, utilization_collect, latency_collect)
 
 
-def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, layer_info, mem_scheme, mem_scheme_index,
+def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, layer_info, mem_scheme, mem_scheme_index,
                            ii_su, spatial_unrolling, spatial_unrolling_count, im2col_need_correct, multi_manager):
     mem_scheme_count = multi_manager.mem_scheme_count
     list_min_energy = multi_manager.list_min_energy
@@ -188,9 +190,9 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
         spatial_loop_fractional = None
         spatial_loop_comb = [spatial_loop, spatial_loop]
 
-    active_mac_cost = cmf.get_active_mac_cost(layer, input_settings.mac_array_info['single_mac_energy'])
+    active_mac_cost = cmf.get_active_mac_cost(layer_, input_settings.mac_array_info['single_mac_energy'])
     layer_rounded = cls.Layer.extract_layer_info(layer_post)
-    idle_mac_cost = cmf.get_idle_mac_cost(layer, layer_rounded, input_settings.mac_array_info['array_size'],
+    idle_mac_cost = cmf.get_idle_mac_cost(layer_, layer_rounded, input_settings.mac_array_info['array_size'],
                                           input_settings.mac_array_info['idle_mac_energy'],
                                           mem_scheme.spatial_unrolling)
     # print('user-defined mem ut', mem_scheme.mem_utilization_rate)
@@ -230,7 +232,7 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
                                                            input_settings.precision,
                                                            mem_scheme.mem_utilization_rate,
                                                            layer_post,
-                                                           mem_scheme.spatial_unrolling[ii_su], layer, mem_scheme,
+                                                           mem_scheme.spatial_unrolling[ii_su], layer_, mem_scheme,
                                                            input_settings)
                 if input_settings.tmg_search_method == 1:
                     tl_list = bsg_exh.bsg(mem_scheme.mem_size, mem_scheme.mem_share, input_settings.precision,
@@ -252,7 +254,7 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
                     # tl_combinations = len(tl_list)
                     ###########################################################################
 
-            if input_settings.fixed_temporal_mapping:
+            else:
                 tl_list.append(input_settings.temporal_mapping_single)
                 tl_combinations = 1
 

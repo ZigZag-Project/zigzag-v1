@@ -451,7 +451,7 @@ def loop_order_combinations(blocking_scheme):
 
 def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, spatial_unrolling, layer_info, mem_scheme,
         hw_spec):
-    t1 = time.time();
+    t1 = time.time()
     total_number_of_schemes = 0
     operand_irrelevant = {
         'W': [3, 4, 7],
@@ -805,10 +805,9 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, spati
                                                     sp = su.prime_factors(spatial_unrolling[op][level][unroll][1])
                                                     try:
                                                         for s in sp:
-                                                            good_scheme[op][level].insert(0,
-                                                                                          tuple([spatial_unrolling[op][
-                                                                                                     level][unroll][0],
-                                                                                                 s]))
+                                                            good_scheme[op][level].insert(
+                                                                0, tuple([spatial_unrolling[op][level][unroll][0], s])
+                                                            )
                                                     except IndexError:
                                                         # print(bs[op][level])
                                                         continue
