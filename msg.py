@@ -82,7 +82,9 @@ class MemoryScheme:
     col2im_flooring = []
     col2im_fraction_spatial_unrolling = []
 
-    new_mem_unroll = []
+    # the complete memory unrolling count
+    # this parameter is used for total area estimation (<-> active area)
+    mem_unroll_complete = []
 
     def __init__(self, mem_name, mem_size, mem_cost, mem_utilization_rate, mem_utilization_rate_fixed, mem_share,
                  mem_unroll, mem_fifo, mem_bw, mem_type, mem_area, mem_nbanks):
@@ -868,8 +870,6 @@ def spatial_unrolling_generator_uneven(mem_scheme, array_dimension, layer, preci
                 # TODO remove the below "break" when later take interconnection cost into account
                 break
 
-    mem_scheme.new_mem_unroll = mem_unroll_candidates
-
     for i, unroll_i in enumerate(unrolling_scheme_candidates):
         spatial_loop = {'W': [], 'I': [], 'O': []}
         flooring = {'W': [], 'I': [], 'O': []}
@@ -1147,15 +1147,18 @@ def spatial_unrolling_generator_with_hint(mem_scheme, array_dimension, layer, un
     }
     for loop_type in loops_pf:
         loops_pf[loop_type] = su.prime_factors(layer[ll[loop_type]])
+        if not loops_pf[loop_type]:
+            # allow unrolling size to be 1
+            loops_pf[loop_type] = [1]
     for i, unrolling_scheme in enumerate(unrolling_scheme_list):
         cluster_scheme = []
         good_scheme = True
-        for unroll_dim in unrolling_scheme:
-            if any([not loops_pf[x] for x in unroll_dim]):
-                good_scheme = False
-                break
-        if not good_scheme:
-            continue
+        # for unroll_dim in unrolling_scheme:
+        #     if any([not loops_pf[x] for x in unroll_dim]):
+        #         good_scheme = False
+        #         break
+        # if not good_scheme:
+        #     continue
 
         for ii_unroll_dim, unroll_dim in enumerate(unrolling_scheme):
             lpf_list = []
@@ -1586,7 +1589,7 @@ def iterative_data_format_clean(original_dict):
     return new_dict
 
 
-def get_mem_scheme_area(mem_scheme, unit_count, spatial_utilization):
+def get_mem_scheme_area(mem_scheme, ii_su):
     """
     This function computes total memory occupied area.
     It distinguishes active area and total area.
@@ -1602,18 +1605,13 @@ def get_mem_scheme_area(mem_scheme, unit_count, spatial_utilization):
             index_unroll_shared = [tuple([op, level]) in mem_scheme.mem_share[x] for x in
                                    mem_scheme.mem_share]
             if any(index_unroll_shared):
-                level_area_active = mem_area * unit_count[op][level + 1] / len(
-                    mem_scheme.mem_share[index_unroll_shared.index(True)])
-                if unit_count[op][level + 1] > 1:
-                    level_area_total = level_area_active / spatial_utilization
-                else:
-                    level_area_total = level_area_active
+                level_area_active = mem_area * mem_scheme.mem_unroll_complete['mem_unroll_active'][ii_su][op][level] \
+                                    / len(mem_scheme.mem_share[index_unroll_shared.index(True)])
+                level_area_total = mem_area * mem_scheme.mem_unroll_complete['mem_unroll_total'][ii_su][op][level] \
+                                   / len(mem_scheme.mem_share[index_unroll_shared.index(True)])
             else:
-                level_area_active = mem_area * unit_count[op][level + 1]
-                if unit_count[op][level + 1] > 1:
-                    level_area_total = level_area_active / spatial_utilization
-                else:
-                    level_area_total = level_area_active
+                level_area_active = mem_area * mem_scheme.mem_unroll_complete['mem_unroll_active'][ii_su][op][level]
+                level_area_total = mem_area * mem_scheme.mem_unroll_complete['mem_unroll_total'][ii_su][op][level]
             active_area += level_area_active
             total_area += level_area_total
 

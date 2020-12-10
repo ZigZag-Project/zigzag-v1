@@ -2,6 +2,7 @@ import numpy as np
 import copy
 import sys
 import math
+from numpy import prod
 
 """
 
@@ -629,3 +630,63 @@ def su_correction(mem_scheme):
             mem_scheme.spatial_unrolling[0][operand].extend(append_su)
             mem_scheme.flooring[0][operand].extend(append_su)
     return mem_scheme
+
+
+def get_mem_complete_unrolling_count(spatial_unrolling, flooring, array_size):
+    """
+    This function compute the complete memory unrolling count (active ones + inactive ones) for later area estimation.
+    """
+    XY_dimension_unrolling = [[], []]
+    XY_dimension_unit_count = [
+        {'W': [1] * len(flooring['W']), 'I': [1] * len(flooring['I']), 'O': [1] * len(flooring['O'])},
+        {'W': [1] * len(flooring['W']), 'I': [1] * len(flooring['I']), 'O': [1] * len(flooring['O'])}]
+    XY_dimension_mem_count_active = [
+        {'W': [1] * (len(flooring['W'])-1), 'I': [1] * (len(flooring['I'])-1), 'O': [1] * (len(flooring['O'])-1)},
+        {'W': [1] * (len(flooring['W'])-1), 'I': [1] * (len(flooring['I'])-1), 'O': [1] * (len(flooring['O'])-1)}]
+    XY_dimension_mem_count_total = [
+        {'W': [1] * (len(flooring['W'])-1), 'I': [1] * (len(flooring['I'])-1), 'O': [1] * (len(flooring['O'])-1)},
+        {'W': [1] * (len(flooring['W'])-1), 'I': [1] * (len(flooring['I'])-1), 'O': [1] * (len(flooring['O'])-1)}]
+    mem_count_active = {'W': [1] * (len(flooring['W']) - 1), 'I': [1] * (len(flooring['I']) - 1),
+                        'O': [1] * (len(flooring['O']) - 1)}
+    mem_count_total = {'W': [1] * (len(flooring['W'])-1), 'I': [1] * (len(flooring['I'])-1),
+                       'O': [1] * (len(flooring['O'])-1)}
+    XY_dimension_area_utilize = [{'W': 0, 'I': 0, 'O': 0},
+                                 {'W': 0, 'I': 0, 'O': 0}]
+    op_ir_loops = {'W': [3, 4, 7], 'I': [6], 'O': [1, 2, 5]}
+    for floor_level in flooring['W']:
+        if floor_level:
+            for XY, floor_XY in enumerate(floor_level):
+                if floor_XY:
+                    XY_dimension_unrolling[XY].extend(floor_XY)
+    for op in ['W', 'I', 'O']:
+        for level, floor_level in enumerate(flooring[op]):
+            if floor_level:
+                i = 0
+                for XY, floor_XY in enumerate(floor_level):
+                    if floor_XY:
+                        for floor_single in floor_XY:
+                            if spatial_unrolling[op][level][i][0] != floor_single:
+                                raise ValueError("spatial_unrolling's and flooring's order do not match.")
+                            XY_dimension_unit_count[XY][op][level] *= spatial_unrolling[op][level][i][1]
+                            i += 1
+    for XY in range(len(XY_dimension_unit_count)):
+        for op in ['W', 'I', 'O']:
+            XY_dimension_area_utilize[XY][op] = prod(XY_dimension_unit_count[XY][op]) / array_size[XY]
+            for level in range(1, len(XY_dimension_unit_count[XY][op])):
+                XY_dimension_mem_count_active[XY][op][level-1] = prod(XY_dimension_unit_count[XY][op][level:])
+    for op in ['W', 'I', 'O']:
+        for level in range(1, len(spatial_unrolling[op])):
+            if spatial_unrolling[op][level]:
+                for XY in [0, 1]:
+                    if all(loop_type in op_ir_loops[op] for loop_type in XY_dimension_unrolling[XY]):
+                        XY_dimension_mem_count_total[XY][op][level-1] = XY_dimension_mem_count_active[XY][op][level-1]
+                    else:
+                        XY_dimension_mem_count_total[XY][op][level - 1] = \
+                            int(round(XY_dimension_mem_count_active[XY][op][level-1]/XY_dimension_area_utilize[XY][op]))
+    for op in ['W', 'I', 'O']:
+        for level in range(len(XY_dimension_mem_count_active[0][op])):
+            mem_count_active[op][level] = XY_dimension_mem_count_active[0][op][level] * \
+                                          XY_dimension_mem_count_active[1][op][level]
+            mem_count_total[op][level] = XY_dimension_mem_count_total[0][op][level] * \
+                                          XY_dimension_mem_count_total[1][op][level]
+    return mem_count_active, mem_count_total

@@ -46,15 +46,15 @@ memory_hint:
 memory_hierarchy:
   rf_psum:
       memory_instance : spad_48byte              # element in the memory pool which is taken;
-      memory_unroll : 168                        # number of separate instances present in the architecture
+      memory_unroll : 256                        # number of separate instances present in the architecture
       operand_stored : [O]
   rf_input:
       memory_instance: spad_24byte
-      memory_unroll: 168
+      memory_unroll: 256
       operand_stored: [I]
   rf_weight:
       memory_instance: spad_448byte
-      memory_unroll: 168
+      memory_unroll: 256
       operand_stored: [W]
   global_buffer:
       memory_instance: buffer_108Kbyte
@@ -67,6 +67,5 @@ memory_hierarchy:
 #################################################################################
 
 # If the below parameter is set as True and fixed_spatial_unrolling (in settings.yaml) is False,
-# and spatial_unrolling_search_method is exhaustive / heuristic_v1 / heuristic_v2,
 # the tool will try out all possible memory unrolling combinations.
 memory_unroll_fully_flexible: False
