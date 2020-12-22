@@ -690,9 +690,11 @@ class Loop(object):
             I_base_reuse *= data_reuse['I_base'][level]
             if I_fifo_reuse == I_base_reuse:
                 continue
-            if I_fifo_reuse >= I_base_reuse and \
-                    req_mem_size['I'][level-1]*req_mem_count['I'][level-1] == spatial_loop.unit_unique['I'][level-1]:
-                I_fifo[level-1] = True
+            # if I_fifo_reuse >= I_base_reuse and \
+            #         req_mem_size['I'][level-1]*req_mem_count['I'][level-1] == spatial_loop.unit_unique['I'][level-1]:
+            #     I_fifo[level-1] = True
+            if I_fifo_reuse >= I_base_reuse:
+                I_fifo[level] = True
                 break
 
         if size_check:

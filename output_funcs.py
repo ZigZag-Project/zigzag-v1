@@ -1779,7 +1779,8 @@ def print_helper(input_settings, layers, layers_saved, multi_manager):
                         rf_en = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str + rf_ending_en
                         rf_ut = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str + rf_ending_ut
 
-                        if input_settings.im2col_enable_pw and (input_settings.spatial_unrolling_mode not in [4, 5]):
+                        if input_settings.im2col_enable_pw and (input_settings.spatial_unrolling_mode not in [4, 5]) \
+                                and (input_settings.fixed_temporal_mapping is False):
                             if multi_manager.pw_im2col_flag[j]:
                                 best_output_energy.spatial_scheme, \
                                 best_output_energy.flooring, \
@@ -1840,7 +1841,8 @@ def print_helper(input_settings, layers, layers_saved, multi_manager):
                     rf_en = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_en + rf_ending_en
                     rf_ut = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_ut + rf_ending_ut
 
-                    if input_settings.im2col_enable_pw and (input_settings.spatial_unrolling_mode not in [4, 5]):
+                    if input_settings.im2col_enable_pw and (input_settings.spatial_unrolling_mode not in [4, 5]) \
+                            and (input_settings.fixed_temporal_mapping is False):
                         if multi_manager.pw_im2col_flag[j]:
                             best_output_energy.spatial_scheme, \
                             best_output_energy.flooring, \
@@ -1907,7 +1909,8 @@ def print_helper(input_settings, layers, layers_saved, multi_manager):
             rf_en = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_en + rf_ending_en
             rf_ut = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_ut + rf_ending_ut
 
-            if input_settings.im2col_enable_pw and (input_settings.spatial_unrolling_mode not in [4, 5]):
+            if input_settings.im2col_enable_pw and (input_settings.spatial_unrolling_mode not in [4, 5]) \
+                    and (input_settings.fixed_temporal_mapping is False):
                 if multi_manager.pw_im2col_flag[j]:
                     best_output_energy.spatial_scheme, \
                     best_output_energy.flooring, \
@@ -1968,7 +1971,8 @@ def print_helper(input_settings, layers, layers_saved, multi_manager):
             rf_en = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_en + rf_ending_en
             rf_ut = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_ut + rf_ending_ut
 
-            if input_settings.im2col_enable_pw and (input_settings.spatial_unrolling_mode not in [4, 5]):
+            if input_settings.im2col_enable_pw and (input_settings.spatial_unrolling_mode not in [4, 5]) \
+                    and (input_settings.fixed_temporal_mapping is False):
                 if multi_manager.pw_im2col_flag[j]:
                     best_output_energy.spatial_scheme, \
                     best_output_energy.flooring, \

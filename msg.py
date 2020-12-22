@@ -1598,20 +1598,27 @@ def get_mem_scheme_area(mem_scheme, ii_su):
 
     total_area = 0
     active_area = 0
+
     if type(mem_scheme.mem_area['W'][0]) in [list, tuple]:
         mem_scheme.mem_area = iterative_data_format_clean(mem_scheme.mem_area)
     for op in ['W', 'I', 'O']:
         for level, mem_area in enumerate(mem_scheme.mem_area[op]):
+
+            try:
+                mem_unroll = mem_scheme.mem_unroll_complete['mem_unroll_total'][ii_su][op][level]
+            except:
+                mem_unroll = mem_scheme.mem_unroll[op][level]
+
             index_unroll_shared = [tuple([op, level]) in mem_scheme.mem_share[x] for x in
                                    mem_scheme.mem_share]
             if any(index_unroll_shared):
-                level_area_active = mem_area * mem_scheme.mem_unroll_complete['mem_unroll_active'][ii_su][op][level] \
+                level_area_active = mem_area * mem_unroll \
                                     / len(mem_scheme.mem_share[index_unroll_shared.index(True)])
-                level_area_total = mem_area * mem_scheme.mem_unroll_complete['mem_unroll_total'][ii_su][op][level] \
+                level_area_total = mem_area * mem_unroll \
                                    / len(mem_scheme.mem_share[index_unroll_shared.index(True)])
             else:
-                level_area_active = mem_area * mem_scheme.mem_unroll_complete['mem_unroll_active'][ii_su][op][level]
-                level_area_total = mem_area * mem_scheme.mem_unroll_complete['mem_unroll_total'][ii_su][op][level]
+                level_area_active = mem_area * mem_unroll
+                level_area_total = mem_area * mem_unroll
             active_area += level_area_active
             total_area += level_area_total
 
