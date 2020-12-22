@@ -239,10 +239,14 @@ class TemporalLoop(object):
             FY_merged_down = []
             OX_merged_down = []
             OY_merged_down = []
+            # if (not innermost_relevant_loop[level + 1]) or \
+            #         (innermost_relevant_loop[level + 1][0][l_type] in [2, 4] and ifmap_size['IY'][level] == 1) or \
+            #         (innermost_relevant_loop[level + 1][0][l_type] in [1, 3] and ifmap_size['IX'][level] == 1):
             if (not innermost_relevant_loop[level + 1]) or \
-                    (innermost_relevant_loop[level + 1][0][l_type] in [2, 4] and ifmap_size['IY'][level] == 1) or \
-                    (innermost_relevant_loop[level + 1][0][l_type] in [1, 3] and ifmap_size['IX'][level] == 1):
-
+               (innermost_relevant_loop[level + 1][0][l_type] == 2 and np.prod(OY['I'][0:level + 1]) == 1) or \
+               (innermost_relevant_loop[level + 1][0][l_type] == 4 and np.prod(FY['I'][0:level + 1]) == 1) or \
+               (innermost_relevant_loop[level + 1][0][l_type] == 1 and np.prod(OX['I'][0:level + 1]) == 1) or \
+               (innermost_relevant_loop[level + 1][0][l_type] == 3 and np.prod(FX['I'][0:level + 1]) == 1):
                 num_of_input_elem = ifmap_size['B'][level] * ifmap_size['C'][level] * \
                                     ifmap_size['IY'][level] * ifmap_size['IX'][level]
                 average_input_reuse.append(num_of_MAC_Op[level] / num_of_input_elem)
