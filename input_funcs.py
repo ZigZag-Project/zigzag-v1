@@ -341,8 +341,8 @@ def get_layer_spec(input_settings, model=None):
                 layer_spec.layer_info[layer_number]['C'] = div_C
                 layer_spec.layer_info[layer_number]['K'] = div_K
 
-                print("Grouped convolution detected for Layer %d. Terminal prints will show total energy of all groups combined."
-                    % layer_number)
+                print("Grouped convolution detected for %s Layer %d. Terminal prints will show total energy of all groups combined."
+                    % (input_settings.layer_filename.split('/')[-1], layer_number))
     print()
     return layer_spec, layer_numbers
 
