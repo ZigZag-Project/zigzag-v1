@@ -620,7 +620,9 @@ class Reader:
                 layer.optimum_type,
                 layer.find("total_MAC_operation"),
                 layer.find("total_energy"),
-                layer.find("mac_energy"),
+                # Accounting for MAC idle energy.
+                layer.find("mac_energy")["active"]
+                + layer.find("mac_energy")["idle"],
                 layer.find("utilization_with_data_loading"),
                 layer.find("utilization_without_data_loading"),
                 layer.find("utilization_spatial"),
