@@ -1,6 +1,6 @@
 
 # OUTPUT FILE
-result_path : './resultstest4'
+result_path : './results'
 result_filename : AlexNet
 
 # OUTPUT FILE PRINTING MODE
@@ -26,7 +26,7 @@ save_all_temporal_mapping_result : False
 # WORKLOAD
 # layer_indices can be a single-element list or a multiple-element list or ALL.
 layer_filename : './NN_layers/AlexNet'
-layer_indices : [1,3]
+layer_indices : [3,4,5]
 # layer_indices : ALL
 
 # MULTIPROCESSING
@@ -63,5 +63,5 @@ im2col_enable_for_all_layers : False
 im2col_enable_for_pointwise_layers : True
 
 # Save result files during processing. This is useful to prevent a lot of work being wasted if a crash occurs.
-# The saving is supplementary to that at the end of the processing, and is done in a separate folder
+# The saving is supplementary to that at the end of the processing, and is done in a separate folder.
 save_results_on_the_fly: True
