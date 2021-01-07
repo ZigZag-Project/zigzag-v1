@@ -16,7 +16,7 @@ class InputSettings:
                  unrolling_scheme_list_text, memory_scheme_hint, spatial_utilization_threshold, spatial_unrolling_mode,
                  stationary_optimization_enable, su_parallel_processing, arch_search_result_saving, su_search_result_saving,
                  tm_search_result_saving, result_print_mode, im2col_enable_all, im2col_enable_pw, memory_unroll_fully_flexible,
-                 result_print_type):
+                 result_print_type, save_results_on_the_fly):
 
         self.results_path = results_path
         self.results_filename = results_filename
@@ -69,6 +69,7 @@ class InputSettings:
         self.im2col_top_mem_level = 100
         self.memory_unroll_fully_flexible = memory_unroll_fully_flexible
         self.result_print_type = result_print_type
+        self.save_results_on_the_fly = save_results_on_the_fly
 
 
 def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure_path):
@@ -277,6 +278,11 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
         NN = importlib.machinery.SourceFileLoader('%s' % (fl['layer_filename']), '%s.py' % (fl['layer_filename'])).load_module()
         layer_indices = [kk for kk in NN.layer_info.keys()]
 
+    try:
+        save_results_on_the_fly = fl['save_results_on_the_fly']
+    except:
+        save_results_on_the_fly = False
+
     input_settings = InputSettings(fl['result_path'], fl['result_filename'], fl['layer_filename'],
                                    layer_indices, fl['layer_multiprocessing'], precision,
                                    mac_array_info, mac_array_stall, fl['fixed_architecture'],
@@ -293,7 +299,7 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
                                    fl['save_all_spatial_unrolling_result'], fl['save_all_temporal_mapping_result'],
                                    fl['result_print_mode'], fl['im2col_enable_for_all_layers'],
                                    fl['im2col_enable_for_pointwise_layers'], memory_unroll_fully_flexible,
-                                   fl['result_print_type'])
+                                   fl['result_print_type'], save_results_on_the_fly)
 
     return input_settings
 

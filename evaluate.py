@@ -16,6 +16,8 @@ from datetime import datetime
 from pathlib import Path
 from itertools import repeat
 from classes.layer_rounding import mem_access_count_correct
+from im2col_funcs import pw_layer_col2im
+from output_funcs import CommonSetting, print_xml, print_yaml
 
 
 def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_loop_fractional, spatial_loop_comb,
@@ -203,7 +205,7 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
     # redo_flag check if generated memory utilization Th is respected.
     redo_flag = True
     iterate_time = 0
-    mem_ut_iter_max = 5
+    mem_ut_iter_max = 1 # 5
     previous_TM_found = 0
     previous_best_en = [None, None]
     previous_best_ut = [None, None]
@@ -434,6 +436,52 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
     list_tm_count_en[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: tm_count})
     list_tm_count_ut[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: tm_count})
     list_sim_time[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: (t_tmg + t_cm)})
+
+    # Save best results for this MEM + LAYER + SU
+    if input_settings.save_results_on_the_fly:
+        sim_time = t_tmg + t_cm
+        mem_scheme_count_str = '%d/%d' % (mem_scheme_index + 1, multi_manager.mem_scheme_count)
+        spatial_unrolling_count_str = '%d/%d' % (ii_su + 1, spatial_unrolling_count)
+        common_settings = CommonSetting(input_settings, layer_index, mem_scheme_count_str, spatial_unrolling_count_str, mem_scheme)
+        mem_scheme_su_save_str = '_M%d_SU%d' % (mem_scheme_index + 1, ii_su + 1)
+
+        sub_path = '/all_su_best_tm_otf/'
+
+        rf_base = input_settings.results_path + '%s' + input_settings.results_filename
+        rf_ending_en = '_min_en'
+        rf_ending_ut = '_max_ut'
+
+        rf_en = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str + rf_ending_en
+        rf_ut = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str + rf_ending_ut 
+
+        j = input_settings.layer_number.index(layer_index)
+        if input_settings.im2col_enable_pw and (input_settings.spatial_unrolling_mode not in [4, 5]):
+            if multi_manager.pw_im2col_flag[j]:
+                best_output_energy.spatial_scheme, \
+                best_output_energy.flooring, \
+                best_output_energy.temporal_scheme = \
+                    pw_layer_col2im(best_output_energy.spatial_scheme,
+                                    best_output_energy.flooring,
+                                    best_output_energy.temporal_scheme, layer[0].size_list)
+                best_output_utilization.spatial_scheme, \
+                best_output_utilization.flooring, \
+                best_output_utilization.temporal_scheme = \
+                    pw_layer_col2im(best_output_utilization.spatial_scheme,
+                                    best_output_utilization.flooring,
+                                    best_output_utilization.temporal_scheme, layer[0].size_list)  
+
+        tm_count_en = tl_count
+        tm_count_ut = tl_count
+
+        print_type = input_settings.result_print_type
+        print_mode = input_settings.result_print_mode
+        if print_type == "xml":
+            print_xml(rf_en, layer[0], mem_scheme, best_output_energy, common_settings, tm_count_en, sim_time, print_mode)
+            print_xml(rf_ut, layer[0], mem_scheme, best_output_utilization, common_settings, tm_count_ut, sim_time, print_mode)
+        else:
+            print_yaml(rf_en, layer[0], mem_scheme, best_output_energy, common_settings, tm_count_en, sim_time, print_mode)
+            print_yaml(rf_ut, layer[0], mem_scheme, best_output_utilization, common_settings, tm_count_ut, sim_time, print_mode)                                                 
+
 
 
 def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_scheme, mem_scheme_index, multi_manager):

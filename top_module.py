@@ -160,7 +160,7 @@ if __name__ == "__main__":
     if not input_settings.mem_hierarchy_single_simulation:
         evaluate.optimal_su_evaluate(input_settings, layers, multi_manager)
 
-    of.print_helper(input_settings, layers, layers_saved, multi_manager)
+    # of.print_helper(input_settings, layers, layers_saved, multi_manager)
 
     total_time = int(time.time() - t1)
     print('ZigZag finished running. Total elapsed time: %d seconds.' % total_time)
