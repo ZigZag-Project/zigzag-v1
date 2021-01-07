@@ -21,7 +21,7 @@ from output_funcs import CommonSetting, print_xml, print_yaml
 
 
 def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_loop_fractional, spatial_loop_comb,
-              ii_su, active_mac_cost, idle_mac_cost, im2col_need_correct):
+              ii_su, active_mac_cost, idle_mac_cost, occupied_area, im2col_need_correct):
 
     [layer_origin, layer_rounded] = layer
     pickle_enable = input_settings.tm_search_result_saving
@@ -38,6 +38,8 @@ def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_
     min_energy_utilization = 0
     max_utilization = 0
     max_utilization_energy = float('inf')
+    best_output_energy = None
+    best_output_utilization = None
 
     try:
         greedy_mapping_flag = mem_scheme.greedy_mapping_flag[ii_su]
@@ -77,10 +79,6 @@ def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_
                                                       msc.mem_share, msc.mem_type,
                                                       input_settings.mac_array_stall,
                                                       input_settings.precision, msc.mem_bw)
-
-        # TODO MAC area (multiplier and adder) is not included.
-        # occupied_area format: [total_area, active_area]
-        occupied_area = msg.get_mem_scheme_area(msc, spatial_loop.unit_count, utilization.mac_utilize_spatial)
 
         total_cost_layer = 0
         # loop.array_wire_distance = {'W': [], 'I': [], 'O': []}
@@ -151,7 +149,7 @@ def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_
         energy_collect, utilization_collect, latency_collect)
 
 
-def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, layer_info, mem_scheme, mem_scheme_index,
+def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, layer_info, mem_scheme, mem_scheme_index,
                            ii_su, spatial_unrolling, spatial_unrolling_count, im2col_need_correct, multi_manager):
     mem_scheme_count = multi_manager.mem_scheme_count
     list_min_energy = multi_manager.list_min_energy
@@ -190,9 +188,13 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
         spatial_loop_fractional = None
         spatial_loop_comb = [spatial_loop, spatial_loop]
 
-    active_mac_cost = cmf.get_active_mac_cost(layer, input_settings.mac_array_info['single_mac_energy'])
+    # TODO MAC area (multiplier and adder area) is not included.
+    # occupied_area format: [total_area, active_area]
+    occupied_area = msg.get_mem_scheme_area(mem_scheme, ii_su)
+
+    active_mac_cost = cmf.get_active_mac_cost(layer_, input_settings.mac_array_info['single_mac_energy'])
     layer_rounded = cls.Layer.extract_layer_info(layer_post)
-    idle_mac_cost = cmf.get_idle_mac_cost(layer, layer_rounded, input_settings.mac_array_info['array_size'],
+    idle_mac_cost = cmf.get_idle_mac_cost(layer_, layer_rounded, input_settings.mac_array_info['array_size'],
                                           input_settings.mac_array_info['idle_mac_energy'],
                                           mem_scheme.spatial_unrolling)
     # print('user-defined mem ut', mem_scheme.mem_utilization_rate)
@@ -232,7 +234,7 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
                                                            input_settings.precision,
                                                            mem_scheme.mem_utilization_rate,
                                                            layer_post,
-                                                           mem_scheme.spatial_unrolling[ii_su], layer, mem_scheme,
+                                                           mem_scheme.spatial_unrolling[ii_su], layer_, mem_scheme,
                                                            input_settings)
                 if input_settings.tmg_search_method == 1:
                     tl_list = bsg_exh.bsg(mem_scheme.mem_size, mem_scheme.mem_share, input_settings.precision,
@@ -254,7 +256,7 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
                     # tl_combinations = len(tl_list)
                     ###########################################################################
 
-            if input_settings.fixed_temporal_mapping:
+            else:
                 tl_list.append(input_settings.temporal_mapping_single)
                 tl_combinations = 1
 
@@ -293,24 +295,32 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
                       mem_scheme_index + 1, '/', mem_scheme_count, ', SU', ii_su + 1,
                       '/', len(mem_scheme.spatial_unrolling), ' CM  started')
 
-                # Convert tl_list to chunked list to pass to parallel cores
-                n_processes = min(cpu_count(), input_settings.temporal_mapping_multiprocessing)
-                chunk_size = int(tl_combinations / n_processes) + (tl_combinations % n_processes > 0)  # avoids import math
-                tl_count = len(tl_list)
-                tl_list = [tl_list[i:i + chunk_size] for i in range(0, tl_combinations, chunk_size)]
-
                 # 'layer' is the original 7D layer, now it's got to be overwritten.
                 # 'im2col_layer' is the original 3D/7D layer, depending on im2col_enable
                 # 'layer_rounded' is the rounded 3D/7D layer, depending on im2col_enable
                 layer = [im2col_layer, layer_rounded]
 
-                # Create list of repeated arguments passed to parallel tl_worker functions
-                fixed_args = [input_settings, mem_scheme, layer, spatial_loop, spatial_loop_fractional, spatial_loop_comb,
-                              ii_su, active_mac_cost, idle_mac_cost[ii_su], im2col_need_correct]
+                if input_settings.temporal_mapping_multiprocessing > 1:
+                    # Convert tl_list to chunked list to pass to parallel cores
+                    n_processes = min(cpu_count(), input_settings.temporal_mapping_multiprocessing)
+                    chunk_size = int(tl_combinations / n_processes) + (tl_combinations % n_processes > 0)  # avoids import math
+                    tl_count = len(tl_list)
+                    tl_list = [tl_list[i:i + chunk_size] for i in range(0, tl_combinations, chunk_size)]
 
-                # Call the worker function for each chunk
-                pool = Pool(processes=n_processes)
-                results = pool.starmap(tl_worker, [[tl_chunk] + fixed_args for tl_chunk in tl_list])
+                    # Create list of repeated arguments passed to parallel tl_worker functions
+                    fixed_args = [input_settings, mem_scheme, layer, spatial_loop, spatial_loop_fractional, spatial_loop_comb,
+                                  ii_su, active_mac_cost, idle_mac_cost[ii_su], occupied_area, im2col_need_correct]
+
+                    # Call the worker function for each chunk
+                    pool = Pool(processes=n_processes)
+                    results = pool.starmap(tl_worker, [[tl_chunk] + fixed_args for tl_chunk in tl_list])
+                else:
+                    n_processes = 1
+                    chunk_size = tl_combinations
+                    tl_count = len(tl_list)
+                    results = [tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop,
+                                        spatial_loop_fractional, spatial_loop_comb, ii_su, active_mac_cost,
+                                        idle_mac_cost[ii_su], occupied_area, im2col_need_correct)]
 
                 best_output_energy = None
                 best_output_utilization = None
@@ -541,11 +551,14 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
             spatial_unrolling = []
             flooring = []
             fraction_spatial_unrolling = []
+            mem_unroll_active = []
+            mem_unroll_total = []
             for idd, aux_layer_idx in enumerate(range(len(layer_info[layer_index]))):
                 su_hint_idx = aux_layer_to_su_hint_table[aux_layer_idx]
                 spatial_unrolling_, flooring_, mem_scheme, not_good = msg.spatial_unrolling_generator_with_hint(
                     mem_scheme, input_settings.mac_array_info['array_size'],
-                    layer_info[layer_index][aux_layer_idx], [unrolling_scheme_list[su_hint_idx]])
+                    layer_info[layer_index][aux_layer_idx], [unrolling_scheme_list[su_hint_idx]],
+                    input_settings.memory_unroll_fully_flexible)
                 if not spatial_unrolling_:
                     continue
                 if layer_rounded.greedy_mapping_flag[idd]:
@@ -556,6 +569,10 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
                 spatial_unrolling += spatial_unrolling_
                 flooring += flooring_
                 fraction_spatial_unrolling += fraction_spatial_unrolling_
+                mem_unroll_active_, mem_unroll_total_ = cmf.get_mem_complete_unrolling_count(
+                    spatial_unrolling_[0], flooring_[0], input_settings.mac_array_info['array_size'])
+                mem_unroll_active.append(mem_unroll_active_)
+                mem_unroll_total.append(mem_unroll_total_)
             mem_scheme.fraction_spatial_unrolling = fraction_spatial_unrolling
 
         # greedy mapping with hint
@@ -576,12 +593,15 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
             spatial_unrolling = []
             flooring = []
             fraction_spatial_unrolling = []
+            mem_unroll_active = []
+            mem_unroll_total = []
             for idd, aux_layer_idx in enumerate(range(len(layer_info[layer_index]))):
                 su_hint_idx = aux_layer_to_su_hint_table[aux_layer_idx]
                 spatial_unrolling_, flooring_, mem_scheme, not_good = msg.spatial_unrolling_generator_with_hint(
                     mem_scheme, input_settings.mac_array_info['array_size'],
                     layer_info[layer_index][aux_layer_idx],
-                    [input_settings.unrolling_scheme_list[su_hint_idx]])
+                    [input_settings.unrolling_scheme_list[su_hint_idx]],
+                    input_settings.memory_unroll_fully_flexible)
                 if layer_rounded.greedy_mapping_flag[idd]:
                     spatial_unrolling_, fraction_spatial_unrolling_ = \
                         msg.su_reformat(spatial_unrolling_, ideal_su[aux_layer_idx], fraction_su[aux_layer_idx])
@@ -590,16 +610,27 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
                 spatial_unrolling += spatial_unrolling_
                 flooring += flooring_
                 fraction_spatial_unrolling += fraction_spatial_unrolling_
+                mem_unroll_active_, mem_unroll_total_ = cmf.get_mem_complete_unrolling_count(
+                    spatial_unrolling_[0], flooring_[0], input_settings.mac_array_info['array_size'])
+                mem_unroll_active.append(mem_unroll_active_)
+                mem_unroll_total.append(mem_unroll_total_)
             mem_scheme.fraction_spatial_unrolling = fraction_spatial_unrolling
 
         # hint_driven (prime factor factorization based)
         elif input_settings.spatial_unrolling_mode == 3:
             spatial_unrolling, flooring, mem_scheme, not_good = msg.spatial_unrolling_generator_with_hint(
                 mem_scheme, input_settings.mac_array_info['array_size'], layer_info[layer_index],
-                input_settings.unrolling_scheme_list)
+                input_settings.unrolling_scheme_list, input_settings.memory_unroll_fully_flexible)
             mem_scheme.fraction_spatial_unrolling = spatial_unrolling
             mem_scheme.greedy_mapping_flag = [False] * len(spatial_unrolling)
             mem_scheme.footer_info = [0] * len(spatial_unrolling)
+            mem_unroll_active = []
+            mem_unroll_total = []
+            for su_id, _ in enumerate(spatial_unrolling):
+                mem_unroll_active_, mem_unroll_total_ = cmf.get_mem_complete_unrolling_count(
+                    spatial_unrolling[su_id], flooring[su_id], input_settings.mac_array_info['array_size'])
+                mem_unroll_active.append(mem_unroll_active_)
+                mem_unroll_total.append(mem_unroll_total_)
 
         # spatial unrolling full search based on user-defined spatial_utilization_threshold
         else:
@@ -617,7 +648,15 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
             mem_scheme.fraction_spatial_unrolling = spatial_unrolling
             mem_scheme.greedy_mapping_flag = [False] * len(spatial_unrolling)
             mem_scheme.footer_info = [0] * len(spatial_unrolling)
+            mem_unroll_active = []
+            mem_unroll_total = []
+            for su_id, _ in enumerate(spatial_unrolling):
+                mem_unroll_active_, mem_unroll_total_ = cmf.get_mem_complete_unrolling_count(
+                    spatial_unrolling[su_id], flooring[su_id], input_settings.mac_array_info['array_size'])
+                mem_unroll_active.append(mem_unroll_active_)
+                mem_unroll_total.append(mem_unroll_total_)
 
+        mem_scheme.mem_unroll_complete = {'mem_unroll_active': mem_unroll_active, 'mem_unroll_total': mem_unroll_total}
         mem_scheme.spatial_unrolling = spatial_unrolling
         mem_scheme.flooring = flooring
         now = datetime.now()
@@ -826,7 +865,11 @@ def optimal_su_evaluate(input_settings, layers, multi_manager):
         best_en = sys.float_info.max
         best_en_ut = 0
         for idd, su_dict in enumerate(en_best_su_each_mem):
-            m_su_idx, (en, ut) = list(su_dict.items())[0]
+            try:
+                m_su_idx, (en, ut) = list(su_dict.items())[0]
+            except:
+                # No TM was found
+                continue
             if (en < best_en) or (en == best_en and ut > best_en_ut):
                 best_en = en
                 best_en_ut = ut
@@ -846,7 +889,11 @@ def optimal_su_evaluate(input_settings, layers, multi_manager):
         best_ut = 0
         best_ut_en = sys.float_info.max
         for idd, su_dict in enumerate(ut_best_su_each_mem):
-            m_su_idx, (en, ut) = list(su_dict.items())[0]
+            try:
+                m_su_idx, (en, ut) = list(su_dict.items())[0]
+            except:
+                # No TM was found
+                continue
             if ut > best_ut or (ut == best_ut and en < best_ut_en):
                 best_ut = ut
                 best_ut_en = en

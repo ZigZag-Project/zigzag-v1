@@ -75,6 +75,7 @@ if __name__ == "__main__":
         for idx_other, other in enumerate(layers_seen):
             if layer == other:
                 layer.set_duplicate(input_settings.layer_number[idx_other])
+                break
 
     # Setup a layer dictionary of following format for easy access
     # key: layer number
@@ -92,6 +93,8 @@ if __name__ == "__main__":
     tmp_mem_node_list = []
 
     print('ZigZag started running.')
+    print('Target workload: %s | Layer(s): %s' % (input_settings.layer_filename.split('/')[-1],
+                                                  input_settings.layer_number))
     t1 = time.time()
     if not input_settings.mem_hierarchy_single_simulation:
         now = datetime.now()
