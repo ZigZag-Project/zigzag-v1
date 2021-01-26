@@ -41,7 +41,7 @@ spatial_mapping_fixed:
 # SPATIAL MAPPING HINT LIST
 # used as hint if 'hint_driven' spatial_unrolling_search_method is chosen in the setting file.
 spatial_mapping_list: [
-#  [Col : [OX], Row : [K]],
+  [Col : [OX], Row : [K]],
   [Col : [C],  Row : [K]],
-#  [Col : [C,OX],  Row : [K]]
+  [Col : [OX,C],  Row : [K]]
 ]

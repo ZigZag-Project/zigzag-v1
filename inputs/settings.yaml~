@@ -1,0 +1,55 @@
+
+# OUTPUT FILE
+result_path : './results'
+result_filename : AlexNet
+
+# OUTPUT FILE PRINTING MODE
+# 'concise' for printing the basic information for each optimal design point found, i.e. energy and performance.
+# 'complete' for printing all detailed information for each optimal design point found for in-depth analysis.
+result_print_mode : complete
+
+# SEARCH SETTINGS
+# 'False' for searching the corresponding space.
+fixed_architecture : False
+fixed_spatial_unrolling : False
+fixed_temporal_mapping : False
+
+# RESULT SAVING SETTINGS
+# 'False' for only saving the best result.
+# Be careful to put "save_all_temporal_mapping_result" to True, because it can generate large result files.
+save_all_architecture_result : True
+save_all_spatial_unrolling_result : True
+save_all_temporal_mapping_result : False
+
+# WORKLOAD
+# layer_indices can be a single-element list or a multiple-element list.
+layer_filename : './NN_layers/AlexNet'
+layer_indices : [3,5]
+
+# MULTIPROCESSING
+# run the framework in multiprocessing mode to speedup the search procedure.
+layer_multiprocessing : 100
+architecture_search_multiprocessing : 100
+spatial_unrolling_multiprocessing : 100
+temporal_mapping_multiprocessing: 100
+
+# TEMPORAL MAPPING GENERATOR SETTINGS
+# search_method : exhaustive / heuristic_v1 / heuristic_v2 / iterative
+temporal_mapping_search_method : heuristic_v1
+
+# SPATIAL MAPPING GENERATOR SETTINGS
+# search method : exhaustive / heuristic_v1 / heuristic_v2 / hint_driven / greedy_mapping_with_hint / greedy_mapping_without_hint
+# If 'hint_driven' or 'greedy_mapping_with_hint' is chosen, 'spatial_mapping_list' in the mapping file will be used.
+# Greedy mapping allows MAC array to be always fully utilized except the last time,
+  # e.g. to map (C,10) on a row of 8 PEs, without greedy mapping enabled, the tool will map (C,5), (C,5);
+  # with greedy mapping enabled, it will map (C,8), (C,2).
+spatial_unrolling_search_method : hint_driven
+spatial_utilization_threshold : 0.9
+
+# CONV im2col ENABLE
+# Weight matrix [K,       C|FX|FY]
+# Input  matrix [B|OY|OX, C|FY|FX]
+# Output matrix [K,       B|OY|OX]
+# Process convolution as matrix-matrix multiplication.
+im2col_enable : False
+

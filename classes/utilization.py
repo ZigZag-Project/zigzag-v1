@@ -487,7 +487,27 @@ class Utilization(object):
             req_mem_bw[operand] = []
             req_mem_bw_bit[operand] = []
             for level in range(mem_level['O']):
-                if level == mem_level['O'] - 1:
+                if level == 0:
+                    ''' consider the lowest level of memory talking to MAC '''
+                    ''' p_sum here for sure, i.e. data flows in two direction.'''
+                    if mem_type['O'][level] == 1:
+                        ''' if the lowest level of memory is single-port double buffering, required bw doubles. '''
+                        req_mem_bw_L = 2 * req_aver_bw['O'][level][to_low]
+                        req_mem_bw[operand].append([req_mem_bw_L])
+
+                        req_mem_bw_L_bit = 2 * req_aver_bw_bit['O'][level][to_low]
+                        req_mem_bw_bit[operand].append([req_mem_bw_L_bit])
+
+                    else:
+                        ''' if the lowest level of memory is dual-port (wi/wo double buffering), 
+                        required bw has no need to double. '''
+                        req_mem_bw_L = req_aver_bw['O'][level][to_low]
+                        req_mem_bw[operand].append([req_mem_bw_L])
+
+                        req_mem_bw_L_bit = req_aver_bw_bit['O'][level][to_low]
+                        req_mem_bw_bit[operand].append([req_mem_bw_L_bit])
+
+                elif level == mem_level['O'] - 1:
                     ''' consider the top level of memory talking to the below level of memory '''
                     if (mem_type['O'][level - 1] == 2 and mem_type['O'][level] == 1) \
                             and output_dis[level][to_low] == 'psum':
@@ -548,26 +568,6 @@ class Utilization(object):
                         req_mem_bw[operand].append([req_mem_bw_L, 0])
                         req_mem_bw_L_bit = req_aver_bw_bit['O'][level][to_low]
                         req_mem_bw_bit[operand].append([req_mem_bw_L_bit, 0])
-
-                elif level == 0:
-                    ''' consider the lowest level of memory talking to MAC '''
-                    ''' p_sum here for sure, i.e. data flows in two direction.'''
-                    if mem_type['O'][level] == 1:
-                        ''' if the lowest level of memory is single-port double buffering, required bw doubles. '''
-                        req_mem_bw_L = 2 * req_aver_bw['O'][level][to_low]
-                        req_mem_bw[operand].append([req_mem_bw_L])
-
-                        req_mem_bw_L_bit = 2 * req_aver_bw_bit['O'][level][to_low]
-                        req_mem_bw_bit[operand].append([req_mem_bw_L_bit])
-
-                    else:
-                        ''' if the lowest level of memory is dual-port (wi/wo double buffering), 
-                        required bw has no need to double. '''
-                        req_mem_bw_L = req_aver_bw['O'][level][to_low]
-                        req_mem_bw[operand].append([req_mem_bw_L])
-
-                        req_mem_bw_L_bit = req_aver_bw_bit['O'][level][to_low]
-                        req_mem_bw_bit[operand].append([req_mem_bw_L_bit])
 
                 else:
                     ''' consider the current level of memory talking to the below level of memory '''
@@ -636,6 +636,9 @@ class Utilization(object):
         data_block_bl_bit: data block transferred at the below edge (current level mem talks to the below level mem).
         data_block_al_bit: data block transferred at the above edge (current level mem talks to the above level mem).
         '''
+        if req_mem_bw_bit['O_raw'][0].__len__() == 1:
+            req_mem_bw_bit['O_raw'][0].insert(0,0)
+        print(req_mem_bw_bit)
         for lv, bw_list in enumerate(req_mem_bw_bit['O_raw']):
             if lv == 0:
                 # psum at level 0 for sure.
@@ -644,7 +647,6 @@ class Utilization(object):
                                trans_time['O'][lv][duration]) * \
                               temporal_loop.total_cycles / trans_time['O'][lv][period]
                 stall_cc['O'].append([stall_cc_bl])
-
                 data_block_al_bit = bw_list[1] * trans_time['O'][lv + 1][duration]
                 if mem_size_bit['O'][lv] <= precision['O'] or mem_type['O'][lv] == 3:
                     # only can store one psum / dual-port double buffering, no need to use residual BW.

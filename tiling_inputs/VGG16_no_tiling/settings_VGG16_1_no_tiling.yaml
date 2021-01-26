@@ -1,0 +1,20 @@
+architecture_search_multiprocessing: 100
+fixed_architecture: true
+fixed_spatial_unrolling: false
+fixed_temporal_mapping: false
+im2col_enable: false
+layer_filename: ./NN_layers/VGG16
+layer_indices:
+- 1
+layer_multiprocessing: 100
+result_filename: VGG16_no_tiling
+result_path: ./results
+result_print_mode: complete
+save_all_architecture_result: true
+save_all_spatial_unrolling_result: true
+save_all_temporal_mapping_result: false
+spatial_unrolling_multiprocessing: 100
+spatial_unrolling_search_method: hint_driven
+spatial_utilization_threshold: 0.9
+temporal_mapping_multiprocessing: 100
+temporal_mapping_search_method: exhaustive

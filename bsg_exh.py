@@ -353,7 +353,7 @@ def loop_order_combinations_stationary(LPF_scheme):
     finished = False
     tmp_LPF_scheme = copy.deepcopy(LPF_scheme)
     lo_ok = True
-    operand_irrelevant = {'W': [3, 4, 7], 'I': [6], 'O': [1, 2, 5]}
+    operand_irrelevant = {'W' : [3, 4, 7], 'I' : [6], 'O' : [1, 2, 5]}
     length_bs = {
         'W': len(LPF_scheme['W']),
         'I': len(LPF_scheme['I']),
@@ -380,20 +380,19 @@ def loop_order_combinations_stationary(LPF_scheme):
             min_virtual_roof = 0
         else:
             try:
-                min_virtual_roof = min(
-                    [len(tmp_LPF_scheme['W'][0]), len(tmp_LPF_scheme['I'][0]), len(tmp_LPF_scheme['O'][0])])
+                min_virtual_roof = min([len(tmp_LPF_scheme[op][0]) for op in tmp_LPF_scheme])
             except IndexError:
-                print('tmp_LPF_scheme', tmp_LPF_scheme)
+                print(tmp_LPF_scheme)
                 min_virtual_roof = 0
         min_virtual_roof_list = []
 
-        for operand in ['W', 'I', 'O']:
+        for operand in tmp_LPF_scheme:
             if tmp_LPF_scheme[operand]:
                 if len(tmp_LPF_scheme[operand][0]) == min_virtual_roof:
                     min_virtual_roof_list.append([operand, len(tmp_LPF_scheme[operand][0])])
         virtual_level = copy.deepcopy(tmp_LPF_scheme[min_virtual_roof_list[0][0]][0])
 
-        for operand in ['W', 'I', 'O']:
+        for operand in tmp_LPF_scheme:
             for pf in virtual_level:
                 try:
                     tmp_LPF_scheme[operand][0].remove(pf)
@@ -412,55 +411,24 @@ def loop_order_combinations_stationary(LPF_scheme):
                 c = np.prod([x[1] for x in virtual_level if x[0] == pf[0]])
                 tmp_virtual_level.append(tuple([pf[0], c]))
 
+
+
         bs_old = copy.deepcopy(bs_next)
         bs_next = []
-        if tmp_virtual_level == []:
-            tmp_bs = copy.deepcopy(bs_old[0])
-            bs_next.append(tmp_bs)
-            for op in ['W', 'I', 'O']:
-                if op in [opx[0] for opx in min_virtual_roof_list]:
-                    if len(tmp_bs[op]) != length_bs[op]:
-                        tmp_bs[op].append([])
-        else:
-            tmp_virtual_level_aux = copy.deepcopy(tmp_virtual_level)
-            tmp_virtual_level_rel = {
-                'W': [lpf for lpf in tmp_virtual_level_aux if lpf[0] not in operand_irrelevant['W']],
-                'I': [lpf for lpf in tmp_virtual_level_aux if lpf[0] not in operand_irrelevant['I']],
-                'O': [lpf for lpf in tmp_virtual_level_aux if lpf[0] not in operand_irrelevant['O']]}
-            operand_short_cut = None
+        for bs in bs_old:
             for operand in ['W', 'I', 'O']:
-                if not tmp_virtual_level_rel[operand]:
-                    operand_short_cut = operand
-                    break
-            for bs in bs_old:
-                # --- shortcut for fully permutation when all loop sets at current vm level are ir for one operand.
-                if operand_short_cut:
-                    tmp_virtual_level_irrel = tmp_virtual_level_aux
-                    virtual_level_irrel_perm = list(permutations(tmp_virtual_level_irrel))
-                    for vl in virtual_level_irrel_perm:
-                        tmp_bs = copy.deepcopy(bs)
-                        for op in ['W', 'I', 'O']:
-                            tmp_bs[op][len(bs[op]) - 1] += list(vl)
-                            if op in [opx[0] for opx in min_virtual_roof_list]:
-                                if len(tmp_bs[op]) != length_bs[op]:
-                                    tmp_bs[op].append([])
-                        if tmp_bs not in bs_next:
-                            bs_next.append(tmp_bs)
-                # ------------------------------------------------------------------------------------------------
-                else:
-                    for operand in ['W', 'I', 'O']:
-                        tmp_virtual_level_irrel = [lpf for lpf in tmp_virtual_level_aux if
-                                                   lpf[0] in operand_irrelevant[operand]]
-                        virtual_level_irrel_perm = list(permutations(tmp_virtual_level_irrel))
-                        for vl in virtual_level_irrel_perm:
-                            tmp_bs = copy.deepcopy(bs)
-                            for op in ['W', 'I', 'O']:
-                                tmp_bs[op][len(bs[op]) - 1] += list(vl) + tmp_virtual_level_rel[operand]
-                                if op in [opx[0] for opx in min_virtual_roof_list]:
-                                    if len(tmp_bs[op]) != length_bs[op]:
-                                        tmp_bs[op].append([])
-                            if tmp_bs not in bs_next:
-                                bs_next.append(tmp_bs)
+                tmp_virtual_level_aux = copy.deepcopy(tmp_virtual_level)
+                tmp_virtual_level_irrel = [lpf for lpf in tmp_virtual_level_aux if lpf[0] in operand_irrelevant[operand]]
+                tmp_virtual_level_aux = [lpf for lpf in tmp_virtual_level_aux if lpf[0] not in operand_irrelevant[operand]]
+                virtual_level_irrel_perm = list(permutations(tmp_virtual_level_irrel))
+                for vl in virtual_level_irrel_perm:
+                    tmp_bs = copy.deepcopy(bs)
+                    for op in ['W', 'I', 'O']:
+                        tmp_bs[op][len(bs[op]) - 1] += list(vl) + tmp_virtual_level_aux
+                        if op in [opx[0] for opx in min_virtual_roof_list]:
+                            if len(tmp_bs[op]) != length_bs[op]:
+                                tmp_bs[op].append([])
+                    bs_next.append(tmp_bs)
 
         # Remove the virtual level from tmp_LPF_scheme
         for operand in tmp_LPF_scheme:
@@ -468,14 +436,17 @@ def loop_order_combinations_stationary(LPF_scheme):
                 if not tmp_LPF_scheme[operand][0]:
                     tmp_LPF_scheme[operand].remove(tmp_LPF_scheme[operand][0])
 
+
+
+
         # The assignement process of different virtual levels terminates when tmp_LPF_scheme is an empty scheme,
         # having had all its virtual levels removed in previous iterations
-        if tmp_LPF_scheme['W'] or tmp_LPF_scheme['I'] or tmp_LPF_scheme['O']:
-            finished = False
-        else:
+        if all(not tmp_LPF_scheme[op] for op in tmp_LPF_scheme):
             finished = True
-
-    return lo_ok, bs_next
+    bs_hash_table = []
+    for bs in bs_next:
+        bs_hash_table.append(str(hash(tuple(tuple(x) for x in bs['W'])))+str(hash(tuple(tuple(x) for x in bs['I'])))+str(hash(tuple(tuple(x) for x in bs['O']))))
+    return lo_ok, bs_next , bs_hash_table
 
 
 def loop_order_combinations_exhaustive(blocking_scheme):
@@ -613,8 +584,6 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
         'I': []
     }
 
-    m_size = max([len(mem_size['I']), len(mem_size['W']), len(mem_size['O'])])
-
     # Auxiliary term that stores the temporary roof values.
     # For each operand it is defined to what memory level the roof belongs and how much space is still left to be assigned
     # 'operand' : [memory_level, roof_value]
@@ -695,13 +664,13 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
         # The cleaner eliminates duplicate partial schemes
         clean_LPF_schemes_list = su.cleaner(next_partial_LPF_schemes_list)
         # The following if condition checks whether the previous assignment step was unsuccessful.
-        # If one (originally three) consecutive LPF assignments are unsuccessful, the assignment process is terminated (finished = True),
-        # and only those schemes that are finished (leaf.over == True) are considered for successive loop ordering step
+        # If three consecutive LPF assignments are unsuccessful the assignement process is terminated (finished = True),
+        # and only those schemes that are finished (leaf.over == True) are considered for successive reordering
         if clean_LPF_schemes_list:
             if all(any(old_node == node for old_node in old_clean_LPF_schemes_list) for node in
                    clean_LPF_schemes_list):
                 rep += 1
-                if rep == 1:  # rep == 3
+                if rep == 3:
                     final_LPF_schemes_list = [bn for bn in clean_LPF_schemes_list if bn.leaf_over == True]
                     # if not final_LPF_schemes_list:
                     # print('no fitting found!')
@@ -722,7 +691,8 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
 
         partial_LPF_schemes_list = copy.deepcopy(clean_LPF_schemes_list)
         next_partial_LPF_schemes_list = []
-        # partial_LPF_schemes_list is a copy of the cleaned list of partial schemes obtained from previous assignments.
+        finished_lpf_scheme = 0
+        # partial_LPF_schemes_list is a copy of the cleaned list of partial schemes obtained from previous assignements.
         # Each partial scheme is analyzed *individually*: a set of fitting LPF combinations will be found that can be stacked
         # for each partial scheme. Each of these sets will contribute to a new partial scheme, that will be appended to
         # next_partial_LPF_schemes_list
@@ -742,6 +712,7 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
 
             r_op, r_lev = roof.keys(), roof.values()
             r_lev, r_size = zip(*r_lev)
+            m_size = max([len(mem_size['I']), len(mem_size['W']), len(mem_size['O'])])
 
             min_roof_aux = ['', m_size, max(r_size)]
             tmp_min_roof = ['', m_size, max(r_size)]
@@ -753,12 +724,12 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
             # EG between W : [0, 5] and I : [0, 2] the min roof will be the 'I' one, since it has less blockings space available
             min_roof_list = []
             for operand in roof:
-                if any((roof[roof_op][0] < roof[operand][0]) for roof_op in roof) and \
-                        not all([roof[opx][0] == len(mem_size[opx]) - 1 for opx in ['W', 'I', 'O']]):
+                if any((roof[roof_op][0] < roof[operand][0]) for roof_op in
+                       roof) and not all([roof[opx][0] == len(mem_size[opx]) - 1 for opx in ['W', 'I', 'O']]):
                     if roof[operand][0] == (len(mem_size[operand]) - 1):
                         continue
-                if (roof[operand][0] == (len(mem_size[operand]) - 1) and
-                        (roof[operand][1] == 1 or roof[operand][1] == 0)):
+                if (roof[operand][0] == (len(mem_size[operand]) - 1) and (
+                        roof[operand][1] == 1 or roof[operand][1] == 0)):
                     continue
                 else:
                     if roof[operand][1] <= min_roof_aux[2]:
@@ -772,12 +743,11 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
                     tmp_min_roof[1] = roof[operand][0]
                     tmp_min_roof[2] = roof[operand][1]
                     min_roof_list.append(tmp_min_roof)
-
             mr_list_operand = [mr[0] for mr in min_roof_list]
 
             # The assignment process is carried out for *each min roof separately*
             # Each min roof will have a different set of
-            for min_roof in reversed(min_roof_list):
+            for min_roof in min_roof_list:
                 # Check if min roof belongs to a shared level of memory. If so, create a list with all shared memory levels related to min roof
                 shared_min_roof_levels = [tuple([min_roof[0], min_roof[1]])]
                 for shared_set in mem_share:
@@ -808,29 +778,71 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
                 # 2. For each combination generated check if they fit within the roof (check_comb_fit function)
                 # 3. If they fit, append the combination to fitting_combination
 
-                for k in k_range:
-                    tmp_comb = combinations(loop_blocks, k)
-                    comb = []
-                    for x in tmp_comb:
-                        if sorted(x) not in comb:
-                            comb.append(sorted(x))
-                    mlft = len(fitting_combination)
-                    for j in range(0, len(comb)):
-                        is_fit = True
-                        for r in roof_list:
-                            is_min_roof = False
-                            if r[0] == min_roof[0]: # in mr_list_operand:
-                                is_min_roof = True
-                            is_fit = su.check_comb_fit(LPF_scheme, spatial_unrolling, comb[j], r, mem_size, mem_share,
-                                                       utilization_rate, precision, operand_irrelevant, is_min_roof,
+
+
+                
+                # for k in k_range:
+                #     tmp_comb = combinations(loop_blocks, k)
+                #     comb = []
+                #     for x in tmp_comb:
+                #         if sorted(x) not in comb:
+                #             comb.append(sorted(x))
+                #     mlft = len(fitting_combination)
+                #     for j in range(0, len(comb)):
+                #         is_fit = True
+                #         for r in roof_list:
+                #             is_min_roof = False
+                #             if r[0] in mr_list_operand:
+                #                 is_min_roof = True
+                #             is_fit = su.check_comb_fit(LPF_scheme, spatial_unrolling, comb[j], r, mem_size, mem_share,
+                #                                        utilization_rate, precision, operand_irrelevant, is_min_roof,
+                #                                        layer_loop_info)
+                #             if not is_fit:
+                #                 break
+                #         if not is_fit:
+                #             continue
+                #         fitting_combination.append(comb[j])
+                #     if len(fitting_combination) > 0 and len(fitting_combination) == mlft:
+                #         break
+
+
+
+                ur = copy.deepcopy(utilization_rate)
+                # xx = True
+
+                while (not fitting_combination) and (ur[min_roof[0]][min_roof[1]]>0.001):
+                    for k in k_range:
+                        tmp_comb = combinations(loop_blocks, k)
+                        comb = []
+                        for x in tmp_comb:
+                            if sorted(x) not in comb:
+                                comb.append(sorted(x))
+                        mlft = len(fitting_combination)
+                        for j in range(0, len(comb)):
+                            is_fit = True
+                            for r in roof_list:
+                                is_min_roof = False
+                                if r[0] == min_roof[0]:#in mr_list_operand:
+                                    is_min_roof = True
+                                is_fit = su.check_comb_fit(LPF_scheme, spatial_unrolling, comb[j], r, mem_size, mem_share,
+                                                       ur, precision, operand_irrelevant, is_min_roof,
                                                        layer_loop_info)
+                                if not is_fit:
+                                    break
                             if not is_fit:
-                                break
-                        if not is_fit:
-                            continue
-                        fitting_combination.append(comb[j])
-                    if len(fitting_combination) > 0 and len(fitting_combination) == mlft:
-                        break
+                                continue
+                            fitting_combination.append(comb[j])
+                        if len(fitting_combination) > 0 and len(fitting_combination) == mlft:
+                            break
+                    if not fitting_combination:
+                        ur[min_roof[0]][min_roof[1]] *= 0.8
+                            # print('USED UTIL.RATE',ur)
+                    #else:
+                    break
+                        
+
+
+
 
                 # Clean up all duplicate combinations from fitting_combination (order is not important yet)
                 # The sanitized list of fitting combinations of LPF within the roof is contained in min_list_fitting_combinations
@@ -854,7 +866,7 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
 
                     # No need to update loops_pf
                     new_loops_pf = copy.deepcopy(loops_pf)
-                    # tt = sum([len(x) for x in new_loops_pf.values()])
+                    tt = sum([len(x) for x in new_loops_pf.values()])
 
                     # Update roof level of current min_roof.
                     # If min roof is shared, go one memory level up for all roofs that are shared with min_roof
@@ -893,7 +905,7 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
                         for i in range(0, len(min_list_fitting_combinations[k])):
                             new_loops_pf[min_list_fitting_combinations[k][i][0]].remove(
                                 min_list_fitting_combinations[k][i][1])
-                        # tt = sum([len(x) for x in new_loops_pf.values()])
+                        tt = sum([len(x) for x in new_loops_pf.values()])
 
                         # Set temporary roof with selected fitting combination
                         # This temporary roof is only used for updating the level in the min roof
@@ -934,12 +946,14 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
                             over = False
                             if all(new_loops_pf[loop_types] == [] for loop_types in new_loops_pf):
                                 over = True
+                                finished_lpf_scheme += 1
+                            if over:
                                 blocking_node.set_leaf_over()
                             next_partial_LPF_schemes_list.append(blocking_node)
                         else:
                             # No need to update loops_pf
                             new_loops_pf = copy.deepcopy(loops_pf)
-                            # tt = sum([len(x) for x in new_loops_pf.values()])
+                            tt = sum([len(x) for x in new_loops_pf.values()])
 
                             # Update roof level of current min_roof.
                             # If min roof is shared, go one memory level up for all roofs that are shared with min_roof
@@ -986,18 +1000,24 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
         list_LPF_schemes = data_reuse_cleanup(layer_loop_info, list_LPF_schemes, spatial_unrolling, mem_size, precision)
         # print('\n  |-> drc: ', len(list_LPF_schemes),'/',len(list_scheme_nodes))
 
-    # print('Loop blocking finished. Loop ordering starts.')
     total = []
+    total_hash_table = []
     for ii_bs, bs in enumerate(list_LPF_schemes):
-        # print('\r  |-> ordering: ', ii_bs, '/', len(list_LPF_schemes), end='', flush=True)
+        print('\r  |-> ordering: ', ii_bs, '/', len(list_LPF_schemes), end='', flush=True)
+            
         if stationary_enable is True:
-            lo_ok, lo = loop_order_combinations_stationary(bs)
+            lo_ok, lo, lo_hash = loop_order_combinations_stationary(bs)
             # lo_ok, lo = loop_order_combinations_stationary_v2(bs)
         else:
             lo_ok, lo = loop_order_combinations_exhaustive(bs)
+        # if lo_ok:
+        #     total.extend(lo)
         if lo_ok:
-            total.extend(lo)
-    # print('  |-> loop order combinations: ', len(total))
+            for ii_tl, tl in enumerate(lo):
+                if lo_hash[ii_tl] not in total_hash_table:
+                    total += [tl]
+                    total_hash_table += [lo_hash[ii_tl]]
+    print('  |-> loop order combinations: ', len(total))
     return (total)
 
 
@@ -1135,6 +1155,7 @@ def bsg_fixed_order(loop_order, mem_size, mem_share, precision, utilization_rate
 
         partial_LPF_schemes_list = copy.deepcopy(clean_LPF_schemes_list)
         next_partial_LPF_schemes_list = []
+        finished_lpf_scheme = 0
         # partial_LPF_schemes_list is a copy of the cleaned list of partial schemes obtained from previous assignements.
         # Each partial scheme is analyzed *individually*: a set of fitting LPF combinations will be found that can be stacked
         # for each partial scheme. Each of these sets will contribute to a new partial scheme, that will be appended to
@@ -1367,6 +1388,7 @@ def bsg_fixed_order(loop_order, mem_size, mem_share, precision, utilization_rate
                             over = False
                             if all(new_loops_pf[loop_types] == [] for loop_types in new_loops_pf):
                                 over = True
+                                finished_lpf_scheme += 1
                             if over:
                                 blocking_node.set_leaf_over()
                             next_partial_LPF_schemes_list.append(blocking_node)

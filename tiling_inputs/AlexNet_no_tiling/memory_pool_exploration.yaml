@@ -1,0 +1,99 @@
+sram1kb:
+  size_bit: 10000000000
+  area: [3584]
+  cost:
+    read_word: [0.363]
+    write_word: [0.382]
+  mem_bw: [128]
+  mem_type: dual_port_single_buffered
+  utilization_rate: 0.7
+
+sram2kb:
+  size_bit: 10000000000
+  area: [6315]
+  cost:
+    read_word: [0.521]
+    write_word: [0.545]
+  mem_bw: [128]
+  mem_type: dual_port_single_buffered
+  utilization_rate: 0.7
+
+sram4kb:
+  size_bit: 10000000000
+  area: [10298]
+  cost:
+    read_word: [0.678]
+    write_word: [0.729]
+  mem_bw: [128]
+  mem_type: dual_port_single_buffered
+  utilization_rate: 0.7
+
+sram8kb:
+  size_bit: 10000000000
+  area: [20037]
+  cost:
+    read_word: [1.076]
+    write_word: [1.088]
+  mem_bw: [128]
+  mem_type: dual_port_single_buffered
+  utilization_rate: 0.7
+
+sram16kb:
+  size_bit: 10000000000
+  area: [35046]
+  cost:
+    read_word: [1.455]
+    write_word: [1.485]
+  mem_bw: [128]
+  mem_type: dual_port_single_buffered
+  utilization_rate: 0.7
+
+sram32kb:
+  size_bit: 10000000000
+  area: [64909]
+  cost:
+    read_word: [2.273]
+    write_word: [2.149]
+  mem_bw: [128]
+  mem_type: dual_port_single_buffered
+  utilization_rate: 0.7
+
+sram64kb:
+  size_bit: 10000000000
+  area: [229117]
+  cost:
+    read_word: [3.169]
+    write_word: [2.932]
+  mem_bw: [128]
+  mem_type: dual_port_single_buffered
+  utilization_rate: 0.7
+
+sram128kb:
+  size_bit: 10000000000
+  area: [229117]
+  cost:
+    read_word: [5.2]
+    write_word: [4.354]
+  mem_bw: [128]
+  mem_type: dual_port_single_buffered
+  utilization_rate: 0.7
+
+sram1Mb:
+  size_bit: 10000000000
+  area: [229117]
+  cost:
+    read_word: [15.41]
+    write_word: [13.32]
+  mem_bw: [128]
+  mem_type: dual_port_single_buffered
+  utilization_rate: 0.7
+
+offchip:
+  size_bit: 10000000000
+  area: [229117]
+  cost:
+    read_word: [128]
+    write_word: [128]
+  mem_bw: [128]
+  mem_type: dual_port_single_buffered
+  utilization_rate: 0.7

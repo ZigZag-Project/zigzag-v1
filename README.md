@@ -1,19 +1,18 @@
 # ZigZag
 A memory-centric rapid DNN accelerator design space exploration framework.
-
 Paper link: https://arxiv.org/abs/2007.11360
 
 ## Functions of ZigZag
-**Supported Mode**|**Function**|**Memory Scheme Search**|**Spatial Unrolling Search**|**Temporal Mapping Search**|**Cost Estimation**
-:-----:|:-----:|:-----:|:-----:|:-----:|:-----:
+**Mode**|**Function**|**Memory Scheme Search**|**Spatial Unrolling Search**|**Temporal Mapping Search**|**Cost Estimation**|**Comment**
+:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:
 1|Hardware Cost Evaluation|No|No|No|Yes|Publicly released
-2|Find the best Temporal Mapping (minimize energy or maximize throughput) for a single NN layer|No|No|Yes|Yes
-3|Find the best Spatial Unrolling and the best Temporal Mapping  for a single NN layer|No|Yes|Yes|Yes
-4|Find the best Memory Scheme with fixed Spatial Unrolling for a single NN layer|Yes|No|Yes|Yes
-5|Find the best Memory Scheme with the best Spatial Unrolling for a single NN layer|Yes|Yes|Yes|Yes
-6|Find the best Spatial Unrolling for multiple NN layers (could be a complete NN or multiple NNs)|No|Yes|Yes|Yes
-7|Find the best Memory Scheme with fixed Spatial Unrolling for multiple NN layers (could be a complete NN or multiple NNs)|Yes|No|Yes|Yes
-8|Find the best Memory Scheme with the best Spatial Unrolling for multiple NN layers (could be a complete NN or multiple NNs)|Yes|Yes|Yes|Yes
+2|Find the best Temporal Mapping (minimize energy or maximize throughput) for a single NN layer|No|No|Yes|Yes|Publicly released
+3|Find the best Spatial Unrolling and the best Temporal Mapping  for a single NN layer|No|Yes|Yes|Yes|Publicly released
+4|Find the best Memory Scheme with fixed Spatial Unrolling for a single NN layer|Yes|No|Yes|Yes|Publicly released
+5|Find the best Memory Scheme with the best Spatial Unrolling for a single NN layer|Yes|Yes|Yes|Yes|Publicly released
+6|Find the best Spatial Unrolling for multiple NN layers (could be a complete NN or multiple NNs)|No|Yes|Yes|Yes|Not released yet
+7|Find the best Memory Scheme with fixed Spatial Unrolling for multiple NN layers (could be a complete NN or multiple NNs)|Yes|No|Yes|Yes|Not released yet
+8|Find the best Memory Scheme with the best Spatial Unrolling for multiple NN layers (could be a complete NN or multiple NNs)|Yes|Yes|Yes|Yes|Not released yet
 ## Quickstart
 To run the framework
 ```
@@ -32,7 +31,7 @@ In the example provided a single cost estimation is carried out for the inferenc
 
 In the settings file (``inputs/settings.yaml``) the architecture and the mapping of the dataflow are fixed. (``fixed_architecture``, ``fixed_spatial_mapping`` and ``fixed_temporal_mapping`` are all set to ``True``).
 
-The architecture specs are defined in ``inputs/architecture.yaml`` while the mapping specs are define in ``inputs/mapping.yaml``. For more info on how these specifications are set, refer to [Input setting parameters](https://github.com/ZigZag-Project/zigzag/blob/master/inputs/README.md).
+The architecture specs are defined in ``inputs/architecture.yaml`` while the mapping specs are define in ``inputs/mapping.yaml``. For more info on how these specifications are set, refer to [Input setting parameters](inputs/README.md).
 
 The cost estimation can be run with:
 ```python3 top_module.py --arch ./inputs/architecture.yaml --map ./inputs/mapping.yaml --set ./inputs/settings.yaml --mempool ./inputs/memory_pool.yaml```
@@ -64,15 +63,15 @@ Ther architecture exploration can be then run with:
 
 ### Input settings parameters
 
-Please refer to [Input setting parameters](https://github.com/ZigZag-Project/zigzag/blob/master/inputs/README.md)
+Please refer to [Input setting parameters](inputs/README.md)
 
 ### Output file data format
-Please refer to [Example result files](https://github.com/ZigZag-Project/zigzag/blob/master/example_result_file)
+Please refer to [Example result files](example_result_file)
 
 ### Console information
 While the tool is running, it prints some useful information on the console. Understand this information helps user to to better understand and control the DSE flow.
 
-Please refer to [Console information](https://github.com/ZigZag-Project/zigzag/blob/master/example_result_file/console_info/README.md)
+Please refer to [Console information](example_result_file/console_info/README.md)
 
 
 ***

@@ -1,0 +1,62 @@
+CHIP_memory_depth: 2
+L1_size:
+- 65536
+- 524288
+L2_size:
+- 1048576
+- 4194304
+PE_array:
+  Col: 256
+  Row: 1152
+PE_memory_depth: 2
+PE_threshold: 3000
+area_max: 3.5e6
+area_utilization: 0.75
+banking:
+- 1
+- 4
+computing_core: digital
+imc_ADC_cost: 0.31
+imc_DAC_cost: 0.155
+imc_act_line_cap: 0.00067
+imc_act_line_v: 0.8
+imc_n_act_serial: 8
+imc_sum_line_cap: 0.000615
+imc_sum_line_v: 0.6
+imc_utilization_rate_array: 0.8
+imc_vdd: 0.8
+imc_write_cost_cell: 0.455
+mac_array_stall:
+  systolic: 1
+mem_ratio: 8
+memory_hierarchy:
+  buf_input:
+    memory_instance: sram16kb
+    memory_unroll: 1
+    operand_stored:
+    - I
+  buf_output:
+    memory_instance: sram32kb
+    memory_unroll: 1
+    operand_stored:
+    - O
+  offchip_weight:
+    memory_instance: offchip
+    memory_unroll: 1
+    operand_stored:
+    - W
+memory_hint:
+  sramx:
+    memory_instance: sram16Mb
+    memory_unroll: 1
+    operand_stored:
+    - O
+    - I
+    - W
+precision:
+  I: 8
+  O_final: 8
+  O_partial: 8
+  W: 2
+single_mac_energy_active: 0.06
+single_mac_energy_idle: 0.005

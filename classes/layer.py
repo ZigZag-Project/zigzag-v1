@@ -53,6 +53,8 @@ class Layer(object):
                                 'I': B * C * self.IY * self.IX,
                                 'O': B * K * OY * OX}
 
+
+
         '''
         total_data_reuse: the total data reuse possibility for each element in W/I/O.
 
@@ -95,6 +97,7 @@ class Layer(object):
             return self.size_list == other.size_list
         return NotImplemented
 
+
     def set_duplicate(self, other_layer_number):
         """
         Set the layer as a duplicate layer.
@@ -105,11 +108,9 @@ class Layer(object):
 
     @classmethod
     def extract_layer_info(cls, info):
+
         return cls(info["B"],
-                   info["K"], info["C"],
-                   info["OY"], info["OX"],
-                   info["FY"], info["FX"],
-                   info["SY"], info["SX"],
-                   info["SFY"], info["SFX"],
-                   info["PY"], info["PX"],
-                   G=info.get("G", 1))
+                info["K"], info["C"],
+                info["OY"], info["OX"],
+                info["FY"], info["FX"],
+                G=info.get("G", 1))

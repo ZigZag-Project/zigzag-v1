@@ -3,8 +3,7 @@ import sys, time
 
 class MultiManager(object):
 
-    def __init__(self, input_settings, mem_scheme_sim, layer_spec, layers, layer_info_im2col, layers_im2col,
-                 pw_im2col_flag):
+    def __init__(self, input_settings, mem_scheme_sim, layer_spec, layers, layer_info_im2col, layers_im2col):
 
         self.start_time = time.time()
 
@@ -14,7 +13,6 @@ class MultiManager(object):
         self.layer_spec = layer_spec
         self.layer_info_im2col = layer_info_im2col
         self.layers_im2col = layers_im2col
-        self.pw_im2col_flag = pw_im2col_flag
         self.greedy_mapping_flag = []
         self.footer_info = []
 

@@ -7,8 +7,6 @@ result_filename : AlexNet
 # 'concise' for printing the basic information for each optimal design point found, i.e. energy and performance.
 # 'complete' for printing all detailed information for each optimal design point found for in-depth analysis.
 result_print_mode : complete
-# type of output file to generate : yaml or xml
-result_print_type : xml
 
 # SEARCH SETTINGS
 # 'False' for searching the corresponding space.
@@ -24,10 +22,9 @@ save_all_spatial_unrolling_result : True
 save_all_temporal_mapping_result : False
 
 # WORKLOAD
-# layer_indices can be a single-element list or a multiple-element list or ALL.
+# layer_indices can be a single-element list or a multiple-element list.
 layer_filename : './NN_layers/AlexNet'
-layer_indices : [3,4,5]
-# layer_indices : ALL
+layer_indices : [4]
 
 # MULTIPROCESSING
 # run the framework in multiprocessing mode to speedup the search procedure.
@@ -42,8 +39,8 @@ temporal_mapping_search_method : heuristic_v1
 
 # SPATIAL MAPPING GENERATOR SETTINGS
 # search method : exhaustive / heuristic_v1 / heuristic_v2 / hint_driven / greedy_mapping_with_hint / greedy_mapping_without_hint
-# If 'hint_driven' or 'greedy_mapping_with_hint' is chosen, 'spatial_mapping_list' in the mapping.yaml file will be used.
-# Greedy mapping allows MAC array to be always fully utilized except for the last time,
+# If 'hint_driven' or 'greedy_mapping_with_hint' is chosen, 'spatial_mapping_list' in the mapping file will be used.
+# Greedy mapping allows MAC array to be always fully utilized except the last time,
   # e.g. to map (C,10) on a row of 8 PEs, without greedy mapping enabled, the tool will map (C,5), (C,5);
   # with greedy mapping enabled, it will map (C,8), (C,2).
 spatial_unrolling_search_method : hint_driven
@@ -54,10 +51,5 @@ spatial_utilization_threshold : 0.9
 # Input  matrix [B|OY|OX, C|FY|FX]
 # Output matrix [K,       B|OY|OX]
 # Process convolution as matrix-matrix multiplication.
-# For pointwise layers (FX=FY=1), im2col transfer can speedup mapping search process without losing results' optimality.
-# For non-pointwise layers, im2col transfer can speedup mapping search process but with overhead
-  # that input figure map needs to be repetitively stored/accessed in the memory.
-# Set im2col_enable_for_all_layers True will auto apply in2col transfer to all the NN layers under test.
-# Set im2col_enable_for_pointwise_layers True will auto apply in2col transfer to all the pointwise NN layers under test.
-im2col_enable_for_all_layers : False
-im2col_enable_for_pointwise_layers : True
+im2col_enable : False
+

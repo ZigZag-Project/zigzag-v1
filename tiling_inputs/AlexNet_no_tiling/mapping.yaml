@@ -1,0 +1,45 @@
+# FIXED TEMPORAL MAPPING (if doing temporal mapping search, the below user-defined temporal mapping will be ignored.)
+temporal_mapping_fixed:
+  weight:
+    rf_weight: [[FX,3],[C,3],[K,16]]
+    top_sram: [[OX,13],[C,32],[K,2], [K,6]]
+  input:
+    rf_input: [[FX,3],[C,3],[K,16]]
+    global_buffer: [[OX,13],[C,32],[K,2]]
+    top_sram: [[K,6]]
+  output:
+    rf_psum: [[FX,3],[C,3],[K,16]]
+    global_buffer: [[OX,13],[C,32],[K,2]]
+    top_sram: [[K,6]]
+
+# FIXED SPATIAL MAPPING (if doing spatial mapping search, the below user-defined spatial mapping will be ignored.)
+# Numbers 0, 1, (2) below indicate different memory levels.
+# In this example, for weight, there are MAC level, the 0th memory level (rf_weight), and the 1st memory level (top_sram),
+# the spatial unrolling happens at 0th memory level (rf_weight) and below (MAC level).
+spatial_mapping_fixed:
+  weight:
+    MAC: []
+    0:
+      Col: [[OY,13]]
+      Row: [[FY,3],[C,2],[K,2]]
+    1: []
+  input:
+    MAC: []
+    0:
+      Col: [[OY,13]]
+      Row: [[FY,3],[C,2],[K,2]]
+    1: []
+    2: []
+  output:
+    MAC: []
+    0:
+      Col: [[OY,13]]
+      Row: [[FY,3],[C,2],[K,2]]
+    1: []
+    2: []
+
+# SPATIAL MAPPING HINT LIST
+# used as hint if 'hint_driven' spatial_unrolling_search_method is chosen in the setting file.
+spatial_mapping_list: [
+  [Col : [K], Row : [FX,FY,C]]
+]

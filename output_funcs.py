@@ -9,22 +9,7 @@ from copy import deepcopy
 from pathlib import Path
 from datetime import datetime
 import classes as cls
-from im2col_funcs import pw_layer_col2im
 import time
-
-# Standard library
-from typing import Dict, Any    # Used for type hints
-import json # Used to create the output YAML file
-
-# External imports
-import numpy as np  # Used to get access to numpy types in yaml_compatible
-
-# Internal imports
-from classes.layer import Layer # Used for print_yaml
-from input_funcs import InputSettings   # Used for print_yaml
-from msg import MemoryScheme # Used for print_yaml
-
-
 
 Qt = QtCore.Qt
 
@@ -177,7 +162,10 @@ def spatial_loop_same_term_merge(unrolling, flooring):
                 for XY_idx, XY_list in enumerate(level_list):
                     spatial_list[operand][-1].append([])
                     for va in XY_list:
-                        spatial_list[operand][-1][-1].append(list(unrolling[operand][level].pop(0)))
+                        try:
+                            spatial_list[operand][-1][-1].append(list(unrolling[operand][level].pop(0)))
+                        except:
+                            a=1
 
     spatial_list_clean = deepcopy(spatial_list)
     for operand in ['W', 'I', 'O']:
@@ -381,7 +369,7 @@ def print_good_su_format(su, mem_name, file_path_name):
             su_block = modify_printing_block(su_block, 2 * (i + 1) + 1 + 12, 0, '-' * tot_col)
 
         su_block = modify_printing_block(su_block, finish_row + 2, 1,
-                                         "(Notes: Unrolled loops' order doesn't matter; D1 and D2 are PE "
+                                         "(Notes: Unrolled loops' order doesn't matters; D1 and D2 are PE "
                                          "array's two geometric dimensions. )")
         # print mem name to each level
         XY_name = {0: 'D1', 1: 'D2'}
@@ -456,7 +444,7 @@ def print_good_su_format(su, mem_name, file_path_name):
             su_block = modify_printing_block(su_block, 2 * (i + 1) + 1 + 12, 0, '-' * tot_col)
 
         su_block = modify_printing_block(su_block, finish_row + 2, 1,
-                                         "(Notes: Unrolled loops' order doesn't matter; D1 and D2 are PE "
+                                         "(Notes: Unrolled loops' order doesn't matters; D1 and D2 are PE "
                                          "array's two geometric dimensions. )")
         # print mem name to each level
         XY_name = {0: 'D1', 1: 'D2'}
@@ -495,121 +483,6 @@ def print_good_su_format(su, mem_name, file_path_name):
     print_printing_block(file_path_name, su_block, 'w+')
 
 
-def handle_grouped_convolutions(
-    layer_specification: Layer, cost_model_output: "CostModelOutput", 
-    ) -> Any:
-    """
-    Corrects various values to account for the grouped convolutions.
-
-    Arguments
-    =========
-     - layer_specification: A description of the input layer that ZigZag has
-        optimized.
-     - cost_model_output: The cost computed by ZigZag for running the given
-        layer on the hardware.
-
-    Returns
-    =======
-    A tuple of 17 elements, in order:
-     - size_list_output_print,
-     - total_MAC_op_number,
-     - total_data_size_number,
-     - mem_access_elem,
-     - total_cost,
-     - operand_cost,
-     - mac_cost_active,
-     - mac_cost_idle,
-     - latency_tot_number,
-     - latency_no_load_number,
-     - total_cycles_number,
-     - cc_load_tot_number,
-     - cc_load_number,
-     - cc_load_comb_number,
-     - cc_mem_stall_tot_number,
-     - stall_cc_number,
-     - stall_cc_mem_share_number,
-    """
-    # If layer has a number of groups > 1, transform relevant variables.
-    # At this point, the results are those of one group, so multiply by number of groups.
-    group_count = layer_specification.G
-
-    # SPECIFICATION
-    size_list_output_print = deepcopy(layer_specification.size_list_output_print)
-    size_list_output_print['C'] *= group_count
-    size_list_output_print['K'] *= group_count
-
-    # COMPUTATIONS
-    total_MAC_op_number = group_count * layer_specification.total_MAC_op
-
-    # DATA SIZE
-    total_data_size_number = deepcopy(layer_specification.total_data_size)
-    total_data_size_number['W'] *= group_count
-    total_data_size_number['I'] *= group_count
-    total_data_size_number['O'] *= group_count
-
-    # MEMORY ACCESS
-    mem_access_elem = digit_truncate(deepcopy(cost_model_output.loop.mem_access_elem), 0)
-    mem_access_elem['W'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['W']]
-    mem_access_elem['I'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['I']]
-    mem_access_elem['O'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['O']]
-    mem_access_elem['O_partial'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['O_partial']]
-    mem_access_elem['O_final'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['O_final']]
-
-    # ENERGY
-    total_cost = round(group_count * cost_model_output.total_cost, 1)
-    operand_cost = energy_clean(deepcopy(cost_model_output.operand_cost))
-    operand_cost['W'] = [group_count * elem for elem in operand_cost['W']]
-    operand_cost['I'] = [group_count * elem for elem in operand_cost['I']]
-    operand_cost['O'] = [group_count * elem for elem in operand_cost['O']]
-    mac_cost_active = round(group_count * cost_model_output.mac_cost[0], 1)
-    mac_cost_idle = round(group_count * cost_model_output.mac_cost[1], 1)
-
-    # LATENCY
-    latency_tot_number = group_count * cost_model_output.utilization.latency_tot
-    latency_no_load_number = group_count * cost_model_output.utilization.latency_no_load
-    total_cycles_number = group_count * cost_model_output.temporal_loop.total_cycles
-
-    cc_load_tot_number = group_count * cost_model_output.utilization.cc_load_tot
-    cc_load_number = deepcopy(cost_model_output.utilization.cc_load)
-    cc_load_number['W'] = [group_count * elem for elem in cc_load_number['W']]
-    cc_load_number['I'] = [group_count * elem for elem in cc_load_number['I']]
-    cc_load_comb_number = deepcopy(cost_model_output.utilization.cc_load_comb)
-    cc_load_comb_number['W'] *= group_count
-    cc_load_comb_number['I'] *= group_count
-
-    cc_mem_stall_tot_number = group_count * cost_model_output.utilization.cc_mem_stall_tot
-    stall_cc_number = deepcopy(cost_model_output.utilization.stall_cc)
-    stall_cc_number['W'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_number['W']]
-    stall_cc_number['I'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_number['I']]
-    stall_cc_number['O'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_number['O']]
-    stall_cc_mem_share_number = deepcopy(cost_model_output.utilization.stall_cc_mem_share)
-    stall_cc_mem_share_number['W'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_mem_share_number['W']]
-    stall_cc_mem_share_number['I'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_mem_share_number['I']]
-    stall_cc_mem_share_number['O'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_mem_share_number['O']]
-
-    # Returning the tuple of values corrected for the grouped convolution.
-    return (
-        size_list_output_print,
-        total_MAC_op_number,
-        total_data_size_number,
-        mem_access_elem,
-        total_cost,
-        operand_cost,
-        mac_cost_active,
-        mac_cost_idle,
-        latency_tot_number,
-        latency_no_load_number,
-        total_cycles_number,
-        cc_load_tot_number,
-        cc_load_number,
-        cc_load_comb_number,
-        cc_mem_stall_tot_number,
-        stall_cc_number,
-        stall_cc_mem_share_number,
-    )
-
-
-
 def print_xml(results_filename, layer_specification, mem_scheme, cost_model_output, common_settings,
               hw_pool_sizes, elapsed_time, result_print_mode):
     dir_path = ''
@@ -635,26 +508,65 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
     result_generate_time.tail = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if cost_model_output not in [None, [], {}]:
 
-        # Correcting the outputed values to account for the grouped convolution.
-        (
-            size_list_output_print,
-            total_MAC_op_number,
-            total_data_size_number,
-            mem_access_elem,
-            total_cost,
-            operand_cost,
-            mac_cost_active,
-            mac_cost_idle,
-            latency_tot_number,
-            latency_no_load_number,
-            total_cycles_number,
-            cc_load_tot_number,
-            cc_load_number,
-            cc_load_comb_number,
-            cc_mem_stall_tot_number,
-            stall_cc_number,
-            stall_cc_mem_share_number,
-        ) = handle_grouped_convolutions(layer_specification, cost_model_output)
+        # If layer has a number of groups > 1, transform relevant variables.
+        # At this point, the results are those of one group, so multiply by number of groups.
+        group_count = layer_specification.G
+
+        # SPECIFICATION
+        size_list_output_print = deepcopy(layer_specification.size_list_output_print)
+        size_list_output_print['C'] *= group_count
+        size_list_output_print['K'] *= group_count
+
+        # COMPUTATIONS
+        total_MAC_op_number = group_count * layer_specification.total_MAC_op
+
+        # DATA SIZE
+        total_data_size_number = deepcopy(layer_specification.total_data_size)
+        total_data_size_number['W'] *= group_count
+        total_data_size_number['I'] *= group_count
+        total_data_size_number['O'] *= group_count
+
+        # MEMORY ACCESS
+        mem_access_elem = digit_truncate(deepcopy(cost_model_output.loop.mem_access_elem), 0)
+        mem_access_elem['W'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['W']]
+        mem_access_elem['I'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['I']]
+        mem_access_elem['O'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['O']]
+        mem_access_elem['O_partial'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['O_partial']]
+        mem_access_elem['O_final'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['O_final']]
+
+        # ENERGY
+        total_cost = round(group_count * cost_model_output.total_cost, 1)
+        operand_cost = energy_clean(deepcopy(cost_model_output.operand_cost))
+        operand_cost['W'] = [group_count * elem for elem in operand_cost['W']]
+        operand_cost['I'] = [group_count * elem for elem in operand_cost['I']]
+        operand_cost['O'] = [group_count * elem for elem in operand_cost['O']]
+        mac_cost_active = round(group_count * cost_model_output.mac_cost[0], 1)
+        mac_cost_idle = round(group_count * cost_model_output.mac_cost[1], 1)
+
+        # LATENCY
+        latency_tot_number = group_count * cost_model_output.utilization.latency_tot
+        latency_no_load_number = group_count * cost_model_output.utilization.latency_no_load
+        total_cycles_number = group_count * cost_model_output.temporal_loop.total_cycles
+
+        cc_load_tot_number = group_count * cost_model_output.utilization.cc_load_tot
+        cc_load_number = deepcopy(cost_model_output.utilization.cc_load)
+        cc_load_number['W'] = [group_count * elem for elem in cc_load_number['W']]
+        cc_load_number['I'] = [group_count * elem for elem in cc_load_number['I']]
+        cc_load_comb_number = deepcopy(cost_model_output.utilization.cc_load_comb)
+        cc_load_comb_number['W'] *= group_count
+        cc_load_comb_number['I'] *= group_count
+
+        cc_mem_stall_tot_number = group_count * cost_model_output.utilization.cc_mem_stall_tot
+        stall_cc_number = deepcopy(cost_model_output.utilization.stall_cc)
+        stall_cc_number['W'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_number['W']]
+        stall_cc_number['I'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_number['I']]
+        stall_cc_number['O'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_number['O']]
+        stall_cc_mem_share_number = deepcopy(cost_model_output.utilization.stall_cc_mem_share)
+        stall_cc_mem_share_number['W'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_mem_share_number['W']]
+        stall_cc_mem_share_number['I'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_mem_share_number['I']]
+        stall_cc_mem_share_number['O'] = [[group_count * elem for elem in sublist] for sublist in stall_cc_mem_share_number['O']]
+
+
 
         if result_print_mode == 'complete':
             layer = ET.SubElement(sim, 'layer')
@@ -715,9 +627,9 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
             temporal_mapping_search_engine = ET.SubElement(search_engine, 'temporal_mapping_search')
             temporal_search_mode = ET.SubElement(temporal_mapping_search_engine, 'mode')
             temporal_search_mode.tail = str(common_settings.search_mode['Temporal'])
-            # if not common_settings.search_mode['Temporal'] == 'fixed':
-            #     memory_utilization_threshold = ET.SubElement(temporal_mapping_search_engine, 'memory_utilization_hint')
-            #     memory_utilization_threshold.tail = str(common_settings.mem_utilization_rate)
+            if not common_settings.search_mode['Temporal'] == 'fixed':
+                memory_utilization_threshold = ET.SubElement(temporal_mapping_search_engine, 'memory_utilization_hint')
+                memory_utilization_threshold.tail = str(common_settings.mem_utilization_rate)
             valid_temporal_mapping_count = ET.SubElement(temporal_mapping_search_engine, 'valid_temporal_mapping_found')
             valid_temporal_mapping_count.tail = str(hw_pool_sizes)
 
@@ -808,7 +720,6 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
             mem_utilize.tail = str(digit_truncate(cost_model_output.utilization.mem_utilize, 2))
             mem_utilize_shared = ET.SubElement(basic_info, 'actual_mem_utilization_shared')
             mem_utilize_shared.tail = str(digit_truncate(cost_model_output.utilization.mem_utilize_shared, 2))
-            # print('final memory ut', cost_model_output.utilization.mem_utilize_shared)
             effective_mem_size = ET.SubElement(basic_info, 'effective_mem_size_bit')
             effective_mem_size.tail = str(elem2bit(digit_truncate(cost_model_output.loop.effective_mem_size, 0),
                                                    common_settings.precision))
@@ -862,8 +773,7 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
 
             mac_cost = ET.SubElement(energy, 'mac_energy')
             mac_cost.tail = 'active: ' + str(mac_cost_active) + \
-                            ', idle: ' + str(mac_cost_idle)
-
+                    ', idle: ' + str(mac_cost_idle)
             performance = ET.SubElement(results, 'performance')
             utilization = ET.SubElement(performance, 'mac_array_utilization')
             mac_utilize = ET.SubElement(utilization, 'utilization_with_data_loading')
@@ -922,12 +832,7 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
             mem_bw_req_meet.tail = str(mem_bw_req_meet_list)
 
             area = ET.SubElement(results, 'area')
-            total_area = ET.SubElement(area, 'total_area')
-            total_area.tail = str(round(cost_model_output.area[0],1))
-            active_area = ET.SubElement(area, 'active_area')
-            active_area.tail = str(round(cost_model_output.area[1],1))
-            dark_silicon = ET.SubElement(area, 'dark_silicon_percentage')
-            dark_silicon.tail = str(100-round(cost_model_output.area[1]/cost_model_output.area[0]*100, 1)) + ' %'
+            area.tail = str(cost_model_output.area)
         else:
             layer = ET.SubElement(sim, 'layer')
             # layer_index = ET.SubElement(layer, 'layer_index')
@@ -1052,13 +957,7 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
             # total_cycles.tail = str(cost_model_output.temporal_loop.total_cycles)
 
             area = ET.SubElement(results, 'area')
-            total_area = ET.SubElement(area, 'total_area')
-            total_area.tail = str(round(cost_model_output.area[0],1))
-            active_area = ET.SubElement(area, 'active_area')
-            active_area.tail = str(round(cost_model_output.area[1],1))
-            dark_silicon = ET.SubElement(area, 'dark_silicon_percentage')
-            dark_silicon.tail = str(100-round(cost_model_output.area[1]/cost_model_output.area[0]*100, 1)) + ' %'
-
+            area.tail = str(cost_model_output.area)
     elapsed_time_node = ET.SubElement(sim, 'elapsed_time_second')
     elapsed_time_node.tail = str(round(elapsed_time, 3))
     tree = ET.ElementTree(root)
@@ -1073,628 +972,10 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
         print_good_tm_format(cost_model_output.temporal_scheme, mem_scheme.mem_name, results_filename + '.mapping')
 
 
-def yaml_compatible(argument: Any) -> Any:
-    """
-    Returns a YAML compatible representation of the argument. This function
-    will behave differently depending on the type of the argument.
-
-    Arguments
-    =========
-     - argument: The python object that should be written to the YAML file.
-
-    Returns
-    =======
-    A YAML compatible representation of the argument.
-
-    Exceptions
-    ==========
-    If there is no known YAML compatible representation for the argument type,
-    a TypeError is raised.
-    """
-    # If the argument is a numpy array, we turn it into a list, recursively.
-    if isinstance(argument, tuple) or isinstance(argument, list):
-        # The argument is some sort of iterable (list, tuple or numpy array),
-        # we return its list representation, recursively making its content yaml
-        # compatible.
-        return [yaml_compatible(element) for element in argument]
-    elif isinstance(argument, bool):
-        # Bool is YAML compatible.
-        return argument
-    elif isinstance(argument, float) or isinstance(argument, np.float64):
-        # Float is YAML compatible, but not np.float64
-        return float(argument)
-    elif isinstance(argument, int) or isinstance(argument, np.int64):
-        # Int is YAML compatible, but not np.int64
-        return int(argument)
-    elif isinstance(argument, str):
-        # str is YAML compatible.
-        return argument
-    elif isinstance(argument, dict):
-        # Returning the dict with YAML compatible keys and values.
-        return {
-            yaml_compatible(key): yaml_compatible(value)
-            for key, value in argument.items()
-        }
-    else:
-        # Raising an exception because we don't know what to do with the
-        # argument.
-        raise TypeError(
-            "The argument {} is of type {} ".format(argument, type(argument))
-            + "which has no known YAML compatible representation."
-        )
-
-
-def print_yaml(
-    results_filename: str,
-    layer_specification: Layer,
-    mem_scheme: MemoryScheme,
-    cost_model_output: "CostModelOutput",
-    common_settings: "CommonSettings",
-    hw_pool_sizes: int,
-    elapsed_time: float,
-    result_print_mode: str,
-):
-    """
-    Saves the output of ZigZag to the YAML format.
-
-    Arguments
-    =========
-     - results_filename: The basename used to create the output file of
-        ZigZag.
-     - layer_specification: A description of the input layer that ZigZag has
-        optimized.
-     - mem_scheme: A description of the memory layout given to or found by
-        ZigZag.
-     - cost_model_output: The cost computed by ZigZag for running the given
-        layer on the hardware.
-     - common_settings: ??
-     - hw_pool_sizes: The number of hardware evaluations performed by ZigZag.
-     - elapsed_time: The time ZigZag took to run the optimization.
-     - result_print_mode: "complete" to see the full output, and some other
-        value otherwise
-
-    Exceptions
-    ==========
-    If the cost model is empty, a ValueError will be raised.
-
-    Side-effects
-    ============
-    The expected YAML file will be created.
-    """
-    # NOTE
-    # The types given in strings are defined within this very file. This has to
-    # do with the order in which python resolves annotations.
-
-    # First, we get the directory in which the output should be created. If the
-    # directory doesn't already exist, we create it.
-    result_directory_path = os.path.dirname(results_filename)
-    # We create the directory and all its parents or do nothing if they already
-    # exist.
-    os.makedirs(result_directory_path, exist_ok=True)
-
-    # NOTE
-    # Unlike the previous XML implementation, if the output file already exists,
-    # it will be overwritten.
-    #
-    # We are going to build a dictionary which holds all our values, then we
-    # will dump it into our yaml file.
-    yaml_dictionary: Dict[str, Any] = dict()
-
-    # ABREVIATIONS
-    # To make the implementation shorter, we are going to give shorted names to
-    # some recurrent values:
-    #
-    # The yaml_compatible function will be referred to as "c"
-    c = yaml_compatible
-    # A boolean telling us if we should print optional outputs.
-    verbose = result_print_mode == "complete"
-
-    # Correcting the outputed values to account for the grouped convolution.
-    (
-        size_list_output_print,
-        total_MAC_op_number,
-        total_data_size_number,
-        mem_access_elem,
-        total_cost,
-        operand_cost,
-        mac_cost_active,
-        mac_cost_idle,
-        latency_tot_number,
-        latency_no_load_number,
-        total_cycles_number,
-        cc_load_tot_number,
-        cc_load_number,
-        cc_load_comb_number,
-        cc_mem_stall_tot_number,
-        stall_cc_number,
-        stall_cc_mem_share_number,
-    ) = handle_grouped_convolutions(layer_specification, cost_model_output)
-
-
-    # Creating the "simulation" section.
-    simulation: Dict[str, Any] = dict()
-    # Adding the section to our YAML dictionary.
-    yaml_dictionary["simulation"] = simulation
-
-    # We add the time of run to the output.
-    simulation["result_generation_time"] = c(
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    )
-
-    # Handle ZigZag failure.
-    if cost_model_output in [None, [], {}]:
-        raise ValueError(
-            "The cost model returned by ZigZag is empty, perhaps the run did "
-            "not succeed."
-        )
-
-    # Else we print the output normally.
-
-    # LAYER SECTION
-    layer: Dict[str, Any] = dict()
-    simulation["layer"] = layer
-
-    if verbose:
-        layer["layer_index"] = c(common_settings.layer_index)
-
-    layer["layer_specification"] = c(size_list_output_print)
-    layer["total_MAC_operation"] = c(total_MAC_op_number)
-    layer["total_data_size_element"] = c(layer_specification.total_data_size)
-
-    if verbose:
-        layer["total_data_reuse"] = c(layer_specification.total_data_reuse)
-    # END OF LAYER SECTION
-
-    ########################### OPTIONAL OUTPUT HERE ###########################
-
-    if verbose:
-        # SEARCH ENGINE SECTION
-        search_engine: Dict[str, Any] = dict()
-        simulation["search_engine"] = search_engine
-
-        # MEMORY HIERARCHY SEARCH ENGINE SECTION
-        # Short for "memory_hierarchy_search_engine"
-        mhse: Dict[str, Any] = dict()
-        search_engine["memory_hierarchy_search_engine"] = mhse
-
-        mhse["mode"] = c(common_settings.search_mode["Mem"])
-
-        if not common_settings.search_mode["Mem"] == "fixed":
-            # If the memory hierarchy was not fixed, we have some more
-            # values to output.
-            mhse["area_constraint"] = c(
-                common_settings.area_constraint["max_area"]
-            )
-            # Threshold is reached when we are greater than or equal to this
-            # value.
-            mhse["area_utilization_threshold"] = c(
-                common_settings.area_constraint["area_th"]
-            )
-            mhse["memory_pool"] = c(common_settings.mem_pool)
-            # Our value should be greater than or equal to this ratio.
-            mhse["consecutive_memory_level_size_ratio"] = c(
-                common_settings.memory_hierarchy_ratio
-            )
-            mhse["maximum_inner_PE_memory_size_bit"] = c(
-                common_settings.max_inner_PE_mem_size
-            )
-            mhse["maximum_inner_PE_memory_level"] = c(
-                common_settings.max_inner_PE_mem_level
-            )
-            mhse["maximum_outer_PE_memory_level"] = c(
-                common_settings.max_outer_PE_mem_level
-            )
-
-        mhse["memory_scheme_index"] = c(common_settings.mem_scheme_count)
-        # END OF MEMORY HIERARCHY SEARCH ENGINE SECTION
-
-        # SPATIAL MAPPING SEARCH SECTION
-        # Short for "spatial_mapping_search_engine"
-        smse: Dict[str, Any] = dict()
-        search_engine["spatial_mapping_search"] = smse
-
-        smse["mode"] = c(common_settings.search_mode["Spatial"])
-
-        if not common_settings.search_mode["Spatial"] == "fixed":
-            # If the the spatial mapping was explored.
-            if common_settings.spatial_unrolling_mode != 3:
-                # ?? I have no idea what this condition.
-                smse["spatial_utilization_threshold"] = c(
-                    common_settings.SU_threshold
-                )
-            else:
-                smse["spatial_mapping_hint_list"] = c(
-                    common_settings.spatial_mapping_hint_list
-                )
-
-        smse["unrolling_scheme_index"] = c(common_settings.spatial_count)
-        # END OF SPATIAL MAPPING SEARCH ENGINE SECTION
-
-        # TEMPORAL MAPPING SEARCH ENGINE SECTION
-        # Short for "temporal_mapping_search_engine"
-        tmse: Dict[str, Any] = dict()
-        search_engine["temporal_mapping_search"] = tmse
-
-        tmse["mode"] = c(common_settings.search_mode["Temporal"])
-
-        if not common_settings.search_mode["Temporal"] == "fixed":
-            # If the temporal mapping was explored.
-            tmse["memory_utilization_hint"] = c(
-                common_settings.mem_utilization_rate
-            )
-            tmse["valid_temporal_mapping_found"] = c(hw_pool_sizes)
-        # END OF TEMPORAL MAPPING SEARCH ENGINE SECTION
-        # END OF SEARCH ENGINE SECTION
-
-    ####################### END OF OPTIONAL OUTPUT HERE ########################
-
-    # HARDWARE SPECIFICATION SECTION
-    hardware_specification: Dict[str, Any] = dict()
-    simulation["hardware_specification"] = hardware_specification
-
-    # PE ARRAY SECTION
-    PE_array: Dict[str, Any] = dict()
-    hardware_specification["PE_array"] = PE_array
-
-    PE_array["precision_bit"] = c(common_settings.precision)
-    PE_array["array_size"] = c(common_settings.array_size)
-    # END OF PE ARRAY SECTION
-
-    # MEMORY HIERARCHY SECTION
-    memory_hierarchy: Dict[str, Any] = dict()
-    hardware_specification["memory_hierarchy"] = memory_hierarchy
-
-    # MEMORY NAME SECTION
-    memory_name: Dict[str, Any] = dict()
-    memory_hierarchy["memory_name_in_the_hierarchy"] = memory_name
-
-    memory_name["W"] = c(mem_scheme.mem_name["W"])
-    memory_name["I"] = c(mem_scheme.mem_name["I"])
-    memory_name["O"] = c(mem_scheme.mem_name["O"])
-    # END OF MEMORY NAME SECTION
-
-    memory_hierarchy["memory_size_bit"] = c(mem_scheme.mem_size)
-
-    # TODO
-    # Why is there a deepcopy here? We should only be reading data in
-    # this function.
-    mem_access_cost = deepcopy(common_settings.mem_access_cost)
-    # And what is this next block? Not only are we indeed changing the
-    # argument data for some non-obvious reason, we are also not
-    # printing it, so why is that here? I don't understand...
-    if type(mem_scheme.mem_bw["W"][0][0]) in [list, tuple]:
-        mem_scheme.mem_bw = iterative_data_format_clean(mem_scheme.mem_bw)
-    if type(common_settings.mem_access_cost["W"][0][0]) in [list, tuple]:
-        mem_access_cost = iterative_data_format_clean(mem_access_cost)
-    if type(mem_scheme.mem_area["W"][0]) in [list, tuple]:
-        mem_scheme.mem_area = iterative_data_format_clean(mem_scheme.mem_area)
-
-    # NOTE
-    # The original name of this field was:
-    # 'mem_bw_bit_per_cycle_or_mem_wordlength', but I don't really
-    # understand it so I am going to pick the simpler name.
-    memory_hierarchy["memory_word_length"] = c(mem_scheme.mem_bw)
-    memory_hierarchy["memory_access_energy_per_word"] = c(mem_access_cost)
-
-    if verbose:
-        # TODO
-        # pun_factor? What does that mean?
-        memory_hierarchy["pun_factor"] = c(
-            cost_model_output.utilization.pun_factor
-        )
-
-    memory_hierarchy["memory_type"] = c(add_mem_type_name(mem_scheme.mem_type))
-    memory_hierarchy["memory_share"] = c(
-        mem_share_reformat(mem_scheme.mem_share, mem_scheme.mem_name)
-    )
-    memory_hierarchy["memory_area_single_module"] = c(mem_scheme.mem_area)
-    memory_hierarchy["memory_unrolling"] = c(
-        mem_unroll_format(cost_model_output.spatial_loop.unit_count)
-    )
-    # END OF MEMORY HIERARCHY SECTION
-    # END OF HARDWARE SPECIFICATION SECTION
-
-    # RESULTS SECTION
-    results: Dict[str, Any] = dict()
-    simulation["results"] = results
-
-    # BASIC INFORMATION SECTION
-    basic_information: Dict[str, Any] = dict()
-    results["basic_information"] = basic_information
-
-    # SPATIAL MAPPING SECTION
-    spatial_mapping: Dict[str, Any] = dict()
-    basic_information["spatial_unrolling"] = spatial_mapping
-
-    # TODO
-    # Why is this try-except here for? What could go wrong?
-    # Also except what? Which specific exception would be raised here?
-    try:
-        spatial_mapping["W"] = c(
-            s_loop_name_transfer(cost_model_output.spatial_scheme["W"])
-        )
-        spatial_mapping["I"] = c(
-            s_loop_name_transfer(cost_model_output.spatial_scheme["I"])
-        )
-        spatial_mapping["O"] = c(
-            s_loop_name_transfer(cost_model_output.spatial_scheme["O"])
-        )
-    except:
-        cost_model_output.spatial_scheme = spatial_loop_same_term_merge(
-            cost_model_output.spatial_scheme, cost_model_output.flooring
-        )
-        spatial_mapping["W"] = c(
-            s_loop_name_transfer(cost_model_output.spatial_scheme["W"])
-        )
-        spatial_mapping["I"] = c(
-            s_loop_name_transfer(cost_model_output.spatial_scheme["I"])
-        )
-        spatial_mapping["O"] = c(
-            s_loop_name_transfer(cost_model_output.spatial_scheme["O"])
-        )
-    # END OF SPATIAL MAPPING SECTION
-
-    # TEMPORAL MAPPING SECTION
-    temporal_mapping: Dict[str, Any] = dict()
-    basic_information["temporal_mapping"] = temporal_mapping
-
-    temporal_mapping["W"] = c(
-        t_loop_name_transfer(cost_model_output.temporal_scheme["W"])
-    )
-    temporal_mapping["I"] = c(
-        t_loop_name_transfer(cost_model_output.temporal_scheme["I"])
-    )
-    temporal_mapping["O"] = c(
-        t_loop_name_transfer(cost_model_output.temporal_scheme["O"])
-    )
-    # END OF TEMPORAL MAPPING SECTION
-
-    ########################### OPTIONAL OUTPUT HERE ###########################
-
-    if verbose:
-        # TODO
-        # Why are we doing this? This is changing the argument data without
-        # printing anything. I guess this has something to do with the
-        # digit_truncate call later on, but I have very little clue here.
-        try:
-            del cost_model_output.loop.data_reuse["I_base"]
-            del cost_model_output.loop.data_reuse["I_zigzag"]
-        except:
-            pass
-        basic_information["data_reuse"] = c(
-            digit_truncate(cost_model_output.loop.data_reuse, 2)
-        )
-        # The original name of this fields was
-        # I_pr_diagonally_broadcast_or_fifo_effect, but since I don't
-        # understand what it means I only kept the simpler name.
-        #
-        # Also, the content of this field was preceded by a "'I': ", but
-        # since that wouldn't be machine readable I am removing it.
-        basic_information["fifo_effect"] = c(cost_model_output.loop.I_fifo)
-        basic_information["used_memory_size_bit"] = c(
-            elem2bit(
-                cost_model_output.loop.req_mem_size, common_settings.precision
-            )
-        )
-        basic_information["actual_individual_memory_utilization"] = c(
-            digit_truncate(cost_model_output.utilization.mem_utilize, 2)
-        )
-        basic_information["actual_memory_utilization_shared"] = c(
-            digit_truncate(cost_model_output.utilization.mem_utilize_shared, 2)
-        )
-        basic_information["effective_memory_size"] = c(
-            elem2bit(
-                digit_truncate(cost_model_output.loop.effective_mem_size, 0),
-                common_settings.precision,
-            )
-        )
-        basic_information["total_unit_count"] = c(
-            cost_model_output.spatial_loop.unit_count
-        )
-        basic_information["unique_unit_count"] = c(
-            cost_model_output.spatial_loop.unit_unique
-        )
-        basic_information["duplicate_unit_count"] = c(
-            cost_model_output.spatial_loop.unit_duplicate
-        )
-
-        # MEMORY ACCESS COUNT ELEMENT SECTION
-        access_count: Dict[str, Any] = dict()
-        basic_information["access_count"] = access_count
-
-        access_count["W"] = c(mem_access_elem["W"])
-        access_count["I"] = c(mem_access_elem["I"])
-        access_count["O"] = c(mem_access_elem["O"])
-        access_count["O_partial"] = c(mem_access_elem["O_partial"])
-        access_count["O_final"] = c(mem_access_elem["O_final"])
-        # END OF ACCESS COUNT SECTION
-
-        basic_information["array_element_distance"] = c(
-            cost_model_output.loop.array_wire_distance
-        )
-        # END OF BASIC INFORMATION SECTION
-
-    ####################### END OF OPTIONAL OUTPUT HERE ########################
-
-    # ENERGY SECTION
-    energy: Dict[str, Any] = dict()
-    results["energy"] = energy
-
-    energy["total_energy"] = c(round(total_cost, 1))
-
-    # ENERGY BREAKDOWN SECTION
-    energy_breakdown: Dict[str, Any] = dict()
-    energy["energy_breakdown"] = energy_breakdown
-
-    # We clean the output for some reason.
-    cleaned_energy = energy_clean(operand_cost)
-
-    energy_breakdown["W"] = c(cleaned_energy["W"])
-    energy_breakdown["I"] = c(cleaned_energy["I"])
-    energy_breakdown["O"] = c(cleaned_energy["O"])
-    # END OF ENERGY BREAKDOWN SECTION
-
-    energy["mac_energy"] = {
-        "active": c(mac_cost_active),
-        "idle": c(mac_cost_idle)
-    }
-
-    # END OF ENERGY SECTION
-
-    # PERFORMANCE SECTION
-    performance: Dict[str, Any] = dict()
-    results["performance"] = performance
-
-    if verbose:
-        # UTILIZATION SECTION
-        utilization: Dict[str, Any] = dict()
-        performance["mac_array_utilization"] = utilization
-
-        utilization["utilization_with_data_loading"] = c(
-            round(cost_model_output.utilization.mac_utilize, 4)
-        )
-        utilization["utilization_without_data_loading"] = c(
-            round(cost_model_output.utilization.mac_utilize_no_load, 4)
-        )
-        utilization["utilization_spatial"] = c(
-            round(cost_model_output.utilization.mac_utilize_spatial, 4)
-        )
-        utilization["utilization_temporal_with_data_loading"] = c(
-            round(cost_model_output.utilization.mac_utilize_temporal, 4)
-        )
-        utilization["utilization_temporal_without_data_loading"] = c(
-            round(cost_model_output.utilization.mac_utilize_temporal_no_load, 4)
-        )
-        # END OF UTILIZATION SECTION
-    else:
-        # Here the meaning of "mac_array_utilization" in the output will be
-        # different, which I am not really fond of.
-        performance["mac_array_utilization"] = c(
-            round(cost_model_output.utilization.mac_utilize_no_load, 4)
-        )
-
-    if verbose:
-        # LATENCY SECTION
-        latency: Dict[str, Any] = dict()
-        performance["latency"] = latency
-
-        latency["latency_cycle_with_data_loading"] = c(
-           latency_tot_number
-        )
-        latency["latency_cycle_without_data_loading"] = c(
-            latency_no_load_number
-        )
-        latency["ideal_computing_cycle"] = c(
-            cost_model_output.temporal_loop.total_cycles
-        )
-
-        # DATA LOADING SECTION
-        data_loading: Dict[str, Any] = dict()
-        latency["data_loading"] = data_loading
-
-        data_loading["load_cycle_total"] = c(
-            cc_load_tot_number
-        )
-        data_loading["load_cycle_individual"] = c(
-            cc_load_number
-        )
-        data_loading["load_cycle_combined"] = c(
-            cc_load_comb_number
-        )
-        # END OF DATA LODAING SECTION
-
-        # MEMORY STALLING SECTION
-        memory_stalling: Dict[str, Any] = dict()
-        latency["memory_stalling"] = memory_stalling
-
-        memory_stalling["memory_stalling_cycle_count"] = c(
-            cc_mem_stall_tot_number
-        )
-        memory_stalling["memory_stalling_cycle_individual"] = c(
-            stall_cc_number
-        )
-        memory_stalling["memory_stalling_cycle_shared"] = c(
-            stall_cc_mem_share_number
-        )
-        memory_stalling["required_memory_bandwidth_per_cycle_individual"] = c(
-            digit_truncate(cost_model_output.utilization.req_mem_bw_bit, 1)
-        )
-        memory_stalling["required_memory_bandwidth_per_cycle_shared"] = c(
-            digit_truncate(cost_model_output.utilization.req_sh_mem_bw_bit, 1)
-        )
-        memory_stalling["memory_bandwidth_requirement_meet"] = c(
-            mem_bw_req_meet_check(
-                cost_model_output.utilization.req_sh_mem_bw_bit,
-                mem_scheme.mem_bw,
-            )
-        )
-        # END OF MEMORY STALLING SECTION
-        # END OF LATENCY SECTION
-    else:
-        # Here also, the latency field will have a different meaning in the
-        # concise output.
-        performance["latency"] = c(
-            cost_model_output.utilization.latency_no_load
-        )
-    # END OF PERFORMANCE LATENCY SECTION
-
-    results["total_area"] = c(round(cost_model_output.area[0], 1))
-    results["active_area"] = c(round(cost_model_output.area[1], 1))
-    results["dark_silicon_percentage"] = c(100 - round(cost_model_output.area[1] / cost_model_output.area[0] * 100, 1))
-    # END OF RESULTS SECTION
-
-    simulation["elapsed_time_second"] = c(round(elapsed_time, 3))
-    # END OF SIMULATION SECTION
-    # END OF DOCUMENT
-
-    # Creating the YAML file.
-    with open(results_filename + ".yaml", "w") as yaml_file:
-        # We serialize the YAML dictionary directly to the targeted file. We use
-        # the default flow style because the output file will not be human
-        # readable anyway.
-        #
-        # NOTE
-        # Because YAML is a superset of json, we can write our output in the
-        # json format, which is simpler to read and sufficient here, and we
-        # still have a valid YAML output.
-        if verbose:
-            json.dump(yaml_dictionary, yaml_file)
-        else:
-            # If the output is meant to be concise, we try to make it human
-            # readable (at least a little) by indenting it correctly.
-            json.dump(yaml_dictionary, yaml_file, indent=4)
-
-    if cost_model_output in [None, [], {}]:
-        # L means layer index, M means memory scheme count, SU means spatial
-        # unrolling count and cost model output is explicit.
-        print(
-            "L: ",
-            common_settings.layer_index,
-            " M: ",
-            common_settings.mem_scheme_count,
-            " SU: ",
-            common_settings.spatial_count,
-            " cost model output",
-            cost_model_output,
-        )
-    else:
-        print_good_su_format(
-            cost_model_output.spatial_scheme,
-            mem_scheme.mem_name,
-            results_filename + ".mapping",
-        )
-        print_good_tm_format(
-            cost_model_output.temporal_scheme,
-            mem_scheme.mem_name,
-            results_filename + ".mapping",
-        )
-
-
-def print_helper(input_settings, layers, layers_saved, multi_manager):
+def print_helper(input_settings, layers, multi_manager):
 
     # Use this for other print types (such as yaml) in the future
-    # print_type = 'xml'
-    print_type = input_settings.result_print_type
+    print_type = 'xml'
 
     save_all_arch = input_settings.arch_search_result_saving
     save_all_su = input_settings.su_search_result_saving
@@ -1729,10 +1010,10 @@ def print_helper(input_settings, layers, layers_saved, multi_manager):
     list_sim_time_ut = multi_manager.list_sim_time_ut
 
     # Iterate through the processed layers
-    for j, layer_index in enumerate(input_settings.layer_number):
+    for i, layer_index in enumerate(input_settings.layer_number):
 
         layer_idx_str = 'L_%d' % layer_index
-        layer = layers[j]
+        layer = layers[i]
 
         if save_all_arch or input_settings.mem_hierarchy_single_simulation:
             for mem_scheme_index in range(multi_manager.mem_scheme_count):
@@ -1743,7 +1024,7 @@ def print_helper(input_settings, layers, layers_saved, multi_manager):
                 su_count = list_su_count[mem_scheme_str][layer_idx_str]
                 if su_count is None:
                     # su count is None for duplicate layers, get su count from parent
-                    parent_str = 'L_%d' % layers[j].parent
+                    parent_str = 'L_%d' % layers[i].parent
                     su_count = list_su_count[mem_scheme_str][parent_str]
 
                 if save_all_su:
@@ -1779,47 +1060,24 @@ def print_helper(input_settings, layers, layers_saved, multi_manager):
                         rf_en = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str + rf_ending_en
                         rf_ut = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str + rf_ending_ut
 
-                        if input_settings.im2col_enable_pw and (input_settings.spatial_unrolling_mode not in [4, 5]) \
-                                and (input_settings.fixed_temporal_mapping is False):
-                            if multi_manager.pw_im2col_flag[j]:
-                                best_output_energy.spatial_scheme, \
-                                best_output_energy.flooring, \
-                                best_output_energy.temporal_scheme = \
-                                    pw_layer_col2im(best_output_energy.spatial_scheme,
-                                                    best_output_energy.flooring,
-                                                    best_output_energy.temporal_scheme, layers_saved[j].size_list)
-                                best_output_utilization.spatial_scheme, \
-                                best_output_utilization.flooring, \
-                                best_output_utilization.temporal_scheme = \
-                                    pw_layer_col2im(best_output_utilization.spatial_scheme,
-                                                    best_output_utilization.flooring,
-                                                    best_output_utilization.temporal_scheme, layers_saved[j].size_list)
-
-                        if print_type == "xml":
-                            print_xml(rf_en, layer, msc, best_output_energy, common_settings, tm_count_en, sim_time, input_settings.result_print_mode)
-                            print_xml(rf_ut, layer, msc, best_output_utilization, common_settings, tm_count_ut, sim_time, input_settings.result_print_mode)
-                        else:
-                            print_yaml(rf_en, layer, msc, best_output_energy, common_settings, tm_count_en, sim_time, input_settings.result_print_mode)
-                            print_yaml(rf_ut, layer, msc, best_output_utilization, common_settings, tm_count_ut, sim_time, input_settings.result_print_mode)
-
+                        print_xml(rf_en, layer, msc, best_output_energy, common_settings, tm_count_en, sim_time,
+                                  input_settings.result_print_mode)
+                        print_xml(rf_ut, layer, msc, best_output_utilization, common_settings, tm_count_ut, sim_time,
+                                  input_settings.result_print_mode)
 
                 # Save the best SU + TM combination
                 if su_count != 0:
-                    try:
-                        [[mem_scheme_su_str_en, best_output_energy]] = list_min_en_output[mem_scheme_str][layer_idx_str][
-                            'best_su_each_mem'].items()
-                        [[mem_scheme_su_str_en, tm_count_en]] = list_tm_count_en[mem_scheme_str][layer_idx_str][
-                            'best_su_each_mem'].items()
-                        sim_time_en = list_sim_time[mem_scheme_str][layer_idx_str]['best_su_each_mem'][mem_scheme_su_str_en]
+                    [[mem_scheme_su_str_en, best_output_energy]] = list_min_en_output[mem_scheme_str][layer_idx_str][
+                        'best_su_each_mem'].items()
+                    [[mem_scheme_su_str_en, tm_count_en]] = list_tm_count_en[mem_scheme_str][layer_idx_str][
+                        'best_su_each_mem'].items()
+                    sim_time_en = list_sim_time[mem_scheme_str][layer_idx_str]['best_su_each_mem'][mem_scheme_su_str_en]
 
-                        [[mem_scheme_su_str_ut, best_output_utilization]] = list_max_ut_output[mem_scheme_str][layer_idx_str][
-                            'best_su_each_mem'].items()
-                        [[mem_scheme_su_str_ut, tm_count_ut]] = list_tm_count_ut[mem_scheme_str][layer_idx_str][
-                            'best_su_each_mem'].items()
-                        sim_time_ut = list_sim_time[mem_scheme_str][layer_idx_str]['best_su_each_mem'][mem_scheme_su_str_ut]
-                    except:
-                        # For all the mem_schemes, there was no TM found (for this layer)
-                        continue
+                    [[mem_scheme_su_str_ut, best_output_utilization]] = list_max_ut_output[mem_scheme_str][layer_idx_str][
+                        'best_su_each_mem'].items()
+                    [[mem_scheme_su_str_ut, tm_count_ut]] = list_tm_count_ut[mem_scheme_str][layer_idx_str][
+                        'best_su_each_mem'].items()
+                    sim_time_ut = list_sim_time[mem_scheme_str][layer_idx_str]['best_su_each_mem'][mem_scheme_su_str_ut]
 
                     mem_scheme_count_str = '%d/%d' % (mem_scheme_index + 1, multi_manager.mem_scheme_count)
                     spatial_unrolling_count_en = str(mem_scheme_su_str_en.split('_')[-1]) + '/' + str(
@@ -1841,28 +1099,10 @@ def print_helper(input_settings, layers, layers_saved, multi_manager):
                     rf_en = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_en + rf_ending_en
                     rf_ut = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_ut + rf_ending_ut
 
-                    if input_settings.im2col_enable_pw and (input_settings.spatial_unrolling_mode not in [4, 5]) \
-                            and (input_settings.fixed_temporal_mapping is False):
-                        if multi_manager.pw_im2col_flag[j]:
-                            best_output_energy.spatial_scheme, \
-                            best_output_energy.flooring, \
-                            best_output_energy.temporal_scheme = \
-                                pw_layer_col2im(best_output_energy.spatial_scheme,
-                                                best_output_energy.flooring,
-                                                best_output_energy.temporal_scheme, layers_saved[j].size_list)
-                            best_output_utilization.spatial_scheme, \
-                            best_output_utilization.flooring, \
-                            best_output_utilization.temporal_scheme = \
-                                pw_layer_col2im(best_output_utilization.spatial_scheme,
-                                                best_output_utilization.flooring,
-                                                best_output_utilization.temporal_scheme, layers_saved[j].size_list)
-
-                    if print_type == "xml":
-                        print_xml(rf_en, layer, msc, best_output_energy, common_settings_en, tm_count_en, sim_time_en, input_settings.result_print_mode)
-                        print_xml(rf_ut, layer, msc, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut, input_settings.result_print_mode)
-                    else:
-                        print_yaml(rf_en, layer, msc, best_output_energy, common_settings_en, tm_count_en, sim_time_en, input_settings.result_print_mode)
-                        print_yaml(rf_ut, layer, msc, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut, input_settings.result_print_mode)
+                    print_xml(rf_en, layer, msc, best_output_energy, common_settings_en, tm_count_en, sim_time_en,
+                            input_settings.result_print_mode)
+                    print_xml(rf_ut, layer, msc, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut,
+                            input_settings.result_print_mode)
 
         else:
             # Only save the best memory + su + tm combination
@@ -1909,29 +1149,11 @@ def print_helper(input_settings, layers, layers_saved, multi_manager):
             rf_en = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_en + rf_ending_en
             rf_ut = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_ut + rf_ending_ut
 
-            if input_settings.im2col_enable_pw and (input_settings.spatial_unrolling_mode not in [4, 5]) \
-                    and (input_settings.fixed_temporal_mapping is False):
-                if multi_manager.pw_im2col_flag[j]:
-                    best_output_energy.spatial_scheme, \
-                    best_output_energy.flooring, \
-                    best_output_energy.temporal_scheme = \
-                        pw_layer_col2im(best_output_energy.spatial_scheme,
-                                        best_output_energy.flooring,
-                                        best_output_energy.temporal_scheme, layers_saved[j].size_list)
-                    best_output_utilization.spatial_scheme, \
-                    best_output_utilization.flooring, \
-                    best_output_utilization.temporal_scheme = \
-                        pw_layer_col2im(best_output_utilization.spatial_scheme,
-                                        best_output_utilization.flooring,
-                                        best_output_utilization.temporal_scheme, layers_saved[j].size_list)
+            print_xml(rf_en, layer, msc_en, best_output_energy, common_settings_en, tm_count_en, sim_time_en,
+                      input_settings.result_print_mode)
+            print_xml(rf_ut, layer, msc_ut, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut,
+                      input_settings.result_print_mode)
 
-            if print_type == "xml":
-                print_xml(rf_en, layer, msc_en, best_output_energy, common_settings_en, tm_count_en, sim_time_en, input_settings.result_print_mode)
-                print_xml(rf_ut, layer, msc_ut, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut, input_settings.result_print_mode)
-            else:
-                print_yaml(rf_en, layer, msc_en, best_output_energy, common_settings_en, tm_count_en, sim_time_en, input_settings.result_print_mode)
-                print_yaml(rf_ut, layer, msc_ut, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut, input_settings.result_print_mode)
-    
         if (len(input_settings.layer_number) > 1) and (multi_manager.mem_scheme_count > 1):
             # Save the best memory hierarchy for all layers in separate folder
 
@@ -1971,28 +1193,8 @@ def print_helper(input_settings, layers, layers_saved, multi_manager):
             rf_en = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_en + rf_ending_en
             rf_ut = (rf_base % sub_path) + '_L' + str(layer_index) + mem_scheme_su_save_str_ut + rf_ending_ut
 
-            if input_settings.im2col_enable_pw and (input_settings.spatial_unrolling_mode not in [4, 5]) \
-                    and (input_settings.fixed_temporal_mapping is False):
-                if multi_manager.pw_im2col_flag[j]:
-                    best_output_energy.spatial_scheme, \
-                    best_output_energy.flooring, \
-                    best_output_energy.temporal_scheme = \
-                        pw_layer_col2im(best_output_energy.spatial_scheme,
-                                        best_output_energy.flooring,
-                                        best_output_energy.temporal_scheme, layers_saved[j].size_list)
-                    best_output_utilization.spatial_scheme, \
-                    best_output_utilization.flooring, \
-                    best_output_utilization.temporal_scheme = \
-                        pw_layer_col2im(best_output_utilization.spatial_scheme,
-                                        best_output_utilization.flooring,
-                                        best_output_utilization.temporal_scheme, layers_saved[j].size_list)
-
-            if print_type == "xml":
-                print_xml(rf_en, layer, msc_en, best_output_energy, common_settings_en, tm_count_en, sim_time_en, input_settings.result_print_mode)
-                print_xml(rf_ut, layer, msc_ut, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut, input_settings.result_print_mode)
-            else:
-                print_yaml(rf_en, layer, msc_en, best_output_energy, common_settings_en, tm_count_en, sim_time_en, input_settings.result_print_mode)
-                print_yaml(rf_ut, layer, msc_ut, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut, input_settings.result_print_mode)
+            print_xml(rf_en, layer, msc_en, best_output_energy, common_settings_en, tm_count_en, sim_time_en, input_settings.result_print_mode)
+            print_xml(rf_ut, layer, msc_ut, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut, input_settings.result_print_mode)
 
 
 class CostModelOutput:
@@ -2060,7 +1262,7 @@ class CommonSetting:
                            'Row': input_settings.mac_array_info['array_size'][1]}
         self.spatial_unrolling_mode = input_settings.spatial_unrolling_mode
         self.spatial_mapping_hint_list = input_settings.unrolling_scheme_list_text
-        self.im2col_enable = input_settings.im2col_enable_all
+        self.im2col_enable = input_settings.im2col_enable
 
         try:
             mem_access_cost = {'W': [], 'I': [], 'O': []}

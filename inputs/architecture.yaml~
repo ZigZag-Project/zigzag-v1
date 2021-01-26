@@ -1,0 +1,82 @@
+PE_array:
+  Col : 14
+  Row : 12
+
+precision:
+  I : 8
+  W : 2
+  O_partial : 8
+  O_final : 8
+
+# Computing core: {digital, analog}
+computing_core: digital
+
+# If computing core digital
+
+single_mac_energy_active : 0.06
+single_mac_energy_idle : 0.005
+
+mac_array_stall :
+  systolic: 1
+
+# If computing core imc
+# SRAM
+imc_act_line_cap : 0.00067
+imc_sum_line_cap : 0.000615
+imc_act_line_v : 0.8
+imc_sum_line_v : 0.6
+imc_vdd : 0.8
+imc_ADC_cost : 0.31
+imc_DAC_cost : 0.155
+imc_n_act_serial : 8
+imc_write_cost_cell : 0.455
+imc_utilization_rate_array : 0.8
+
+
+
+
+############### you need to set them if doing architecture search ###############
+area_max : 3.5e6
+area_utilization : 0.75
+mem_ratio : 8
+PE_memory_depth : 2
+PE_threshold : 3000
+CHIP_memory_depth : 2
+
+banking : [1,4]
+
+L2_size:
+  [1048576, 4194304]
+L1_size:
+  [65536, 524288]
+
+memory_hint:
+  sramx:
+      memory_instance : sram16Mb
+      memory_unroll : 1
+      operand_stored : [O,I,W]
+#################################################################################
+
+############# you need to set them if not doing architecture search #############
+memory_hierarchy:
+  rf_psum:
+      memory_instance : spad_48byte
+      memory_unroll : 168
+      operand_stored : [O]
+  rf_input:
+      memory_instance: spad_24byte
+      memory_unroll: 168
+      operand_stored: [I]
+  rf_weight:
+      memory_instance: spad_448byte
+      memory_unroll: 168
+      operand_stored: [W]
+  global_buffer:
+      memory_instance: buffer_108Kbyte
+      memory_unroll: 1
+      operand_stored: [I, O]
+  top_sram:
+      memory_instance: sram_eyeriss
+      memory_unroll: 1
+      operand_stored: [W,I,O]
+#################################################################################

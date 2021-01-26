@@ -24,49 +24,19 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     input_settings = input_funcs.get_input_settings(args.set, args.map, args.mempool, args.arch)
-
-    '''
-    Neural Network info can be defined by user (./NN_layer/XXNet.py) or be imported externally.
-    By default, user-defined layer dimension is used (./NN_layer/XXNet.py).
-    An example of loading model externally from Keras is provided.
-    To try it, the below line "layer_spec, _ = input_funcs.get_layer_spec(..." need to be commented.
-    '''
-    # ---------------------------------------------------------------------------
-    # import keras.applications
-    # load_model = keras.applications.MobileNet()
-    # layer_spec, layer_numbers = input_funcs.get_layer_spec(None, model=load_model)
-    # input_settings.layer_number = layer_numbers
-    # input_settings.layer_filename = '../../' + load_model.name
-    # ---------------------------------------------------------------------------
-    layer_spec, _ = input_funcs.get_layer_spec(input_settings, model=None)
-
+    layer_spec = importlib.machinery.SourceFileLoader('%s' % (input_settings.layer_filename),
+                                                      '%s.py' % (input_settings.layer_filename)).load_module()
     # Extract the layer information from the layer_spec
     layers = [cls.Layer.extract_layer_info(layer_spec.layer_info[layer_number])
               for layer_number in input_settings.layer_number]
-    layers_saved = deepcopy(layers)
 
-    layer_info_im2col = im2col_layer_transform(layer_spec.layer_info)
-    layers_im2col = [cls.Layer.extract_layer_info(layer_info_im2col[layer_number])
-                     for layer_number in input_settings.layer_number]
-
-    # pw: short for pointwise.
-    # When greedy mapping is discabled, the tool auto applies im2col transfer on pw layers
-    # to speed up scheduling process without losing optimality.
-    # Note that im2col is not compatible with greedy mapping, thus spatial_unrolling_mode 4, 5 are excluded.
-    pw_im2col_flag = []
-    if input_settings.im2col_enable_pw and (input_settings.spatial_unrolling_mode not in [4, 5]):
-        layers_pw_speedup = []
-        for idx, single_layer in enumerate(layers):
-            if single_layer.FX == single_layer.FY == 1:  # or single_layer.OX == single_layer.OY == 1:
-                layers_pw_speedup.append(layers_im2col[idx])
-                layer_spec.layer_info[input_settings.layer_number[idx]] = \
-                    layer_info_im2col[input_settings.layer_number[idx]]
-                pw_im2col_flag.append(True)
-            else:
-                layers_pw_speedup.append(layers[idx])
-                pw_im2col_flag.append(False)
-        layers = layers_pw_speedup
-
+    if input_settings.im2col_enable:
+        layer_info_im2col = im2col_layer_transform(layer_spec.layer_info)
+        layers_im2col = [cls.Layer.extract_layer_info(layer_info_im2col[layer_number])
+                         for layer_number in input_settings.layer_number]
+    else:
+        layer_info_im2col = None
+        layers_im2col = None
 
     # If there are duplicate layers, set flag for the latter ones.
     # This flag will prevent the layer from being evaluated later on to speed up run.
@@ -75,7 +45,6 @@ if __name__ == "__main__":
         for idx_other, other in enumerate(layers_seen):
             if layer == other:
                 layer.set_duplicate(input_settings.layer_number[idx_other])
-                break
 
     # Setup a layer dictionary of following format for easy access
     # key: layer number
@@ -93,8 +62,6 @@ if __name__ == "__main__":
     tmp_mem_node_list = []
 
     print('ZigZag started running.')
-    print('Target workload: %s | Layer(s): %s' % (input_settings.layer_filename.split('/')[-1],
-                                                  input_settings.layer_number))
     t1 = time.time()
     if not input_settings.mem_hierarchy_single_simulation:
         now = datetime.now()
@@ -125,22 +92,20 @@ if __name__ == "__main__":
                                                       input_settings.mem_hierarchy_single_simulation,
                                                       input_settings.banking, input_settings.L1_size,
                                                       input_settings.L2_size)
-
+        
     # CHECKS IF THE LAST LEVEL IN MEMORY HIERARCHY MEETS STORAGE REQUIREMENTS FOR OPERANDS
     if not mem_scheme_sim:
         raise ValueError('No memory hierarchy found. Consider changing constraints in the architecture file.')
-    mem_scheme_sim_copy = deepcopy(mem_scheme_sim)
-    for idx, each_mem_scheme in enumerate(mem_scheme_sim_copy):
-        mem_scheme_fit = mem_scheme_fit_check(idx+1, each_mem_scheme, input_settings.precision, layer_spec.layer_info,
+    for idx, each_mem_scheme in enumerate(mem_scheme_sim):
+        mem_scheme_fit = mem_scheme_fit_check(each_mem_scheme, input_settings.precision, layer_spec.layer_info,
                                               input_settings.layer_number)
         if not mem_scheme_fit:
             del mem_scheme_sim[idx]
     if not mem_scheme_sim:
         raise ValueError('The largest memory in the hierarchy is still too small for holding the required workload.')
-
+    
     # Manages the variables passed to the multiple parallel processes
-    multi_manager = MultiManager(input_settings, mem_scheme_sim, layer_spec, layers, layer_info_im2col, layers_im2col,
-                                 pw_im2col_flag)
+    multi_manager = MultiManager(input_settings, mem_scheme_sim, layer_spec, layers, layer_info_im2col, layers_im2col)
 
     # A list containing the chunks that will be processed sequentially
     # Each element within a chunk will be processed in parallel
@@ -155,7 +120,7 @@ if __name__ == "__main__":
         for mem_scheme_index, mem_scheme in enumerate(mem_scheme_sim_chunk):  # parallel processing of one chunk
             current_mem_scheme_index = mem_scheme_index + input_settings.mem_scheme_parallel_processing * ii_mem_scheme_chunk
             procs.append(Process(target=evaluate.mem_scheme_list_evaluate,
-                                 args=(input_settings, mem_scheme, current_mem_scheme_index, layers, multi_manager)))
+                                args=(input_settings, mem_scheme, current_mem_scheme_index, layers, multi_manager)))
         for p in procs: p.start()
         for p in procs: p.join()
 
@@ -163,7 +128,7 @@ if __name__ == "__main__":
     if not input_settings.mem_hierarchy_single_simulation:
         evaluate.optimal_su_evaluate(input_settings, layers, multi_manager)
 
-    of.print_helper(input_settings, layers, layers_saved, multi_manager)
+    of.print_helper(input_settings, layers, multi_manager)
 
     total_time = int(time.time() - t1)
     print('ZigZag finished running. Total elapsed time: %d seconds.' % total_time)

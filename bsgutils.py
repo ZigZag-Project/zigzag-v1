@@ -1,4 +1,4 @@
-from copy import deepcopy
+import copy
 import numpy as np
 import math
 import time
@@ -115,9 +115,9 @@ def check_comb_fit(LPF_scheme, spatial_unrolling, comb, min_roof, mem_size, mem_
     # Find the total size occupied by summing up the LPF size contained in
     # LPF_scheme + comb for all shared operands, check whether it fits in the level of the min roof
     for i in range(0, len(shared_min_roof_levels)):
-        tmp_LPF_scheme = deepcopy(LPF_scheme)
+        tmp_LPF_scheme = copy.deepcopy(LPF_scheme)
         # Append the LPFs contained in comb to the LPF scheme
-        tmp_LPF_scheme[shared_min_roof_levels[i][0]][shared_min_roof_levels[i][1]] = deepcopy(
+        tmp_LPF_scheme[shared_min_roof_levels[i][0]][shared_min_roof_levels[i][1]] = copy.deepcopy(
             tmp_LPF_scheme[shared_min_roof_levels[i][0]][shared_min_roof_levels[i][1]] + list(comb))
 
         # Compute the size in bits of the LPF contained in the tmp LPF scheme if operand is 'I' or otherwise
@@ -164,15 +164,15 @@ def update_roof(LPF_scheme, spatial_unrolling, fitting_combination, old_roof, me
                 loops_pf, layer_loop_info):
     # The function updates the max blocks available for each operand at the specified level in the roof
     # taking into account the partial LPF scheme with the fitting combination stacked on top of it
-    tmp_LPF_scheme = deepcopy(LPF_scheme)
-    tmp_LPF_scheme2 = deepcopy(LPF_scheme)
+    tmp_LPF_scheme = copy.deepcopy(LPF_scheme)
+    tmp_LPF_scheme2 = copy.deepcopy(LPF_scheme)
     for operand in tmp_LPF_scheme:
-        list_fitting_comb = deepcopy(fitting_combination)
-        tmp_LPF_scheme[operand][old_roof[operand][0]] = deepcopy(tmp_LPF_scheme[operand][
+        list_fitting_comb = copy.deepcopy(fitting_combination)
+        tmp_LPF_scheme[operand][old_roof[operand][0]] = copy.deepcopy(tmp_LPF_scheme[operand][
                                                                           old_roof[operand][0]] + fitting_combination)
-        tmp_LPF_scheme2[operand][old_roof[operand][0]] = deepcopy(tmp_LPF_scheme[operand][
+        tmp_LPF_scheme2[operand][old_roof[operand][0]] = copy.deepcopy(tmp_LPF_scheme[operand][
                                                                            old_roof[operand][0]] + fitting_combination)
-    new_roof = deepcopy(old_roof)
+    new_roof = copy.deepcopy(old_roof)
     # For each operand:
     # - If the respective roof memory level is NOT SHARED compute the space available still and divide by the precision of the operand
     # - If the respective roof memory level is SHARED find the max size of combination of relevant LPFs that fit in the shared level
@@ -251,7 +251,7 @@ def utilization_rate_optimizer(mem_size, spatial_unroll, layer, precision, utili
     operand_size = {}
     layerc2a = {7: 'B', 6: 'K', 5: 'C', 4: 'OY', 3: 'OX', 2: 'FY', 1: 'FX'}
     for operand in ['W', 'I', 'O']:
-        layer_cleaned = deepcopy(layer)
+        layer_cleaned = copy.deepcopy(layer)
         if len(spatial_unroll[operand]) - 1 == len(mem_size[operand]) and spatial_unroll[operand][-1]:
             layer_cleaned[layerc2a[spatial_unroll[operand][-1][0][0]]] /= spatial_unroll[operand][-1][0][1]
         if operand == 'W':
@@ -269,26 +269,6 @@ def utilization_rate_optimizer(mem_size, spatial_unroll, layer, precision, utili
             if max_utilization < utilization_rate[operand][level]:
                 utilization_rate[operand][level] = max_utilization * 0.9
     return utilization_rate, True
-
-
-def check_mem_ut_after_CM(actual_mem_ut1, actual_mem_ut2, req_mem_ut, current_best_en, current_best_ut,
-                          previous_best_en, previous_best_ut):
-    """
-    This function compare current best design points found with the previous ones.
-    If the current design points are better, it also checks ig the memory utilization TH is met or not,
-    based on which, it decides whether to continue internal memory utilization threshold adjusting while loop.
-    """
-    redo_flag = False
-    req_mem_ut_update = deepcopy(req_mem_ut)
-    if not (current_best_en == previous_best_en and current_best_ut == previous_best_ut):
-        for op in ['W', 'I', 'O']:
-            for level, ut in enumerate(req_mem_ut[op]):
-                if actual_mem_ut1[op][level] < ut or actual_mem_ut2[op][level] < ut:
-                    req_mem_ut_update[op][level] = min(actual_mem_ut1[op][level], actual_mem_ut2[op][level])*0.95
-                    # req_mem_ut_update[op][level] *= 0.8
-                    redo_flag = True
-
-    return redo_flag, req_mem_ut_update
 
 
 class SchedulerNode:
