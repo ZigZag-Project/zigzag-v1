@@ -628,7 +628,17 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
         tree = ET.ElementTree(root)
         tree.write(results_filename + '.xml')
 
-    tree = ET.parse(results_filename + '.xml')
+    try:
+        tree = ET.parse(results_filename + '.xml')
+    except:
+        # Error thrown because the xml file is corrupt
+        os.remove(results_filename + '.xml')
+        print("Deleted corrupt xml file:", results_filename + '.xml')
+        root = ET.Element('root')
+        tree = ET.ElementTree(root)
+        tree.write(results_filename + '.xml')
+        tree = ET.parse(results_filename + '.xml')
+
     root = tree.getroot()
     sim = ET.SubElement(root, 'simulation')
     result_generate_time = ET.SubElement(sim, 'result_generated_time')

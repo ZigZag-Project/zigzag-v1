@@ -214,6 +214,39 @@ class SpatialLoop(object):
                 for this_loop in loop_list:
                     spatial_loop_list.append(this_loop)
 
+        '''
+        Added for LOMA
+        '''
+        # Relevant loop type numbers for each operand
+        relevant_loop_type_numbers = {'W': [1,2,5,6], 'I': [5,7], 'O': [3,4,6,7]}
+        irrelevant_loop_type_numbers = {'W': [3,4,7], 'I': [], 'O': [1,2,5]}
+        
+        ## Extract the relevant/irrelevant loop unrolling for each operand
+        su_relevant_size_dict = {'W': [], 'I': [], 'O': []}
+        su_irrelevant_size_dict = {'W': [], 'I': [], 'O': []}
+        # WEIGHT and OUTPUT and INPUT relevant
+        for operand in ['W', 'O', 'I']:
+            for level in range(0, len(spatial_loop[operand])): # start at 0 =  include MAC level
+                su_relevant_size = 1
+                su_irrelevant_size = 1
+                for [loop_type_number, su_factor] in spatial_loop[operand][level]:
+                    if loop_type_number in relevant_loop_type_numbers[operand]:
+                        su_relevant_size *= su_factor
+                    elif loop_type_number in irrelevant_loop_type_numbers[operand]:
+                        su_irrelevant_size *= su_factor
+                su_relevant_size_dict[operand].append(su_relevant_size)
+                su_irrelevant_size_dict[operand].append(su_irrelevant_size)
+        # INPUT partially relevant
+        su_pr_size_dict_input = {1: [], 2: [], 3: [], 4: []} # 1 = FX, 2 = FY, 3 = OX, 4 = OY
+        pr_loops = [1,2,3,4] # 1 = FX, 2 = FY, 3 = OX, 4 = OY
+        for level in range(0, len(spatial_loop['I'])):
+            su_pr_size = {1: 1, 2: 1, 3: 1, 4: 1}
+            for [loop_type_number, su_factor] in spatial_loop[operand][level]:
+                if loop_type_number in pr_loops:
+                    su_pr_size[loop_type_number] *= su_factor
+            for key in pr_loops:
+                su_pr_size_dict_input[key].append(su_pr_size[key])
+
         self.Bu = Bu
         self.Ku = Ku
         self.Cu = Cu
@@ -235,6 +268,11 @@ class SpatialLoop(object):
         self.real_bw_boost_low = real_bw_boost_low
 
         self.spatial_loop_list = spatial_loop_list
+
+        self.su_relevant_size_dict = su_relevant_size_dict
+        self.su_irrelevant_size_dict = su_irrelevant_size_dict
+        self.su_pr_size_dict_input = su_pr_size_dict_input
+
 
     @classmethod
     def extract_loop_info(cls, spatial_loop, layer_loop_info):

@@ -12,11 +12,14 @@ import sys
 
 class MemoryNode:
 
-    def __init__(self, memory_level, operand, cluster_level, fixed):
+    def __init__(self, memory_level, operand, cluster_level, fixed, unique_name=None):
         self.memory_level = memory_level
         self.operand = operand
         self.cluster_level = cluster_level
         self.fixed = fixed
+        self.unique_name = unique_name
+        self.read_from_above_cost = {}
+        self.write_to_above_cost = {}
 
     def __hash__(self):
         return id(self)
@@ -49,6 +52,20 @@ class MemoryNode:
                     return True
             else:
                 return False
+
+    def set_read_from_above_cost(self, op, cost):
+        '''
+        Method to set the cost of reading from the node that is directly above this one in the hierarchy.
+        As this node might hold mulitple operands, we use a dictionary.
+        '''
+        self.read_from_above_cost[op] = cost
+
+    def set_write_to_above_cost(self, op, cost):
+        '''
+        Method to set the cost of writing to the node that is directly above this one in the hierarchy.
+        As this node might hold mulitple operands, we use a dictionary.
+        '''
+        self.write_to_above_cost[op] = cost
 
 
 class MemorySchemeNode:
@@ -87,7 +104,7 @@ class MemoryScheme:
     mem_unroll_complete = []
 
     def __init__(self, mem_name, mem_size, mem_cost, mem_utilization_rate, mem_utilization_rate_fixed, mem_share,
-                 mem_unroll, mem_fifo, mem_bw, mem_type, mem_area, mem_nbanks):
+                 mem_unroll, mem_fifo, mem_bw, mem_type, mem_area, mem_nbanks, nodes):
         self.mem_name = mem_name
         self.mem_size = mem_size
         self.mem_cost = mem_cost
@@ -100,6 +117,7 @@ class MemoryScheme:
         self.mem_type = mem_type
         self.mem_area = mem_area
         self.mem_nbanks = mem_nbanks
+        self.nodes = nodes
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -273,7 +291,8 @@ def fitting_memories(array_mem_pool, area, max_area, utilization_rate, L1_size, 
         return fitting_comb
     array_mem_pool_index = list(range(0, len(array_mem_pool)))
     for k in range(0, len(array_mem_pool) ** 2):
-        print('\r memory combination ', k + 1, '/', len(array_mem_pool) + 1, ' fitting list:', len(fitting_comb), end ="")
+        print('\r memory combination ', k + 1, '/', len(array_mem_pool) + 1, ' fitting list:', len(fitting_comb),
+                end="")        
         # Create combination with repetition of memories from array_mem_pool
         # The repetition is due to the fact that the same memory can hold a different operand
         mem_combinations = combinations_with_replacement(array_mem_pool_index, k)
@@ -533,7 +552,7 @@ def memory_scheme_generator(mem_pool, array_dimension, max_area, utilization_rat
 
 
 def msg(mem_pool, array_dimension, max_area, utilization_rate_area, memory_hierarchy_ratio, prune_PE_RF,
-        PE_RF_size_threshold, PE_RF_depth, CHIP_depth, tmp_msn, tmp_node_list, single_sim, banking, L1_size, L2_size):
+        PE_RF_size_threshold, PE_RF_depth, CHIP_depth, tmp_msn, mh_name, tmp_node_list, single_sim, banking, L1_size, L2_size):
     memory_scheme_list = memory_scheme_generator(mem_pool, array_dimension, max_area, utilization_rate_area,
                                                  memory_hierarchy_ratio, prune_PE_RF, PE_RF_size_threshold, PE_RF_depth,
                                                  CHIP_depth, banking, L1_size, L2_size, tmp_msn, tmp_node_list,
@@ -553,6 +572,9 @@ def msg(mem_pool, array_dimension, max_area, utilization_rate_area, memory_hiera
         mem_fifo = {'W': [], 'I': [], 'O': []}
         mem_bw = {'W': [], 'I': [], 'O': []}
         mem_nbanks = {'W': [], 'I': [], 'O': []}
+        mem_ops = {'W': [], 'I': [], 'O': []}
+        if not single_sim: # reset the mh_name
+            mh_name = {'W':[], 'I': [], 'O': []}
 
         mem_list = [x for x in memory_scheme_node.memory_scheme]
         for op in ['W', 'I', 'O']:
@@ -570,6 +592,11 @@ def msg(mem_pool, array_dimension, max_area, utilization_rate_area, memory_hiera
                 mem_unroll[op].append(mn.memory_level['unroll'])
                 mem_fifo[op].append(mn.memory_level['mem_fifo'])
                 mem_nbanks[op].append(mn.memory_level['nbanks'])
+                mem_ops[op].append(mn.operand)
+                if not single_sim: # if doing hierarchy search mh_name will be empty
+                    unique_name = mn.memory_level['name'] + '_' + "".join(mn.operand)
+                    mn.unique_name = unique_name
+                    mh_name[op].append(unique_name)
 
         for mem in mem_list:
             if len(mem.operand) > 1:
@@ -578,9 +605,69 @@ def msg(mem_pool, array_dimension, max_area, utilization_rate_area, memory_hiera
                     shared_mem = (mem.operand[i], mem_size[mem.operand[i]].index(mem.memory_level['size_bit']))
                     shared_list.append(shared_mem)
                 mem_share[len(mem_share)] = shared_list
+        
+        # LOMA: Construct structured list of memory nodes present in architecture,
+        # going from left (closest to PE) to right (closest to off-chip DRAM)
+        # inserted with None(s) if an operand has less levels than the max # levels for any operand
+        max_levels = max([len(mh_name[op]) for op in ['W','I','O']])
+        mh_name_with_none = deepcopy(mh_name)
+        for op in ['W','I','O']:
+            last_shared_level = -1
+            mem_levels_op = len(mh_name[op])
+            if mem_levels_op < max_levels:
+                for mem_level in range(mem_levels_op):
+                    if len(mem_ops[op][mem_level]) > 1:
+                        last_shared_level = mem_level
+                        for shared_op in mem_ops[op][mem_level]:
+                        # shared_op = mem_ops[op][mem_level][1]
+                            index_shared_op = mh_name[shared_op].index(mh_name[op][mem_level])
+                            if index_shared_op > mem_level:
+                                mh_name_with_none[op].insert(mem_level, None)
+                                break
+            # Check if there are still less levels for this operand (possible if all non-shared)
+            # If so, insert None(s) at position after last shared level, as it will give better OMA search time.
+            # This is because last level is discarded for TM search using OMA.
+            mem_levels_op_updated = len(mh_name_with_none[op])
+            if mem_levels_op_updated < max_levels:
+                difference = int(max_levels - mem_levels_op_updated)
+                for _ in range(difference):
+                    mh_name_with_none[op].insert(last_shared_level + 1, None)
+
+        mh_name_left_to_right = zip(mh_name_with_none['W'], mh_name_with_none['I'], mh_name_with_none['O'])
+        # Remove duplicate elements at each level
+        seen = set()
+        mh_name_left_to_right = [[x for x in seq if x not in seen and not seen.add(x)] 
+                                for seq in mh_name_left_to_right] 
+        # Construct the node list for each memory level
+        nodes_set = memory_scheme_node.memory_scheme
+        nodes = []
+        for mem_level, seq in enumerate(mh_name_left_to_right):
+            nodes_level = []
+            for unique_name in seq:
+                # find corresponding node in the set by iterating through it
+                for node in nodes_set:
+                    if node.unique_name == unique_name:
+                        nodes_level.append(deepcopy(node))
+                        if mem_level == 0:
+                            break # we have found corresponding node
+                        else:
+                            # find the node(s) in the below levels connected to this one
+                            for op in node.operand:
+                                found = False
+                                for level_below in range(mem_level-1, -1, -1): # [mem_level-1, mem_level-2, ..., 0]
+                                    for node_below in nodes[level_below]:
+                                        if op in node_below.operand:
+                                            found = True
+                                            node_below.set_read_from_above_cost(op, node.memory_level["cost"][0][0])
+                                            node_below.set_write_to_above_cost(op, node.memory_level["cost"][0][0])
+                                            break
+                                    if found:
+                                        break
+
+            nodes.append(nodes_level)
 
         ms = MemoryScheme(mem_name, mem_size, mem_word_cost, mem_utilization_rate, mem_utilization_rate_fix, mem_share,
-                          mem_unroll, mem_fifo, mem_bw, mem_type, mem_area, mem_nbanks)
+                          mem_unroll, mem_fifo, mem_bw, mem_type, mem_area, mem_nbanks, nodes)
 
         ms_list.append(ms)
     return ms_list, memory_scheme_list
@@ -736,7 +823,7 @@ def mem_scheme_fit_check(mem_idx, mem_scheme, precision, layer, layer_number):
                         total_size = np.sum([operand_size[op] for op in operand_size if op in shared_mem_list])
                         if mem_scheme.mem_size[operand][-1] < total_size:
                             mem_scheme_fit = False
-                            print('Memory Scheme %d cannot hold all the data in NN Layer %d.' %(mem_idx,layer_idx),
+                            print('Memory Scheme %d cannot hold all the data in NN Layer %d.' % (mem_idx, layer_idx),
                                   end=' | ')
                             print('Required memory size:', operand_size[operand], '<-> Available memory size:',
                                   mem_scheme.mem_size[operand][-1], '(unit: bit)')
@@ -744,7 +831,7 @@ def mem_scheme_fit_check(mem_idx, mem_scheme, precision, layer, layer_number):
                 if total_size == 0:
                     if mem_scheme.mem_size[operand][-1] < operand_size[operand]:
                         mem_scheme_fit = False
-                        print('Memory Scheme %d cannot hold all the data in NN Layer %d.' %(mem_idx,layer_idx),
+                        print('Memory Scheme %d cannot hold all the data in NN Layer %d.' % (mem_idx, layer_idx),
                               end=' | ')
                         print('Required memory size:', operand_size[operand], '<-> Available memory size:',
                               mem_scheme.mem_size[operand][-1], 'Operand:', operand, '(unit: bit)')
@@ -1619,6 +1706,39 @@ def get_mem_scheme_area(mem_scheme, ii_su):
             else:
                 level_area_active = mem_area * mem_unroll
                 level_area_total = mem_area * mem_unroll
+            active_area += level_area_active
+            total_area += level_area_total
+
+    return total_area, active_area
+
+def get_mem_scheme_area2(mem_scheme, unit_count, spatial_utilization):
+    """
+    This function computes total memory occupied area.
+    It distinguishes active area and total area.
+    total area = active area + dark silicon area
+    """
+
+    total_area = 0
+    active_area = 0
+    if type(mem_scheme.mem_area['W'][0]) in [list, tuple]:
+        mem_scheme.mem_area = iterative_data_format_clean(mem_scheme.mem_area)
+    for op in ['W', 'I', 'O']:
+        for level, mem_area in enumerate(mem_scheme.mem_area[op]):
+            index_unroll_shared = [tuple([op, level]) in mem_scheme.mem_share[x] for x in
+                                   mem_scheme.mem_share]
+            if any(index_unroll_shared):
+                level_area_active = mem_area * unit_count[op][level + 1] / len(
+                    mem_scheme.mem_share[index_unroll_shared.index(True)])
+                if unit_count[op][level + 1] > 1:
+                    level_area_total = level_area_active / spatial_utilization
+                else:
+                    level_area_total = level_area_active
+            else:
+                level_area_active = mem_area * unit_count[op][level + 1]
+                if unit_count[op][level + 1] > 1:
+                    level_area_total = level_area_active / spatial_utilization
+                else:
+                    level_area_total = level_area_active
             active_area += level_area_active
             total_area += level_area_total
 

@@ -13,10 +13,10 @@ class InputSettings:
                  fixed_temporal_mapping, temporal_mapping_single, tmg_search_method, temporal_mapping_multiprocessing,
                  drc_enabled, PE_RF_size_threshold, PE_RF_depth, CHIP_depth, max_area, utilization_rate_area,
                  memory_hierarchy_ratio, mem_pool, banking, L1_size, L2_size, unrolling_size_list, unrolling_scheme_list,
-                 unrolling_scheme_list_text, memory_scheme_hint, spatial_utilization_threshold, spatial_unrolling_mode,
+                 unrolling_scheme_list_text, memory_scheme_hint, mh_name, spatial_utilization_threshold, spatial_unrolling_mode,
                  stationary_optimization_enable, su_parallel_processing, arch_search_result_saving, su_search_result_saving,
                  tm_search_result_saving, result_print_mode, im2col_enable_all, im2col_enable_pw, memory_unroll_fully_flexible,
-                 result_print_type, save_results_on_the_fly):
+                 result_print_type, save_results_on_the_fly, max_nb_lpf_layer):
 
         self.results_path = results_path
         self.results_filename = results_filename
@@ -54,6 +54,7 @@ class InputSettings:
         self.L1_size = L1_size
         self.L2_size = L2_size
         self.memory_scheme_hint = memory_scheme_hint
+        self.mh_name = mh_name
         self.banking = banking
         self.spatial_utilization_threshold = spatial_utilization_threshold
         self.spatial_unrolling_mode = spatial_unrolling_mode
@@ -70,6 +71,7 @@ class InputSettings:
         self.memory_unroll_fully_flexible = memory_unroll_fully_flexible
         self.result_print_type = result_print_type
         self.save_results_on_the_fly = save_results_on_the_fly
+        self.max_nb_lpf_layer = max_nb_lpf_layer
 
 
 def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure_path):
@@ -143,7 +145,7 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
             if not m_tmp:
                 raise Exception("Memory instance " + str(m) + " in hierarchy is not found in memory pool")
             m_tmp = m_tmp[0]
-            m_tmp = MemoryNode(m_tmp, (), 0, 1)
+            m_tmp = MemoryNode(m_tmp, (), 0, 1, m)
             m_tmp.memory_level['unroll'] = fl['memory_hierarchy'][m]['memory_unroll']
             m_tmp.memory_level['nbanks'] = None
             m_tmp.operand = tuple(fl['memory_hierarchy'][m]['operand_stored'])
@@ -259,7 +261,7 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
         tmg_search_method = 1
         stationary_optimization_enable = True
         data_reuse_threshold = 1
-    elif fl['temporal_mapping_search_method'] == 'c++':
+    elif fl['temporal_mapping_search_method'] == 'loma':
         tmg_search_method = 2
         stationary_optimization_enable = None
         data_reuse_threshold = None
@@ -282,6 +284,10 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
         save_results_on_the_fly = fl['save_results_on_the_fly']
     except:
         save_results_on_the_fly = False
+    try:
+        max_nb_lpf_layer = fl['max_nb_lpf_layer']
+    except:
+        max_nb_lpf_layer = 20
 
     input_settings = InputSettings(fl['result_path'], fl['result_filename'], fl['layer_filename'],
                                    layer_indices, fl['layer_multiprocessing'], precision,
@@ -293,13 +299,13 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
                                    data_reuse_threshold, PE_RF_size_threshold, PE_depth,
                                    CHIP_depth, area_max_arch, area_utilization_arch,
                                    mem_ratio, memory_pool, banking, L1_size, L2_size, unrolling_size_list,
-                                   unrolling_scheme_list, unrolling_scheme_list_text, memory_scheme_hint,
+                                   unrolling_scheme_list, unrolling_scheme_list_text, memory_scheme_hint, mh_name,
                                    fl['spatial_utilization_threshold'], sumx, stationary_optimization_enable,
                                    fl['spatial_unrolling_multiprocessing'], fl['save_all_architecture_result'],
                                    fl['save_all_spatial_unrolling_result'], fl['save_all_temporal_mapping_result'],
                                    fl['result_print_mode'], fl['im2col_enable_for_all_layers'],
                                    fl['im2col_enable_for_pointwise_layers'], memory_unroll_fully_flexible,
-                                   fl['result_print_type'], save_results_on_the_fly)
+                                   fl['result_print_type'], save_results_on_the_fly, max_nb_lpf_layer)
 
     return input_settings
 

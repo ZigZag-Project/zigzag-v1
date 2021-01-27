@@ -3,6 +3,7 @@ import cost_model_funcs as cmf
 import bsg_ite
 import classes as cls
 import sys
+import os
 import numpy as np
 from copy import deepcopy
 from bsgutils import utilization_rate_optimizer, check_mem_ut_after_CM
@@ -18,6 +19,7 @@ from itertools import repeat
 from classes.layer_rounding import mem_access_count_correct
 from im2col_funcs import pw_layer_col2im
 from output_funcs import CommonSetting, print_xml, print_yaml
+import loma
 
 
 def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_loop_fractional, spatial_loop_comb,
@@ -211,7 +213,8 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
     previous_TM_found = 0
     previous_best_en = [None, None]
     previous_best_ut = [None, None]
-    while redo_flag and iterate_time < mem_ut_iter_max:
+    loma_search_engine = input_settings.tmg_search_method == 2
+    while redo_flag and iterate_time < mem_ut_iter_max and not loma_search_engine:
         # print('generated mem ut', mem_scheme.mem_utilization_rate)
         if not input_settings.utilization_optimizer_pruning:
             good_scheme = True
@@ -402,6 +405,112 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
             previous_best_en = current_best_en
             previous_best_ut = current_best_ut
 
+    if loma_search_engine and not input_settings.fixed_temporal_mapping:
+        lpf_limit = input_settings.max_nb_lpf_layer
+        tl_list, nonmerged_count_dict, loop_type_order, tl_combinations = loma.og(layer_post, spatial_unrolling, lpf_limit)
+        t2 = time.time()
+        t_tmg = int(t2 - t1)
+        now = datetime.now()
+        current_time = now.strftime("%H:%M:%S")
+        if tl_list:
+            str_format = "{0} {1} L {2} , M {3} / {4} , SU {5} / {6}  TMG Finished | Elapsed time: {7} sec | Valid TMs found {8:,}"
+            print(str_format.format(current_time, str(input_settings.layer_filename.split('/')[-1]), layer_index, 
+                mem_scheme_index + 1, mem_scheme_count, ii_su + 1, len(mem_scheme.spatial_unrolling), t_tmg, tl_combinations))
+
+        now = datetime.now()
+        current_time = now.strftime("%H:%M:%S")
+        print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, ', M',
+                mem_scheme_index + 1, '/', mem_scheme_count, ', SU', ii_su + 1,
+                '/', len(mem_scheme.spatial_unrolling), ' CM  started ', end="")
+
+        # 'layer' is the original 7D layer, now it's got to be overwritten.
+        # 'im2col_layer' is the original 3D/7D layer, depending on im2col_enable
+        # 'layer_rounded' is the rounded 3D/7D layer, depending on im2col_enable
+        layer = [im2col_layer, layer_rounded]
+
+
+        ################################# SPLITTING INTO CHUNKS ##################################
+        tl_count = tl_combinations
+        first_loop_type = loop_type_order[0]
+        tl_count_first = nonmerged_count_dict[first_loop_type]
+        n_processes = min(tl_count_first, cpu_count(), input_settings.temporal_mapping_multiprocessing)
+        print("| Launching {0} threads, each consisting of {1:,} orderings".format(n_processes, int(tl_combinations/n_processes)))
+        tl_list_split = [{} for _ in range(n_processes)]
+        for loop_type in tl_list.keys():
+            if loop_type == first_loop_type:
+                # Split the orderings for first loop type into n_processes chunks of (roughly) equal size
+                k, m = divmod(tl_count_first, n_processes)
+                for i in range(n_processes):
+                    tl_list_split[i][loop_type] = tl_list[loop_type][i*k + min(i,m):(i+1)*k + min(i+1,m)]
+            else:
+                for i in range(n_processes):
+                    tl_list_split[i][loop_type] = tl_list[loop_type]
+
+        precision = input_settings.precision
+        layer_comb = [layer_, layer_rounded]
+        fixed_args = [nonmerged_count_dict, loop_type_order, tl_combinations, input_settings, spatial_loop_comb, mem_scheme, precision, layer_comb]
+
+        ################################# CALL PARALLEL PROCESSES ##################################
+        pool = Pool(processes=n_processes)
+        results = pool.starmap(loma.tl_worker_new, [[tl_chunk] + fixed_args for tl_chunk in tl_list_split])
+
+        #################################     POST PROCESSING     ##################################
+        best_output_energy = None
+        best_output_utilization = None
+        best_energy = float('inf')
+        best_energy_utilization = 0
+        best_utilization = 0
+        best_utilization_energy = float('inf')
+
+        # Create pickle file to append to if pickle_enable
+        if pickle_enable:
+            parent_folder = "%s/all_tm_results/" % (input_settings.results_path)
+            rf = "%s/%s_L_%d_SU_%d" % (parent_folder, input_settings.results_filename, layer_index, ii_su + 1)
+            rf_en = rf + '_energy.pickle'
+            rf_ut = rf + '_utilization.pickle'
+            rf_lat = rf + '_latency.pickle'
+            rf_en_ut = rf + '_combined.pickle'
+            # Create parent folder if it does not exist
+            Path(parent_folder).mkdir(parents=True, exist_ok=True)
+
+        # Loop through the best energy/ut found by the parallel processes to find the overall best one
+        for (min_en, min_en_ut, min_en_output, max_ut_en, max_ut, max_ut_output, en_collect, ut_collect, lat_collect) in results:
+            if (min_en < best_energy or (min_en == best_energy and min_en_ut > best_energy_utilization)):
+                best_energy = min_en
+                best_energy_utilization = min_en_ut
+                best_output_energy = min_en_output
+            if (max_ut > best_utilization or (max_ut == best_utilization and max_ut_en < best_utilization_energy)):
+                best_utilization_energy = max_ut_en
+                best_utilization = max_ut
+                best_output_utilization = max_ut_output
+
+            # Save the collected (energy,ut) from every temporal mapping if required
+            if pickle_enable:
+                # Save energy
+                with open(rf_en, 'ab') as f:
+                    pickle.dump(en_collect, f)
+                    f.close()
+                # Save utilization
+                # with open(rf_ut, 'ab') as f:
+                #     pickle.dump(ut_collect, f)
+                #     f.close()
+                # Save latency
+                with open(rf_lat, 'ab') as f:
+                    pickle.dump(lat_collect, f)
+                    f.close()
+                # Save combined (en,ut) tuples
+                # combined = zip(en_collect, ut_collect)
+                # with open(rf_en_ut, 'ab') as f:
+                #     for elem in combined:
+                #         pickle.dump(elem, f)
+                #     f.close()
+
+        # Convert output, which is just best allocated order at this point, to a CostModelOutput object
+        best_output_energy = loma.get_cost_model_output(best_output_energy, input_settings, mem_scheme, layer_comb, spatial_loop_comb, ii_su)
+        best_output_utilization = loma.get_cost_model_output(best_output_utilization, input_settings, mem_scheme, layer_comb, spatial_loop_comb, ii_su)
+
+
+
     now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
     print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, ', M',
@@ -501,8 +610,16 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
     if layer.is_duplicate:
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
-        print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index,
-              'is a duplicate of L', layer.parent, '. Skipping exploration.')
+        # print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index,
+        #       'is a duplicate of L', layer.parent, '. Skipping exploration.')
+        return
+
+    # Check if xml for this network + layer + mem scheme + su combination already exists. If so, return (skip)
+    # ONLY works for for_Marian_presentation with 1 spatial unrolling !!
+    path = input_settings.results_path + '/all_su_best_tm/' + input_settings.results_filename + \
+            '_L%d_M%d_SU1_max_ut.xml' % (layer_index, mem_scheme_index + 1)
+    if os.path.isfile(path):
+        print("Returning because xml already exists for L%d_M%d" % (layer_index, mem_scheme_index + 1))
         return
 
     if input_settings.im2col_enable_all:

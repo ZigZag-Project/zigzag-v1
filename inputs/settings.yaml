@@ -34,11 +34,11 @@ layer_indices : [3,4,5]
 layer_multiprocessing : 1
 architecture_search_multiprocessing : 1
 spatial_unrolling_multiprocessing : 1
-temporal_mapping_multiprocessing: 1
+temporal_mapping_multiprocessing: 8
 
 # TEMPORAL MAPPING GENERATOR SETTINGS
-# search_method : exhaustive / heuristic_v1 / heuristic_v2 / iterative
-temporal_mapping_search_method : heuristic_v1
+# search_method : exhaustive / heuristic_v1 / heuristic_v2 / iterative / loma
+temporal_mapping_search_method : loma
 
 # SPATIAL MAPPING GENERATOR SETTINGS
 # search method : exhaustive / heuristic_v1 / heuristic_v2 / hint_driven / greedy_mapping_with_hint / greedy_mapping_without_hint
@@ -65,3 +65,7 @@ im2col_enable_for_pointwise_layers : True
 # Save result files during processing. This is useful to prevent a lot of work being wasted if a crash occurs.
 # The saving is supplementary to that at the end of the processing, and is done in a separate folder.
 save_results_on_the_fly: True
+
+# Limit the maximal number of loop prime factors (lpfs) allowed for a single layer's temporal mapping search.
+# Setting this to a number larger than 20 should result in no limiting being performed.
+max_nb_lpf_layer: 20

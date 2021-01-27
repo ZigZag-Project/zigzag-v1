@@ -15,10 +15,11 @@ def get_operand_level_energy_cost(operand, level, mem_word_cost, mac_array_info,
                                   mem_scheme, precision, utilization, sum_shared_bw):
     # mac_cost = get_mac_cost(layer, mac_array_info['single_mac_energy'])
     #
-    if level < len(schedule_info['temporal'][operand]) - 1:
-        wire_cost = get_operand_level_wire_cost(operand, level, schedule_info, mac_array_info, loop, mem_fifo)
-    else:
-        wire_cost = 0
+    # if level < len(schedule_info['temporal'][operand]) - 1:
+    #     wire_cost = get_operand_level_wire_cost(operand, level, schedule_info, mac_array_info, loop, mem_fifo)
+    # else:
+    #     wire_cost = 0
+    wire_cost = 0
 
     mem_cost_dy = get_operand_level_dynamic_mem_cost(operand, level, loop, mem_word_cost, mem_scheme, precision,
                                                      utilization, sum_shared_bw)

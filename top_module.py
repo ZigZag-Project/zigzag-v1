@@ -107,7 +107,8 @@ if __name__ == "__main__":
                                                       input_settings.prune_PE_RF,
                                                       input_settings.PE_RF_size_threshold,
                                                       input_settings.PE_RF_depth, input_settings.CHIP_depth,
-                                                      input_settings.memory_scheme_hint, tmp_mem_node_list,
+                                                      input_settings.memory_scheme_hint, input_settings.mh_name,
+                                                      tmp_mem_node_list,
                                                       input_settings.mem_hierarchy_single_simulation,
                                                       input_settings.banking, input_settings.L1_size,
                                                       input_settings.L2_size)
@@ -121,7 +122,8 @@ if __name__ == "__main__":
                                                       input_settings.prune_PE_RF,
                                                       input_settings.PE_RF_size_threshold,
                                                       input_settings.PE_RF_depth, input_settings.CHIP_depth,
-                                                      input_settings.memory_scheme_hint, tmp_mem_node_list,
+                                                      input_settings.memory_scheme_hint, input_settings.mh_name,
+                                                      tmp_mem_node_list,
                                                       input_settings.mem_hierarchy_single_simulation,
                                                       input_settings.banking, input_settings.L1_size,
                                                       input_settings.L2_size)
