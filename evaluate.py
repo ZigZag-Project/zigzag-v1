@@ -205,8 +205,8 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
     elif input_settings.computing_core == 'analog':
         au = mem_scheme.spatial_unrolling[ii_su]['W'][0]
         imc_array_unroll = [[x for x in au if x[0] in [1,2,5]],[x for x in au if x[0] in [3,6]]]
-        active_mac_cost = cmf.get_imc_cost(imc_array_unroll, input_settings.mac_array_info['array_size'], input_settings.imc_act_line_cap, input_settings.imc_sum_line_cap, input_settings.imc_precision, \
-                                           input_settings.imc_vdd, input_settings.imc_act_line_v, input_settings.imc_sum_line_v, input_settings.imc_DAC_cost, input_settings.imc_ADC_cost, input_settings.imc_n_short_rows, input_settings.imc_n_act_serial, \
+        active_mac_cost = cmf.get_imc_cost(imc_array_unroll, input_settings.mac_array_info['array_size'], input_settings.imc_act_line_cap, input_settings.imc_sum_line_cap, \
+                                           input_settings.imc_vdd, input_settings.imc_act_line_v, input_settings.imc_sum_line_v, input_settings.imc_DAC_cost, input_settings.imc_ADC_cost, input_settings.imc_n_act_serial, \
                                            input_settings.imc_write_cost_cell, layer.total_MAC_op, layer)
     layer_rounded = cls.Layer.extract_layer_info(layer_post)
     idle_mac_cost = cmf.get_idle_mac_cost(layer, layer_rounded, input_settings.mac_array_info['array_size'],
@@ -244,23 +244,23 @@ def mem_scheme_su_evaluate(input_settings, layer, im2col_layer, layer_index, lay
                                                        mem_scheme.spatial_unrolling[ii_su], layer, mem_scheme,
                                                        input_settings)
             if input_settings.tmg_search_method == 1:
-                # tl_list = bsg_exh.bsg(mem_scheme.mem_size, mem_scheme.mem_share, input_settings.precision,
-                #                       mem_scheme.mem_utilization_rate, layer_post,
-                #                       layer_index,
-                #                       mem_scheme.spatial_unrolling[ii_su], input_settings.drc_enabled,
-                #                       input_settings.stationary_optimization_enable)
-                # tl_combinations = len(tl_list)
+                tl_list = bsg_exh.bsg(mem_scheme.mem_size, mem_scheme.mem_share, input_settings.precision,
+                                      mem_scheme.mem_utilization_rate, layer_post,
+                                      layer_index,
+                                      mem_scheme.spatial_unrolling[ii_su], input_settings.drc_enabled,
+                                      input_settings.stationary_optimization_enable)
+                tl_combinations = len(tl_list)
 
                 ####################### Advanced User Configuration #######################
-                fixed_order = [1, 2, 3, 4, 5, 6]
-                tl_list = bsg_exh.bsg_fixed_order(fixed_order,
-                                                  mem_scheme.mem_size,
-                                                  mem_scheme.mem_share,
-                                                  input_settings.precision,
-                                                  mem_scheme.mem_utilization_rate,
-                                                  layer_post, layer_index,
-                                                  mem_scheme.spatial_unrolling[ii_su])
-                tl_combinations = len(tl_list)
+                # fixed_order = [1, 2, 3, 4, 5, 6]
+                # tl_list = bsg_exh.bsg_fixed_order(fixed_order,
+                #                                   mem_scheme.mem_size,
+                #                                   mem_scheme.mem_share,
+                #                                   input_settings.precision,
+                #                                   mem_scheme.mem_utilization_rate,
+                #                                   layer_post, layer_index,
+                #                                   mem_scheme.spatial_unrolling[ii_su])
+                # tl_combinations = len(tl_list)
                 ###########################################################################
 
         if input_settings.fixed_temporal_mapping:
@@ -569,7 +569,7 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
         return
 
     for su_idx, su_ in enumerate(spatial_unrolling):
-        print('-SU', su_idx + 1, '/', len(mem_scheme.spatial_unrolling), mem_scheme.spatial_unrolling[su_idx])
+        print('- SU', su_idx + 1, '/', len(mem_scheme.spatial_unrolling), mem_scheme.spatial_unrolling[su_idx])
 
     ''' input_settings.su_parallel_processing SU parallel '''
     TIMEOUT = 36000
