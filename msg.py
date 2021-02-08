@@ -1126,7 +1126,7 @@ def get_input_data_reuse(pf_list, layer):
 def spatial_unrolling_generator_with_hint(mem_scheme, array_dimension, layer, unrolling_scheme_list):
     spatial_loop_list = []
     flooring_list = []
-    print(unrolling_scheme_list)
+    # print(unrolling_scheme_list)
     ll = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B'}
     loops_pf = {
         7: [],
@@ -1140,6 +1140,7 @@ def spatial_unrolling_generator_with_hint(mem_scheme, array_dimension, layer, un
     for loop_type in loops_pf:
         loops_pf[loop_type] = su.prime_factors(layer[ll[loop_type]])
     for unrolling_scheme in unrolling_scheme_list:
+        print(unrolling_scheme)
         cluster_scheme = []
         good_scheme = True
         for ii_ud, unroll_dim in enumerate(unrolling_scheme):
@@ -1153,13 +1154,13 @@ def spatial_unrolling_generator_with_hint(mem_scheme, array_dimension, layer, un
                 break
         if not good_scheme:
             continue
-
+            
         for ii_unroll_dim, unroll_dim in enumerate(unrolling_scheme):
             lpf_list = []
             for ud in unroll_dim:
                 for lpf in loops_pf[ud]:
                     lpf_list.append([ud, lpf])
-            print(array_dimension)
+            # print(array_dimension)
             best_unroll_size = 1
             best_comb = None
             for k in range(1, len(lpf_list) + 1):
@@ -1258,21 +1259,31 @@ def spatial_unrolling_generator_with_hint(mem_scheme, array_dimension, layer, un
                     else:
                         unrolling_list = []
                         for ii in range(0, ii_level + 1):
-                            unrolling_list += [uf for uf in spatial_loop[operand][ii] if uf[1] * unroll_level == unroll]
+                            unrolling_list += [uf for uf in spatial_loop[operand][ii] if uf[1] * unroll_level <= unroll]
                         if len(unrolling_list) > 1:
                             unrolling_list = [uf for uf in unrolling_list if uf[0] not in operand_irrelevant[operand]]
                         try:
-                            unrolling = unrolling_list[0]
+                            print("unrolling list", unrolling_list)
+                            unrolling = unrolling_list
                         except:
                             not_good = True
                             break
                         for shared_level in shared_set:
-                            spatial_loop[shared_level[0]][shared_level[1] + 1] = [unrolling]
+                            try:
+                                spatial_loop[shared_level[0]][shared_level[1] + 1] = [url for url in unrolling]
+                            except:
+                                spatial_loop[shared_level[0]][shared_level[1] + 1] = [unrolling[0]]
                             flooring[shared_level[0]][shared_level[1] + 1] = [[unrolling[0]]]
                             for ii_level_shared, level_shared in enumerate(
                                     spatial_loop[shared_level[0]][:shared_level[1] + 1]):
                                 try:
-                                    spatial_loop[shared_level[0]][ii_level_shared].remove(unrolling)
+                                    for url in unrolling:
+                                        spatial_loop[shared_level[0]][ii_level_shared].remove(url)
+                                    # try:
+                                    #     spatial_loop[shared_level[0]][ii_level_shared].remove(unrolling[1])
+                                    #     spatial_loop[shared_level[0]][ii_level_shared].remove(unrolling[2])
+                                    # except:
+                                    #     continue
                                     flooring[shared_level[0]][ii_level_shared].remove([unrolling[0]])
                                 except ValueError:
                                     continue
