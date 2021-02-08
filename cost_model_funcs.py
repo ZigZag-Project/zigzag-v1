@@ -46,7 +46,19 @@ def get_idle_mac_cost(layer, layer_rounded, array_size, idle_mac_energy, spatial
     return idle_mac_cost
 
 
-def get_imc_cost(imc_array_unroll, array_dimensions, act_line_cap, sum_line_cap, precision, vdd, act_line_v, sum_line_v, DAC_cost, ADC_cost, n_short_rows, n_act_serial, imc_write_cost, total_mac_op, layer_info):
+def get_imc_cost(imc_array_unroll, 
+                 array_dimensions, 
+                 act_line_cap, 
+                 sum_line_cap, 
+                 vdd, 
+                 act_line_v, 
+                 sum_line_v, 
+                 DAC_cost, 
+                 ADC_cost, 
+                 n_act_serial, 
+                 imc_write_cost, 
+                 total_mac_op, 
+                 layer_info):
     num_rows = np.prod([x[1] for x in imc_array_unroll[0]])
     num_cols = np.prod([x[1] for x in imc_array_unroll[1]])
     energy_act_line = (num_rows * (array_dimensions[1] * act_line_cap * act_line_v * vdd))
