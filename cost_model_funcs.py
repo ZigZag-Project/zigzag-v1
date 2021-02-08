@@ -61,6 +61,7 @@ def get_imc_cost(imc_array_unroll, array_dimensions, act_line_cap, sum_line_cap,
     imc_array_cost = imc_array_single_cost * total_mac_op/(num_cols * num_rows) 
 
     #imc_accumulation_cost = loop.mem_access_elem['O_partial'][0][0][1] * single_accumulation_cost
+    imc_accumulation_cost = 0
     imc_array_write_cost = write_cycles * imc_write_cost * 2 * array_dimensions[1]
     
     return [imc_array_cost,
