@@ -236,7 +236,10 @@ def create_printing_block(row, col):
 
 def modify_printing_block(old_block, start_row, start_col, new_str):
     new_block = deepcopy(old_block)
-    new_block[start_row][start_col:start_col + len(new_str)] = new_str
+    try:
+        new_block[start_row][start_col:start_col + len(new_str)] = new_str
+    except:
+        a=1 #print(old_block, start_row, start_col, new_str)
     return new_block
 
 
@@ -471,8 +474,11 @@ def print_good_su_format(su, mem_name, file_path_name):
             for level, lv_li in enumerate(su[operand]):
                 for xy, xy_li in enumerate(lv_li):
                     for _ in xy_li:
-                        line_position_index = position_save[idx].index(XY_name[xy])
-                        line_position = position_save[idx][line_position_index + 1]
+                        try:
+                            line_position_index = position_save[idx].index(XY_name[xy])
+                            line_position = position_save[idx][line_position_index + 1]
+                        except:
+                            continue# print(idx, xy, position_save, XY_name, su[operand], su)                    
                         del position_save[idx][line_position_index]
                         del position_save[idx][line_position_index]
                         su_block = modify_printing_block(su_block, line_position, column_position,
@@ -540,8 +546,12 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
         operand_cost['W'] = [group_count * elem for elem in operand_cost['W']]
         operand_cost['I'] = [group_count * elem for elem in operand_cost['I']]
         operand_cost['O'] = [group_count * elem for elem in operand_cost['O']]
-        mac_cost_active = round(group_count * cost_model_output.mac_cost[0], 1)
-        mac_cost_idle = round(group_count * cost_model_output.mac_cost[1], 1)
+        if common_settings.computing_core == "digital":
+            mac_cost_active = round(group_count * cost_model_output.mac_cost[0], 1)
+            mac_cost_idle = round(group_count * cost_model_output.mac_cost[1], 1)
+        else:
+            mac_cost_active = cost_model_output.mac_cost[0]
+            mac_cost_idle = 0
 
         # LATENCY
         latency_tot_number = group_count * cost_model_output.utilization.latency_tot
@@ -772,8 +782,12 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
             energy_breakdown_O.tail = str(operand_cost['O'])
 
             mac_cost = ET.SubElement(energy, 'mac_energy')
-            mac_cost.tail = 'active: ' + str(mac_cost_active) + \
-                    ', idle: ' + str(mac_cost_idle)
+            if common_settings.computing_core == "digital":
+                mac_cost.tail = 'active: ' + str(mac_cost_active) + \
+                                ', idle: ' + str(mac_cost_idle)
+            else:
+                mac_cost.tail = 'total analog array: ' + str(mac_cost_active[0]) + \
+                                ', idle: ' + str(mac_cost_idle)
             performance = ET.SubElement(results, 'performance')
             utilization = ET.SubElement(performance, 'mac_array_utilization')
             mac_utilize = ET.SubElement(utilization, 'utilization_with_data_loading')
@@ -932,8 +946,14 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
             energy_breakdown_O.tail = str(operand_cost['O'])
 
             mac_cost = ET.SubElement(energy, 'mac_energy')
-            mac_cost.tail = 'active: ' + str(mac_cost_active) + ', idle: ' + str(mac_cost_idle)
-
+            #mac_cost.tail = 'active: ' + str(mac_cost_active) + ', idle: ' + str(mac_cost_idle)
+            if common_settings.computing_core == "digital":
+                mac_cost.tail = 'active: ' + str(mac_cost_active) + \
+                                ', idle: ' + str(mac_cost_idle)
+            else:
+                mac_cost.tail = 'total analog array: ' + str(mac_cost_active[0]) + \
+                                ', idle: ' + str(mac_cost_idle)
+            
             performance = ET.SubElement(results, 'performance')
             utilization = ET.SubElement(performance, 'mac_array_utilization')
             # mac_utilize = ET.SubElement(utilization, 'utilization_with_data_loading')
@@ -1263,7 +1283,7 @@ class CommonSetting:
         self.spatial_unrolling_mode = input_settings.spatial_unrolling_mode
         self.spatial_mapping_hint_list = input_settings.unrolling_scheme_list_text
         self.im2col_enable = input_settings.im2col_enable
-
+        self.computing_core = input_settings.computing_core
         try:
             mem_access_cost = {'W': [], 'I': [], 'O': []}
             for operand in ['W', 'I', 'O']:
