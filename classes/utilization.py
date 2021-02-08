@@ -638,7 +638,6 @@ class Utilization(object):
         '''
         if req_mem_bw_bit['O_raw'][0].__len__() == 1:
             req_mem_bw_bit['O_raw'][0].insert(0,0)
-        print(req_mem_bw_bit)
         for lv, bw_list in enumerate(req_mem_bw_bit['O_raw']):
             if lv == 0:
                 # psum at level 0 for sure.

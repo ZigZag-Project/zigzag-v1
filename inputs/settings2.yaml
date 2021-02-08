@@ -1,7 +1,7 @@
 
 # OUTPUT FILE
 result_path : './results'
-result_filename : ResNet_imc
+result_filename : AlexNet
 
 # OUTPUT FILE PRINTING MODE
 # 'concise' for printing the basic information for each optimal design point found, i.e. energy and performance.
@@ -23,8 +23,8 @@ save_all_temporal_mapping_result : False
 
 # WORKLOAD
 # layer_indices can be a single-element list or a multiple-element list.
-layer_filename : './NN_layers/ResNet34'
-layer_indices : [3]
+layer_filename : './NN_layers/AlexNet'
+layer_indices : [4]
 
 # MULTIPROCESSING
 # run the framework in multiprocessing mode to speedup the search procedure.
@@ -44,7 +44,7 @@ temporal_mapping_search_method : heuristic_v1
   # e.g. to map (C,10) on a row of 8 PEs, without greedy mapping enabled, the tool will map (C,5), (C,5);
   # with greedy mapping enabled, it will map (C,8), (C,2).
 spatial_unrolling_search_method : hint_driven
-spatial_utilization_threshold : 0
+spatial_utilization_threshold : 0.9
 
 # CONV im2col ENABLE
 # Weight matrix [K,       C|FX|FY]

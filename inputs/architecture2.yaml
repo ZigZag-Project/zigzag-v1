@@ -1,6 +1,6 @@
 PE_array:
-  Col : 512
-  Row : 1024
+  Col : 14
+  Row : 12
 
 precision:
   I : 8
@@ -33,6 +33,8 @@ imc_write_cost_cell : 0.455
 imc_utilization_rate_array : 0.8
 
 
+
+
 ############### you need to set them if doing architecture search ###############
 area_max : 3.5e6
 area_utilization : 0.75
@@ -59,12 +61,16 @@ memory_hint:
 memory_hierarchy:
   rf_psum:
       memory_instance : spad_48byte
-      memory_unroll : 512
+      memory_unroll : 168
       operand_stored : [O]
   rf_input:
       memory_instance: spad_24byte
-      memory_unroll: 1024
+      memory_unroll: 168
       operand_stored: [I]
+  rf_weight:
+      memory_instance: spad_448byte
+      memory_unroll: 168
+      operand_stored: [W]
   global_buffer:
       memory_instance: buffer_108Kbyte
       memory_unroll: 1

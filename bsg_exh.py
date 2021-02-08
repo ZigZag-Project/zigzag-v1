@@ -1017,6 +1017,7 @@ def bsg(mem_size, mem_share, precision, utilization_rate, layer_loop_info, layer
                 if lo_hash[ii_tl] not in total_hash_table:
                     total += [tl]
                     total_hash_table += [lo_hash[ii_tl]]
+    print()
     print('  |-> loop order combinations: ', len(total))
     return (total)
 

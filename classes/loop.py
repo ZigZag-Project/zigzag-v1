@@ -698,7 +698,6 @@ class Loop(object):
 
         for ii_lev, lev in enumerate(mem_access_total_element['O_final']):
             for ii_access_lev, access_lev in enumerate(lev):
-                print(access_lev)
                 mem_access_total_element['O_final'][ii_lev][ii_access_lev] = tuple([access_lev[0]/(pool[0] * pool[1]),access_lev[1]/(pool[0] * pool[1])])
                 
                 
