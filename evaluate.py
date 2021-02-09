@@ -448,7 +448,12 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
 
         precision = input_settings.precision
         layer_comb = [layer_, layer_rounded]
-        fixed_args = [nonmerged_count_dict, loop_type_order, tl_combinations, input_settings, spatial_loop_comb, mem_scheme, precision, layer_comb]
+        active_mac_cost = cmf.get_active_mac_cost(layer_, input_settings.mac_array_info['single_mac_energy'])
+        idle_mac_cost = cmf.get_idle_mac_cost(layer_, layer_rounded, input_settings.mac_array_info['array_size'],
+                                          input_settings.mac_array_info['idle_mac_energy'],
+                                          mem_scheme.spatial_unrolling)[ii_su]
+        mac_costs = [active_mac_cost, idle_mac_cost]
+        fixed_args = [nonmerged_count_dict, loop_type_order, tl_combinations, input_settings, spatial_loop_comb, mem_scheme, precision, layer_comb, mac_costs]
 
         ################################# CALL PARALLEL PROCESSES ##################################
         pool = Pool(processes=n_processes)

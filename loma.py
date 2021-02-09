@@ -503,7 +503,7 @@ def get_smallest_pf(tl):
 
     return smallest_pf
 
-def tl_worker_new(tl_list, merged_count_dict, loop_type_order, total_merged_count, input_settings, spatial_loop_comb, mem_scheme, precision, layer):
+def tl_worker_new(tl_list, merged_count_dict, loop_type_order, total_merged_count, input_settings, spatial_loop_comb, mem_scheme, precision, layer, mac_costs):
     """
     New tl_worker function to handle the multiset loop orderings.
 
@@ -522,10 +522,7 @@ def tl_worker_new(tl_list, merged_count_dict, loop_type_order, total_merged_coun
 
 
     # Get the active and idle MAC cost
-    active_mac_cost = cmf.get_active_mac_cost(layer_origin, input_settings.mac_array_info['single_mac_energy'])
-    [idle_mac_cost] = cmf.get_idle_mac_cost(layer_origin, layer_rounded, input_settings.mac_array_info['array_size'],
-                                          input_settings.mac_array_info['idle_mac_energy'],
-                                          mem_scheme.spatial_unrolling)
+    [active_mac_cost, idle_mac_cost] = mac_costs
     
 
     # loop_type order ['B','K','C','OY','OX','FY','FX']
