@@ -146,7 +146,7 @@ class Order(object):
     def allocate_memory(self, node, level):
         '''
         Function to (partially) allocate this order for the given MemoryNode.
-        This could be a single-operand, 2-level shared, 3-level shared node.
+        This could be a single-operand, 2-operand shared, 3-operand shared node.
         Based on which operands the node is shared on, different functions are invoked.
         '''
 
@@ -208,8 +208,6 @@ class Order(object):
         su_irrelevant_factor = self.spatial_loop.su_irrelevant_size_dict['W'][level + 1]
         self.access_W = [access / su_irrelevant_factor for access in self.access_W]
 
-
-        # TODO: keep track of total_cycles, irrelevant loop for lightweight temporal_loop
 
     def allocate_memory_I(self, node, level):
         '''

@@ -523,7 +523,7 @@ def tl_worker_new(tl_list, merged_count_dict, loop_type_order, total_merged_coun
 
     # Get the active and idle MAC cost
     [active_mac_cost, idle_mac_cost] = mac_costs
-    
+
 
     # loop_type order ['B','K','C','OY','OX','FY','FX']
     # Adjust the merged_count_dict for the first loop_type, as this got chunked in caller function
