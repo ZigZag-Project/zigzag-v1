@@ -400,7 +400,7 @@ class Loop(object):
                     '''
                     mem_write = 0
                 else:
-                    mem_write = mem_read[operand][level + 1]
+                    mem_write = mem_read[operand][level + 1] * spatial_loop.unit_duplicate[operand][level + 1]
 
                 mem_access_per_element[operand].append([mem_read[operand][level], mem_write])
                 mem_access_total_element[operand].append(
@@ -448,7 +448,7 @@ class Loop(object):
                 '''
                 mem_write = 0
             else:
-                mem_write = mem_read['I_base'][level + 1]
+                mem_write = mem_read['I_base'][level + 1] * spatial_loop.unit_duplicate[operand][level + 1]
 
             mem_access_per_element[operand].append([mem_read['I_base'][level], mem_write])
             mem_access_total_element['I_base'].append(

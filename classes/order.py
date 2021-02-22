@@ -1,5 +1,5 @@
 from copy import deepcopy
-from math import prod
+from numpy import prod
 
 class Order(object):
     """
