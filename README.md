@@ -1,7 +1,10 @@
-# ZigZag
-A memory-centric rapid DNN accelerator design space exploration framework.
+# ZigZag: A Joint Architecture-Mapping Design Space Exploration Framework for DNN Accelerators
 
-Paper link: https://arxiv.org/abs/2007.11360
+## Paper
+Old version: https://arxiv.org/abs/2007.11360
+
+New version (largely improved): https://ieeexplore.ieee.org/document/9360462
+
 
 ## Functions of ZigZag
 **Supported Mode**|**Function**|**Memory Scheme Search**|**Spatial Unrolling Search**|**Temporal Mapping Search**|**Cost Estimation**
