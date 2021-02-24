@@ -3,7 +3,7 @@
 ## Paper
 Old version: https://arxiv.org/abs/2007.11360
 
-New version (largely improved): https://ieeexplore.ieee.org/document/9360462
+New version: https://ieeexplore.ieee.org/document/9360462
 
 
 ## Functions of ZigZag
