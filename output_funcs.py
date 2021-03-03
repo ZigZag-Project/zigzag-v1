@@ -2049,7 +2049,7 @@ class CommonSetting:
                     input_settings.tmg_search_method == 1 and input_settings.stationary_optimization_enable == True and input_settings.drc_enabled == True)
             else 'iterative search' if (
                     input_settings.tmg_search_method == 0)
-            else 'loma'
+            else 'loma search'
         }
         self.area_constraint = {
             'max_area': input_settings.max_area,
