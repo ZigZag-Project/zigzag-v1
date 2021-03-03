@@ -868,7 +868,7 @@ class Order(object):
         '''
 
         # Iterate through each combination. 
-        # Save the indexes of minmal combination that fits size constraint.
+        # Save the indexes of minimal combination that fits size constraint.
         n_1 = len(size_1)
         n_2 = len(size_2)
         n_3 = len(size_3)
