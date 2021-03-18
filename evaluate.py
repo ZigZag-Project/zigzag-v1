@@ -214,7 +214,7 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
     previous_best_en = [None, None]
     previous_best_ut = [None, None]
     loma_search_engine = input_settings.tmg_search_method == 2
-    while redo_flag and iterate_time < mem_ut_iter_max and not loma_search_engine:
+    while (redo_flag and iterate_time < mem_ut_iter_max and not loma_search_engine) or input_settings.fixed_temporal_mapping:
         # print('generated mem ut', mem_scheme.mem_utilization_rate)
         if not input_settings.utilization_optimizer_pruning:
             good_scheme = True
@@ -620,7 +620,7 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
         return
 
     # Check if xml for this network + layer + mem scheme + su combination already exists. If so, return (skip)
-    # ONLY works for for_Marian_presentation with 1 spatial unrolling !!
+    # ONLY works with 1 spatial unrolling !!
     path = input_settings.results_path + '/all_su_best_tm/' + input_settings.results_filename + \
             '_L%d_M%d_SU1_max_ut.xml' % (layer_index, mem_scheme_index + 1)
     if os.path.isfile(path):
@@ -798,9 +798,9 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
 
         return
 
-    # for su_idx, su_ in enumerate(spatial_unrolling):
-    #     print('-SU', su_idx + 1, '/', len(mem_scheme.spatial_unrolling), mem_scheme.spatial_unrolling[su_idx])
-
+    for su_idx, su_ in enumerate(spatial_unrolling):
+        print('-SU', su_idx + 1, '/', len(mem_scheme.spatial_unrolling), mem_scheme.spatial_unrolling[su_idx])
+    
     ''' input_settings.su_parallel_processing SU parallel '''
     TIMEOUT = 36000
     start = time.time()
