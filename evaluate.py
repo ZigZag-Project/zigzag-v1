@@ -19,7 +19,10 @@ from itertools import repeat
 from classes.layer_rounding import mem_access_count_correct
 from im2col_funcs import pw_layer_col2im
 from output_funcs import CommonSetting, print_xml, print_yaml
+from sympy.ntheory import factorint
+import random
 import loma
+
 
 
 def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_loop_fractional, spatial_loop_comb,
@@ -516,21 +519,30 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
         best_output_utilization = loma.get_cost_model_output(best_output_utilization, input_settings, mem_scheme, layer_comb, spatial_loop_comb, ii_su)
 
     if RL_search_engine and not (input_settings.fixed_temporal_mapping or loma_search_engine):
-        print('42')
-        '''
-        t2 = time.time()
-        tl_list = True
-        best_output_energy = None
-        best_output_utilization = None
-        best_energy = 4.2
-        best_energy_utilization = 0
-        best_utilization = 0
-        best_utilization_energy = 5.2
-        layer = [im2col_layer, layer_rounded]
-        '''
 
-        #script for RL
-        #script for results
+        print('--------- Reinforcement Learing Temporal Mapping Optimization ---------')
+        naive_TM = []
+        LPF_TM = []
+
+        # Extract the naive TM from the layer architecture contained in layer_post
+        for layer_parameter in ['B', 'K', 'C', 'OY', 'OX', 'FY', 'FX']:
+            naive_TM.append((layer_parameter, layer_post[layer_parameter]))
+
+        # Break it down to LPF (Loop Prime Factor)
+        for inner_loop in naive_TM:
+            if inner_loop[1] == 1:
+                LPF_TM.append(inner_loop)
+            else:
+                factors = factorint(inner_loop[1])
+                for factor in factors.items():
+                    for pow in range(factor[1]):
+                        LPF_TM.append((inner_loop[0], factor[0]))
+
+        # Shuffle the LPF_TM to get a random initalization into the design space
+        random.shuffle(LPF_TM)
+
+        print(naive_TM)
+        print(LPF_TM)
         return
 
     now = datetime.now()
