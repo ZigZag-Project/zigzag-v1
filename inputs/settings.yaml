@@ -1,6 +1,6 @@
 
 # OUTPUT FILE
-result_path : './results'
+result_path : './results_test'
 result_filename : AlexNet
 
 # OUTPUT FILE PRINTING MODE
@@ -13,7 +13,7 @@ result_print_type : xml
 # SEARCH SETTINGS
 # 'False' for searching the corresponding space.
 fixed_architecture : True
-fixed_spatial_unrolling : False
+fixed_spatial_unrolling : True
 fixed_temporal_mapping : False
 
 # RESULT SAVING SETTINGS
@@ -26,7 +26,7 @@ save_all_temporal_mapping_result : False
 # WORKLOAD
 # layer_indices can be a single-element list or a multiple-element list or ALL.
 layer_filename : './NN_layers/AlexNet'
-layer_indices : [3,4,5]
+layer_indices : [3]
 # layer_indices : ALL
 
 # MULTIPROCESSING

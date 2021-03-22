@@ -214,7 +214,8 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
     previous_best_en = [None, None]
     previous_best_ut = [None, None]
     loma_search_engine = input_settings.tmg_search_method == 2
-    while (redo_flag and iterate_time < mem_ut_iter_max and not loma_search_engine):
+    RL_search_engine = input_settings.tmg_search_method == 3
+    while (redo_flag and iterate_time < mem_ut_iter_max and not (loma_search_engine or RL_search_engine)):
         # print('generated mem ut', mem_scheme.mem_utilization_rate)
         if not input_settings.utilization_optimizer_pruning:
             good_scheme = True
@@ -405,7 +406,7 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
             previous_best_en = current_best_en
             previous_best_ut = current_best_ut
 
-    if loma_search_engine and not input_settings.fixed_temporal_mapping:
+    if loma_search_engine and not (input_settings.fixed_temporal_mapping or RL_search_engine):
         lpf_limit = input_settings.max_nb_lpf_layer
         tl_list, nonmerged_count_dict, loop_type_order, tl_combinations = loma.og(layer_post, spatial_unrolling, lpf_limit)
         t2 = time.time()
@@ -514,7 +515,23 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
         best_output_energy = loma.get_cost_model_output(best_output_energy, input_settings, mem_scheme, layer_comb, spatial_loop_comb, ii_su)
         best_output_utilization = loma.get_cost_model_output(best_output_utilization, input_settings, mem_scheme, layer_comb, spatial_loop_comb, ii_su)
 
+    if RL_search_engine and not (input_settings.fixed_temporal_mapping or loma_search_engine):
+        print('42')
+        '''
+        t2 = time.time()
+        tl_list = True
+        best_output_energy = None
+        best_output_utilization = None
+        best_energy = 4.2
+        best_energy_utilization = 0
+        best_utilization = 0
+        best_utilization_energy = 5.2
+        layer = [im2col_layer, layer_rounded]
+        '''
 
+        #script for RL
+        #script for results
+        return
 
     now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
@@ -548,21 +565,21 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
         current_time = now.strftime("%H:%M:%S")
         print()
         print(current_time, ' L', layer_index, ', M ', mem_scheme_index + 1, ': no tl list for layer', layer_index)
-
+    
     mem_scheme_str = 'M_%d' % (mem_scheme_index + 1)
     layer_str = 'L_%d' % (layer_index)
     mem_scheme_su_str = 'M_%d_SU_%d_%d' % (mem_scheme_index + 1, spatial_unrolling_count, ii_su + 1)
 
     list_min_energy[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: (best_energy, best_energy_utilization)})
-    list_min_en_output[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: best_output_energy})
     list_max_utilization[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: (best_utilization_energy, best_utilization)})
     list_max_ut_output[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: best_output_utilization})
     list_tm_count_en[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: tm_count})
     list_tm_count_ut[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: tm_count})
     list_sim_time[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: (t_tmg + t_cm)})
-
+    
     # Save best results for this MEM + LAYER + SU
     if input_settings.save_results_on_the_fly:
+        
         sim_time = t_tmg + t_cm
         mem_scheme_count_str = '%d/%d' % (mem_scheme_index + 1, multi_manager.mem_scheme_count)
         spatial_unrolling_count_str = '%d/%d' % (ii_su + 1, spatial_unrolling_count)

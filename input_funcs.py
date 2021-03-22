@@ -265,6 +265,10 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
         tmg_search_method = 2
         stationary_optimization_enable = None
         data_reuse_threshold = None
+    elif fl['temporal_mapping_search_method'] == 'RL':
+        tmg_search_method = 3
+        stationary_optimization_enable = None
+        data_reuse_threshold = None
     else:
         raise ValueError('temporal_mapping_search_method is not correctly set. Please check the setting file.')
 
