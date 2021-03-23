@@ -21,7 +21,7 @@ from im2col_funcs import pw_layer_col2im
 from output_funcs import CommonSetting, print_xml, print_yaml
 from sympy.ntheory import factorint
 import random
-import loma
+import loma_copy as loma
 
 
 
@@ -411,7 +411,7 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
 
     if loma_search_engine and not (input_settings.fixed_temporal_mapping or RL_search_engine):
         lpf_limit = input_settings.max_nb_lpf_layer
-        tl_list, nonmerged_count_dict, loop_type_order, tl_combinations = loma.og(layer_post, spatial_unrolling, lpf_limit)
+        tl_list, nonmerged_count_dict, loop_type_order, tl_combinations = loma.generate_tm_orderings(layer_post, spatial_unrolling, lpf_limit)
         t2 = time.time()
         t_tmg = int(t2 - t1)
         now = datetime.now()
@@ -543,6 +543,7 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
 
         print(naive_TM)
         print(LPF_TM)
+        print(len(LPF_TM))
         return
 
     now = datetime.now()

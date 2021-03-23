@@ -38,7 +38,7 @@ temporal_mapping_multiprocessing: 8
 
 # TEMPORAL MAPPING GENERATOR SETTINGS
 # search_method : exhaustive / heuristic_v1 / heuristic_v2 / iterative / loma
-temporal_mapping_search_method : RL
+temporal_mapping_search_method : loma
 
 # SPATIAL MAPPING GENERATOR SETTINGS
 # search method : exhaustive / heuristic_v1 / heuristic_v2 / hint_driven / greedy_mapping_with_hint / greedy_mapping_without_hint
@@ -68,4 +68,4 @@ save_results_on_the_fly: True
 
 # Limit the maximal number of loop prime factors (lpfs) allowed for a single layer's temporal mapping search.
 # Setting this to a number larger than 20 should result in no limiting being performed.
-max_nb_lpf_layer: 20
+max_nb_lpf_layer: 8
