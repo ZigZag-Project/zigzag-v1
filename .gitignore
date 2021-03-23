@@ -12,3 +12,4 @@ mprofile_*
 /Steven/
 env
 *.swp
+.env/
