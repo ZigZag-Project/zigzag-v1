@@ -584,8 +584,10 @@ def tl_worker_new(tl_list, merged_count_dict, loop_type_order, total_merged_coun
 
                                 # Final order with all X's filled in 
                                 nonmerged_order = combine_orderings(order_B_K_C_OY_OX_FY, order_FX)
+
                                 # Merge loops of same type
                                 merged_order = merge_loops(nonmerged_order, smallest_pfs)
+
                                 # Check if merged order was already processed
                                 hashed = hash(merged_order)
                                 if hashed in merged_set:
@@ -593,6 +595,7 @@ def tl_worker_new(tl_list, merged_count_dict, loop_type_order, total_merged_coun
                                     continue
                                 else:
                                     merged_set.add(hashed)
+
                                     ################################## MEMORY ALLOCATION ##################################
 
                                 # Initialize Order object

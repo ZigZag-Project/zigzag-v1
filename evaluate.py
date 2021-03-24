@@ -412,7 +412,7 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
             previous_best_en = current_best_en
             previous_best_ut = current_best_ut
 
-    if loma_search_engine and not (input_settings.fixed_temporal_mapping or RL_search_engine):
+    if loma_search_engine and not input_settings.fixed_temporal_mapping:
         lpf_limit = input_settings.max_nb_lpf_layer
         tl_list, nonmerged_count_dict, loop_type_order, tl_combinations = loma.og(layer_post, spatial_unrolling,
                                                                                   lpf_limit)
@@ -598,6 +598,7 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
 
     list_min_energy[mem_scheme_str][layer_str]['best_tm_each_su'].update(
         {mem_scheme_su_str: (best_energy, best_energy_utilization)})
+    list_min_en_output[mem_scheme_str][layer_str]['best_tm_each_su'].update({mem_scheme_su_str: best_output_energy})
     list_max_utilization[mem_scheme_str][layer_str]['best_tm_each_su'].update(
         {mem_scheme_su_str: (best_utilization_energy, best_utilization)})
     list_max_ut_output[mem_scheme_str][layer_str]['best_tm_each_su'].update(
@@ -608,7 +609,6 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
 
     # Save best results for this MEM + LAYER + SU
     if input_settings.save_results_on_the_fly:
-
         sim_time = t_tmg + t_cm
         mem_scheme_count_str = '%d/%d' % (mem_scheme_index + 1, multi_manager.mem_scheme_count)
         spatial_unrolling_count_str = '%d/%d' % (ii_su + 1, spatial_unrolling_count)
