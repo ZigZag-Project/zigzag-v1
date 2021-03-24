@@ -38,15 +38,16 @@ def get_cost_model_output(allocated_order, input_settings, mem_scheme, layer_com
     [spatial_loop, spatial_loop_fractional] = spatial_loop_comb
     # memory allocation part
     temporal_loop, loop = create_loop_objects(layer_rounded, allocated_order, spatial_loop, input_settings)
-    loop_fractional = perform_greedy_mapping(layer_origin, allocated_order, spatial_loop_fractional, loop, input_settings)
+    loop_fractional = perform_greedy_mapping(layer_origin, allocated_order, spatial_loop_fractional, loop,
+                                             input_settings)
     # utilization part
     utilization = get_utilization(layer_rounded, temporal_loop, spatial_loop_comb, loop, input_settings, mem_scheme)
     active_mac_cost = cmf.get_active_mac_cost(layer_origin, input_settings.mac_array_info['single_mac_energy'])
     idle_mac_cost = cmf.get_idle_mac_cost(layer_origin, layer_rounded, input_settings.mac_array_info['array_size'],
                                           input_settings.mac_array_info['idle_mac_energy'],
                                           mem_scheme.spatial_unrolling)
-    total_cost_layer = find_total_cost_layer(allocated_order, loop_fractional, utilization, active_mac_cost, idle_mac_cost[ii_su],
-                                             mem_scheme, input_settings, schedule_info, ii)
+    total_cost_layer = find_total_cost_layer(allocated_order, loop_fractional, utilization, active_mac_cost,
+                                             idle_mac_cost[ii_su], mem_scheme, input_settings, schedule_info, ii)
     try:
         greedy_mapping_flag = mem_scheme.greedy_mapping_flag[ii_su]
         footer_info = mem_scheme.footer_info[ii_su]
@@ -207,7 +208,8 @@ def limit_loop_prime_factors(layer_spec_pf, layer_spec_pf_count, layer_spec_pf_c
         return layer_spec_pf, layer_spec_pf_count, prime_factor_number
 
     while prime_factor_number > loop_prime_factor_limit:
-        max_loop_type = max(layer_spec_pf_count_sum.items(), key=operator.itemgetter(1))[0]  # a loop type with highest number of pfs
+        max_loop_type = max(layer_spec_pf_count_sum.items(), key=operator.itemgetter(1))[
+            0]  # a loop type with highest number of pfs
         max_loop_primary_factors = list(layer_spec_pf[max_loop_type])  # pfs for max_loop_type
         max_counts = list(layer_spec_pf_count[max_loop_type])  # counts for different pfs in max_loop_type
 
@@ -275,7 +277,8 @@ def get_prime_factors(layer_spec: dict, loop_prime_factor_limit: int):
         layer_spec_pf_count_sum[loop_type] = sum(counts)
     total_lpf_count = sum(layer_spec_pf_count_sum.values())
     layer_spec_pf, layer_spec_pf_count, total_lpf_count = limit_loop_prime_factors(layer_spec_pf, layer_spec_pf_count,
-                                                                                   layer_spec_pf_count_sum, loop_prime_factor_limit)
+                                                                                   layer_spec_pf_count_sum,
+                                                                                   loop_prime_factor_limit)
     return layer_spec_pf, layer_spec_pf_count, total_lpf_count
 
 
@@ -391,7 +394,8 @@ def get_all_orderings_list(layer_spec_pf: dict, layer_spec_pf_count: dict, total
     return count_dict, loop_type_order_list, tl_dict, total_count
 
 
-def generate_tm_orderings(layer_spec: dict, spatial_unrolling: dict, lpf_limit: int):
+# def generate_tm_orderings(layer_spec: dict, spatial_unrolling: dict, lpf_limit: int):
+def og(layer_spec: dict, spatial_unrolling: dict, lpf_limit: int):
     """
     Description
     ----------
@@ -577,7 +581,8 @@ def perform_greedy_mapping(layer_origin, allocated_order, spatial_loop_fractiona
     return loop_fractional
 
 
-def find_total_cost_layer(allocated_order, loop_fractional, utilization, active_mac_cost, idle_mac_cost, mem_scheme, input_settings,
+def find_total_cost_layer(allocated_order, loop_fractional, utilization, active_mac_cost, idle_mac_cost, mem_scheme,
+                          input_settings,
                           schedule_info=0, ii=False):
     operand_cost = {"W": [], "I": [], "O": []}
     total_cost_layer = 0
@@ -617,8 +622,8 @@ def get_utilization(layer_rounded, temporal_loop, spatial_loop_comb, loop, input
     )
 
 
-def compare_total_results(allocated_order, utilization, total_cost_layer, min_en, min_en_ut, min_en_order, max_ut, max_ut_en,
-                          max_ut_order):
+def compare_total_results(allocated_order, utilization, total_cost_layer, min_en, min_en_ut, min_en_order, max_ut,
+                          max_ut_en, max_ut_order):
     en = total_cost_layer
     ut = utilization.mac_utilize_no_load
 
@@ -642,8 +647,8 @@ def collect_memory(utilization, total_cost_layer, save_all_tm, energy_collect, u
     return energy_collect, utilization_collect, latency_collect
 
 
-def tl_worker_new(temporal_loop_list, merged_count_dict, loop_type_order, total_merged_count, input_settings, spatial_loop_comb,
-                  mem_scheme, precision, layer, mac_costs, ):
+def tl_worker_new(temporal_loop_list, merged_count_dict, loop_type_order, total_merged_count, input_settings,
+                  spatial_loop_comb, mem_scheme, precision, layer, mac_costs, ):
     """
     New tl_worker function to handle the multiset loop orderings.
     These orderings still require a memory allocation, followed by a cost model evaluation.
@@ -689,14 +694,10 @@ def tl_worker_new(temporal_loop_list, merged_count_dict, loop_type_order, total_
     min_en_order = {}
     max_ut_order = {}
     # Init energy,latency,utilization collect
-    energy_collect = None
-    utilization_collect = None
-    latency_collect = None
     save_all_tm = input_settings.tm_search_result_saving
-    if save_all_tm:
-        energy_collect = []
-        utilization_collect = []
-        latency_collect = []
+    energy_collect = []
+    utilization_collect = []
+    latency_collect = []
     # Loop through all the number of elements in each tl_list element
     ctr = 0
     skipped = 0
@@ -712,20 +713,22 @@ def tl_worker_new(temporal_loop_list, merged_count_dict, loop_type_order, total_
         except HashAlreadyExists:
             continue
         # memory allocation part
-        allocated_order = allocate_memory_for_tl_order(merged_order, spatial_loop, layer_origin, input_settings, n_mem_levels, nodes)
+        allocated_order = allocate_memory_for_tl_order(merged_order, spatial_loop, layer_origin, input_settings,
+                                                       n_mem_levels, nodes)
         temporal_loop, loop = create_loop_objects(layer_rounded, allocated_order, spatial_loop, input_settings)
-        loop_fractional = perform_greedy_mapping(layer_origin, allocated_order, spatial_loop_fractional, loop, input_settings)
+        loop_fractional = perform_greedy_mapping(layer_origin, allocated_order, spatial_loop_fractional, loop,
+                                                 input_settings)
         # utilization part
         utilization = get_utilization(layer_rounded, temporal_loop, spatial_loop_comb, loop, input_settings, mem_scheme)
-        total_cost_layer = find_total_cost_layer(allocated_order, loop_fractional, utilization, active_mac_cost, idle_mac_cost,
-                                                 mem_scheme, input_settings)
+        total_cost_layer = find_total_cost_layer(allocated_order, loop_fractional, utilization, active_mac_cost,
+                                                 idle_mac_cost, mem_scheme, input_settings)
         # result comparing part
-        min_en, min_en_ut, min_en_order, max_ut, max_ut_en, max_ut_order = compare_total_results(allocated_order, utilization,
-                                                                                                 total_cost_layer, min_en, min_en_ut,
-                                                                                                 min_en_order, max_ut, max_ut_en,
-                                                                                                 max_ut_order)
-        energy_collect, utilization_collect, latency_collect = collect_memory(utilization, total_cost_layer, save_all_tm,
-                                                                              energy_collect, utilization_collect, latency_collect)
+        total_results = compare_total_results(allocated_order, utilization, total_cost_layer, min_en, min_en_ut,
+                                              min_en_order, max_ut, max_ut_en, max_ut_order)
+        min_en, min_en_ut, min_en_order, max_ut, max_ut_en, max_ut_order = total_results
+        energy_collect, utilization_collect, latency_collect = collect_memory(utilization, total_cost_layer,
+                                                                              save_all_tm, energy_collect,
+                                                                              utilization_collect, latency_collect)
         # if ctr % 1000 == 0:
         #     print(ctr, "Execution time =", time.time()-t_start)
         #     t_start = time.time()

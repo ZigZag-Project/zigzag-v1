@@ -382,7 +382,7 @@ def get_prime_factors(layer_spec, lpf_limit):
 
     return layer_spec_pf, layer_spec_pf_count, total_lpf_count
 
-def generate_tm_orderings(layer_spec, spatial_unrolling, lpf_limit):
+def og(layer_spec, spatial_unrolling, lpf_limit):
     """
     This function generates the truly exhaustive temporal mapping orderings up to a lpf_limit.
     The orderings are generated through multisets for each loop type individually using placeholders (X).
