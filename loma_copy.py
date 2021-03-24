@@ -110,9 +110,9 @@ def combine_orderings(ordering_1, ordering_2):
 
 
 def combine_orderings_list(orderings_list):
-    combined_ordering = None
-    for ordering in orderings_list:
-        combined_ordering = combine_orderings(combined_ordering, ordering)
+    combined_ordering = deepcopy(orderings_list)[-1]
+    for ordering in range(len(orderings_list) - 2, -1, -1):
+        combined_ordering = combine_orderings(combined_ordering, orderings_list[ordering])
     return combined_ordering
 
 
@@ -374,7 +374,7 @@ def get_all_orderings_list(layer_spec_pf: dict, layer_spec_pf_count: dict, total
     count_dict = {}
     total_count = 1
     tl_dict = {}
-    for loop_type in loop_types_list:  # always loop in fixed order
+    for loop_type in list(reversed(loop_types_list)):  # always loop in fixed order
         try:
             prime_factors = layer_spec_pf[loop_type]
         except:
@@ -495,8 +495,9 @@ def generate_the_smallest_pfs_list(temporal_loop_to_orderings):
 
 
 def get_temporal_loop_merged_ordering(temporal_loop_orderings_list, smallest_pfs):
+    temporal_loop_orderings_list = list(temporal_loop_orderings_list)
     # Final order with all X's filled in
-    nonmerged_order = combine_orderings_list(reversed(temporal_loop_orderings_list))
+    nonmerged_order = combine_orderings_list(temporal_loop_orderings_list)
     # Merge loops of same type
     merged_order = merge_loops(nonmerged_order, smallest_pfs)
     return merged_order
@@ -682,7 +683,7 @@ def tl_worker_new(temporal_loop_list, merged_count_dict, loop_type_order, total_
     merged_count_dict[loop_type_order[0]] = len(temporal_loop_list[loop_type_order[0]])
     # Get the orderings for all possible loop_types (some might be non-existent)
     all_tl_to_orderings = fulfill_temporal_loop_dict(temporal_loop_list)
-    temporal_loop_list = all_tl_to_orderings.values()
+    temporal_loop_list = list(all_tl_to_orderings.values())
     # Get the smallest prime factor for each loop type (required for loop merging)
     smallest_pfs = generate_the_smallest_pfs_list(all_tl_to_orderings)
 
@@ -705,7 +706,6 @@ def tl_worker_new(temporal_loop_list, merged_count_dict, loop_type_order, total_
 
     for temporal_loop_orderings_list in itertools.product(*temporal_loop_list):
         ctr += 1
-        # Final order with all X's filled in with merged loops of same type
         merged_order = get_temporal_loop_merged_ordering(temporal_loop_orderings_list, smallest_pfs)
         # Check if merged order was already processed
         try:

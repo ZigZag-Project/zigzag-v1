@@ -21,7 +21,7 @@ from im2col_funcs import pw_layer_col2im
 from output_funcs import CommonSetting, print_xml, print_yaml
 from sympy.ntheory import factorint
 import random
-import loma
+import loma_copy as loma
 
 
 def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_loop_fractional, spatial_loop_comb,
