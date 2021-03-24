@@ -681,7 +681,6 @@ def tl_worker_new(tl_list, merged_count_dict, loop_type_order, total_merged_coun
                                 # if ctr % 1000 == 0:
                                 #     print(ctr, "Execution time =", time.time()-t_start)
                                 #     t_start = time.time()
-
-    return (min_en, min_en_ut, min_en_order, 
+    return (min_en, min_en_ut, min_en_order,
         max_ut_en, max_ut, max_ut_order,
         energy_collect, utilization_collect, latency_collect)

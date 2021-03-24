@@ -35,7 +35,7 @@ sram128kb:
   mem_bw: [32]
   mem_type: dual_port_single_buffered
 
-sram1024kb:  
+sram2048kb:
   size_bit: 1048576
   area: [207747]
   cost:
