@@ -17,6 +17,8 @@ loop_types_list = ["FX", "FY", "OX", "OY", "C", "K", "B"]
 loop_type_to_ids = {key: value + 1 for value, key in enumerate(loop_types_list)}
 # Corresponding number for each loop_type: {1: "FX", 2: "FY", 3: "OX", 4: "OY", 5: "C", 6: "K", 7: "B"}
 ids_to_loop_type = {value: key for key, value in loop_type_to_ids.items()}
+operand_cost_types = ['W', 'I', 'O']
+operand_cost_template = {key: [] for key in operand_cost_types}
 
 
 def get_cost_model_output(allocated_order, input_settings, mem_scheme, layer_comb, spatial_loop_comb, ii_su=0):
@@ -36,6 +38,12 @@ def get_cost_model_output(allocated_order, input_settings, mem_scheme, layer_com
     schedule_info = 0  # not used right now
     [layer_origin, layer_rounded] = layer_comb
     [spatial_loop, spatial_loop_fractional] = spatial_loop_comb
+    try:
+        greedy_mapping_flag = mem_scheme.greedy_mapping_flag[ii_su]
+        footer_info = mem_scheme.footer_info[ii_su]
+    except IndexError:
+        greedy_mapping_flag = False
+        footer_info = None
     # memory allocation part
     temporal_loop, loop = create_loop_objects(layer_rounded, allocated_order, spatial_loop, input_settings)
     loop_fractional = perform_greedy_mapping(layer_origin, allocated_order, spatial_loop_fractional, loop,
@@ -48,28 +56,28 @@ def get_cost_model_output(allocated_order, input_settings, mem_scheme, layer_com
                                           mem_scheme.spatial_unrolling)
     total_cost_layer = find_total_cost_layer(allocated_order, loop_fractional, utilization, active_mac_cost,
                                              idle_mac_cost[ii_su], mem_scheme, input_settings, schedule_info, ii)
-    try:
-        greedy_mapping_flag = mem_scheme.greedy_mapping_flag[ii_su]
-        footer_info = mem_scheme.footer_info[ii_su]
-    except IndexError:
-        greedy_mapping_flag = False
-        footer_info = None
     # TODO MAC area (multiplier and adder) is not included.
     # occupied_area format: [total_area, active_area]
     occupied_area = msg.get_mem_scheme_area2(mem_scheme, spatial_loop.unit_count, utilization.mac_utilize_spatial)
+    cost_model_output = get_cost_model(total_cost_layer, active_mac_cost, idle_mac_cost, ii_su, temporal_loop,
+                                       mem_scheme, loop_fractional, spatial_loop, greedy_mapping_flag, footer_info,
+                                       occupied_area, utilization, ii)
+    return cost_model_output
+
+
+def get_cost_model(total_cost_layer, active_mac_cost, idle_mac_cost, ii_su, temporal_loop, mem_scheme,
+                   loop_fractional, spatial_loop, greedy_mapping_flag, footer_info, occupied_area, utilization, ii):
     # Get CostModelOutput
-    flooring = mem_scheme.flooring
-    operand_cost = {'W': [], 'I': [], 'O': []}
+    operand_cost = deepcopy(operand_cost_template)
     cost_model_output = of.CostModelOutput(total_cost_layer, deepcopy(operand_cost),
                                            (active_mac_cost, idle_mac_cost[ii_su]),
                                            deepcopy(temporal_loop.temporal_loop),
                                            deepcopy(mem_scheme.spatial_unrolling[ii_su]),
-                                           flooring[ii_su],
+                                           mem_scheme.flooring[ii_su],
                                            deepcopy(loop_fractional), deepcopy(spatial_loop),
                                            greedy_mapping_flag, footer_info,
                                            deepcopy(temporal_loop), occupied_area,
                                            utilization, ii)
-
     return cost_model_output
 
 
@@ -118,7 +126,8 @@ def combine_orderings_list(orderings_list):
 
 def create_multiset_format(n, rs, pfs):
     """
-    Function that converts the given n, rs and pfs into a multiset format.
+    Function that converts the given n, rs and pfs into a multiset format,
+            ex.:  [('X', 'X', 'X', 'X', 'X', 'X', 'X', (1, 3))]
 
     Arguments
     =========
@@ -394,6 +403,284 @@ def get_all_orderings_list(layer_spec_pf: dict, layer_spec_pf_count: dict, total
     return count_dict, loop_type_order_list, tl_dict, total_count
 
 
+def merge_loops(order, smallest_primary_factors):
+    """
+    The function for merging.
+
+    Parameters
+    ----------
+    order
+    smallest_primary_factors
+
+    Returns
+    -------
+
+    """
+    merged_order = []
+    (previous_lt_number, previous_factors) = order[0]
+    first_of_this_lt = True
+    for (loop_type_number, factor) in order[1:]:
+        if loop_type_number == previous_lt_number:
+            if first_of_this_lt and previous_factors == smallest_primary_factors[previous_lt_number]:
+                merged_order.append((previous_lt_number, previous_factors))
+                previous_factors = factor
+                first_of_this_lt = False
+            else:
+                previous_factors *= factor
+        elif previous_factors != 1:
+            merged_order.append((previous_lt_number, previous_factors))
+            previous_lt_number = loop_type_number
+            previous_factors = factor
+            first_of_this_lt = True
+    merged_order.append((previous_lt_number, previous_factors))
+    return tuple(merged_order)
+
+
+def fulfill_temporal_loop_dict(temporal_loop_to_orderings):
+    """
+    Get the orderings for all possible loop_types (some might be non-existent)
+    If loop type doesn't exist in the dict, add it with None value
+
+    Parameters
+    ----------
+    temporal_loop_to_orderings: a temporal loop dict of the possible orderings of the lpfs and placeholders
+                                ex.: {"K": ((6, 64), 'X', (1, 2)), ...}
+
+    """
+    temporal_loop_to_none = {key: [None] for key in loop_types_list}
+    temporal_loop_to_orderings = {**temporal_loop_to_none, **temporal_loop_to_orderings}
+    return temporal_loop_to_orderings
+
+
+def generate_the_smallest_pfs_dict(temporal_loop_to_orderings):
+    """
+    Get the smallest prime factor for each loop type (required for loop merging)
+
+    Parameters
+    ----------
+    temporal_loop_to_orderings: a temporal loop dict of the possible orderings of the lpfs and placeholders
+
+    Returns
+    -------
+
+    """
+    smallest_pfs = {}
+    for key, value in sorted(ids_to_loop_type.items(), key=operator.itemgetter(0), reverse=True):
+        # print(value, temporal_loop_to_orderings[value])
+        smallest_pfs[key] = get_smallest_prime_factor(temporal_loop_to_orderings[value][0])
+    return smallest_pfs
+
+
+def get_temporal_loop_merged_ordering(temporal_loop_orderings_list, smallest_pfs):
+    """
+    Creates merged temporal loop orderings
+    Parameters
+    ----------
+    temporal_loop_orderings_list: a list of orderings with placeholders
+    smallest_pfs: smallest primary factors
+
+    Returns
+    -------
+    merged_order: list of tuples: ((list_type_id, value), ..)
+                  ex.: ((3, 13), (6, 4), (5, 32), (6, 4), (5, 4), (1, 3), (6, 12))
+    """
+    temporal_loop_orderings_list = list(temporal_loop_orderings_list)
+    # Final order with all X's filled in
+    nonmerged_order = combine_orderings_list(temporal_loop_orderings_list)
+    # Merge loops of same type
+    merged_order = merge_loops(nonmerged_order, smallest_pfs)
+    return merged_order
+
+
+class HashAlreadyExists(Exception):
+    pass
+
+
+def is_order_already_proceed(merged_order, merged_set, skipped):
+    hashed = hash(merged_order)
+    if hashed in merged_set:
+        skipped += 1
+        raise HashAlreadyExists()
+    else:
+        merged_set.add(hashed)
+
+
+def allocate_memory_for_tl_order(merged_order, spatial_loop, layer_origin, input_settings, nodes):
+    """
+    Memory allocation object.
+
+    Parameters
+    ----------
+    merged_order: temporal mapping ordering list, tuple: [(list_type_id, value), ...]
+    spatial_loop: mem_scheme.spatial_unrolling SpatialLoop objects
+    layer_origin: the original 3D/7D layer
+    input_settings: InputSettings object
+    nodes: mem_scheme.nodes
+
+    Returns
+    -------
+
+    """
+    # Get the different MemoryNodes we need to allocate
+    n_mem_levels = len(nodes)
+    # Initialize Order object
+    order = Order(merged_order, spatial_loop, layer_origin, input_settings, n_mem_levels)
+    # Loop through all the nodes in each level to allocate the LPFs to the memories
+    for level in range(n_mem_levels):
+        if level == n_mem_levels - 1:
+            # If the level is the last level in the hierarchy, allocate all remaning LPFs.
+            allocated_order = order.allocate_remaining()
+            break
+        for node in nodes[level]:
+            order.allocate_memory(node, level)
+
+    # print(merged_order)
+    # print('W\t', allocated_order['W'])
+    # print('I\t', allocated_order['I'])
+    # print('O\t', allocated_order['O'])
+
+    # if merged_order == ((5, 2), (5, 288), (4, 7), (6, 6)):
+    #     print(allocated_order['I'])
+    return allocated_order
+
+
+def create_loop_objects(layer_rounded, allocated_order, spatial_loop, input_settings):
+    """
+
+    Parameters
+    ----------
+    layer_rounded: rounded 3D/7D layer
+    allocated_order: an Order object with the allocated memory
+    spatial_loop: mem_scheme.spatial_unrolling SpatialLoop objects
+    input_settings: InputSettings object
+
+    """
+    # temporal_loop = TemporalLoopLight(layer_rounded, allocated_order, spatial_loop, order.loop_cycles, order.irrelevant_loop)
+    # loop = LoopLight(layer_rounded, temporal_loop, spatial_loop, input_settings.precision,
+    #                 input_settings.fixed_temporal_mapping)
+    temporal_loop = cls.TemporalLoop.extract_loop_info(
+        layer_rounded, allocated_order, spatial_loop
+    )
+    loop = cls.Loop.extract_loop_info(
+        layer_rounded,
+        temporal_loop,
+        spatial_loop,
+        input_settings.precision,
+        input_settings.fixed_temporal_mapping,
+    )
+    return temporal_loop, loop
+
+
+def perform_greedy_mapping(layer_origin, allocated_order, spatial_loop_fractional, loop, input_settings):
+    """
+    Greedy mapping: loop_fractional required
+
+    Parameters
+    ----------
+    layer_origin: the original 3D/7D layer
+    allocated_order: an Order object with the allocated memory
+    spatial_loop_fractional: mem_scheme.fraction_spatial_unrolling SpatialLoop objects
+    loop: fixed temporal looping Loop object
+    input_settings: InputSettings object
+
+    Returns
+    -------
+
+    """
+    if input_settings.spatial_unrolling_mode in [4, 5]:
+        ############# Advanced User Configuration #############
+        # mem_energy_saving_when_BW_under_utilized = True
+        #######################################################
+        temporal_loop_fractional = cls.TemporalLoop.extract_loop_info(
+            layer_origin, allocated_order, spatial_loop_fractional
+        )
+        loop_fractional = cls.Loop.extract_loop_info(
+            layer_origin,
+            temporal_loop_fractional,
+            spatial_loop_fractional,
+            input_settings.precision,
+            input_settings.fixed_temporal_mapping,
+        )
+        # if mem_energy_saving_when_BW_under_utilized is False:
+        #     loop_fractional = mem_access_count_correct(loop_fractional, loop)
+
+    else:
+        loop_fractional = loop
+    return loop_fractional
+
+
+def find_total_cost_layer(allocated_order, loop_fractional, utilization, active_mac_cost, idle_mac_cost, mem_scheme,
+                          input_settings, schedule_info=0, ii=False):
+    """
+    Return total energy cost for all layers.
+    """
+    operand_cost = deepcopy(operand_cost_template)
+    total_cost_layer = 0
+    for operand in operand_cost_types:
+        for level in range(0, len(allocated_order[operand])):
+            operand_cost[operand].append(
+                cmf.get_operand_level_energy_cost(operand, level, mem_scheme.mem_cost,
+                                                  input_settings.mac_array_info,
+                                                  schedule_info, loop_fractional,
+                                                  mem_scheme.mem_fifo, mem_scheme, input_settings.precision,
+                                                  utilization, ii))
+            # TODO
+            # loop.array_wire_distance[operand].append(
+            #     cmf.get_operand_level_wire_distance(operand, level,
+            #                                         schedule_info,
+            #                                         input_settings.mac_array_info, loop,
+            #                                         msc.mem_fifo))
+        total_cost_layer += np.sum(operand_cost[operand])
+
+    total_cost_layer += active_mac_cost + idle_mac_cost
+    return total_cost_layer
+
+
+def get_utilization(layer_rounded, temporal_loop, spatial_loop_comb, loop, input_settings, mem_scheme):
+    return cls.Utilization.get_utilization(
+        layer_rounded,
+        temporal_loop,
+        spatial_loop_comb,
+        loop,
+        input_settings.mac_array_info,
+        mem_scheme.mem_size,
+        mem_scheme.mem_share,
+        mem_scheme.mem_type,
+        input_settings.mac_array_stall,
+        input_settings.precision,
+        mem_scheme.mem_bw,
+    )
+
+
+def compare_total_results(allocated_order, utilization, total_cost_layer, min_en, min_en_ut, min_en_order, max_ut,
+                          max_ut_en, max_ut_order):
+    en = total_cost_layer
+    ut = utilization.mac_utilize_no_load
+    if (en < min_en) or (en == min_en and ut > min_en_ut):
+        min_en = en
+        min_en_ut = ut
+        min_en_order = allocated_order
+    if (ut > max_ut) or (ut == max_ut and en < max_ut_en):
+        max_ut = ut
+        max_ut_en = en
+        max_ut_order = allocated_order
+    return min_en, min_en_ut, min_en_order, max_ut, max_ut_en, max_ut_order
+
+
+def collect_memory(utilization, total_cost_layer, save_all_tm, energy_collect, utilization_collect, latency_collect):
+    """
+
+    If input_settings.tm_search_result_saving is True, save all results.
+
+    save_all_tm: input_settings.tm_search_result_saving
+    """
+    if save_all_tm:
+        energy_collect.append(int(total_cost_layer))
+        utilization_collect.append(utilization.mac_utilize_no_load)
+        latency_collect.append(utilization.latency_no_load)
+    return energy_collect, utilization_collect, latency_collect
+
+
 # def generate_tm_orderings(layer_spec: dict, spatial_unrolling: dict, lpf_limit: int):
 def og(layer_spec: dict, spatial_unrolling: dict, lpf_limit: int):
     """
@@ -449,205 +736,6 @@ def og(layer_spec: dict, spatial_unrolling: dict, lpf_limit: int):
     return tl_dict, count_dict, loop_type_order_list, total_count
 
 
-def merge_loops(order, smallest_primary_factors):
-    merged_order = []
-    (previous_lt_number, previous_factors) = order[0]
-    first_of_this_lt = True
-    for (loop_type_number, factor) in order[1:]:
-        if loop_type_number == previous_lt_number:
-            if first_of_this_lt and previous_factors == smallest_primary_factors[previous_lt_number]:
-                merged_order.append((previous_lt_number, previous_factors))
-                previous_factors = factor
-                first_of_this_lt = False
-            else:
-                previous_factors *= factor
-        elif previous_factors != 1:
-            merged_order.append((previous_lt_number, previous_factors))
-            previous_lt_number = loop_type_number
-            previous_factors = factor
-            first_of_this_lt = True
-    merged_order.append((previous_lt_number, previous_factors))
-    return tuple(merged_order)
-
-
-def fulfill_temporal_loop_dict(temporal_loop_to_orderings):
-    """
-    Get the orderings for all possible loop_types (some might be non-existent)
-    If loop type doesn't exist in the dict, add it with None value
-
-    Parameters
-    ----------
-    temporal_loop_to_orderings: a temporal loop list of the possible orderings of the lpfs and placeholders
-
-    """
-    temporal_loop_to_none = {key: [None] for key in loop_types_list}
-    temporal_loop_to_orderings = {**temporal_loop_to_none, **temporal_loop_to_orderings}
-    return temporal_loop_to_orderings
-
-
-def generate_the_smallest_pfs_list(temporal_loop_to_orderings):
-    # Get the smallest prime factor for each loop type (required for loop merging)
-    smallest_pfs = {}
-    for key, value in sorted(ids_to_loop_type.items(), key=operator.itemgetter(0), reverse=True):
-        # print(value, temporal_loop_to_orderings[value])
-        smallest_pfs[key] = get_smallest_prime_factor(temporal_loop_to_orderings[value][0])
-    return smallest_pfs
-
-
-def get_temporal_loop_merged_ordering(temporal_loop_orderings_list, smallest_pfs):
-    temporal_loop_orderings_list = list(temporal_loop_orderings_list)
-    # Final order with all X's filled in
-    nonmerged_order = combine_orderings_list(temporal_loop_orderings_list)
-    # Merge loops of same type
-    merged_order = merge_loops(nonmerged_order, smallest_pfs)
-    return merged_order
-
-
-class HashAlreadyExists(Exception):
-    pass
-
-
-def is_order_already_proceed(merged_order, merged_set, skipped):
-    hashed = hash(merged_order)
-    if hashed in merged_set:
-        skipped += 1
-        raise HashAlreadyExists()
-    else:
-        merged_set.add(hashed)
-
-
-def allocate_memory_for_tl_order(merged_order, spatial_loop, layer_origin, input_settings, n_mem_levels, nodes):
-    ################################## MEMORY ALLOCATION ##################################
-
-    # Initialize Order object
-    order = Order(merged_order, spatial_loop, layer_origin, input_settings, n_mem_levels)
-
-    # Loop through all the nodes in each level to allocate the LPFs to the memories
-    for level in range(n_mem_levels):
-        if level == n_mem_levels - 1:
-            # If the level is the last level in the hierarchy, allocate all remaning LPFs.
-            allocated_order = order.allocate_remaining()
-            break
-        for node in nodes[level]:
-            order.allocate_memory(node, level)
-
-    # print(merged_order)
-    # print('W\t', allocated_order['W'])
-    # print('I\t', allocated_order['I'])
-    # print('O\t', allocated_order['O'])
-
-    # if merged_order == ((5, 2), (5, 288), (4, 7), (6, 6)):
-    #     print(allocated_order['I'])
-    return allocated_order
-
-
-def create_loop_objects(layer_rounded, allocated_order, spatial_loop, input_settings):
-    # temporal_loop = TemporalLoopLight(layer_rounded, allocated_order, spatial_loop, order.loop_cycles, order.irrelevant_loop)
-    # loop = LoopLight(layer_rounded, temporal_loop, spatial_loop, input_settings.precision,
-    #                 input_settings.fixed_temporal_mapping)
-    temporal_loop = cls.TemporalLoop.extract_loop_info(
-        layer_rounded, allocated_order, spatial_loop
-    )
-    loop = cls.Loop.extract_loop_info(
-        layer_rounded,
-        temporal_loop,
-        spatial_loop,
-        input_settings.precision,
-        input_settings.fixed_temporal_mapping,
-    )
-    return temporal_loop, loop
-
-
-def perform_greedy_mapping(layer_origin, allocated_order, spatial_loop_fractional, loop, input_settings):
-    # Greedy mapping: loop_fractional required
-    if input_settings.spatial_unrolling_mode in [4, 5]:
-        ############# Advanced User Configuration #############
-        # mem_energy_saving_when_BW_under_utilized = True
-        #######################################################
-        temporal_loop_fractional = cls.TemporalLoop.extract_loop_info(
-            layer_origin, allocated_order, spatial_loop_fractional
-        )
-        loop_fractional = cls.Loop.extract_loop_info(
-            layer_origin,
-            temporal_loop_fractional,
-            spatial_loop_fractional,
-            input_settings.precision,
-            input_settings.fixed_temporal_mapping,
-        )
-        # if mem_energy_saving_when_BW_under_utilized is False:
-        #     loop_fractional = mem_access_count_correct(loop_fractional, loop)
-
-    else:
-        loop_fractional = loop
-    return loop_fractional
-
-
-def find_total_cost_layer(allocated_order, loop_fractional, utilization, active_mac_cost, idle_mac_cost, mem_scheme,
-                          input_settings,
-                          schedule_info=0, ii=False):
-    operand_cost = {"W": [], "I": [], "O": []}
-    total_cost_layer = 0
-    for operand in ['W', 'I', 'O']:
-        for level in range(0, len(allocated_order[operand])):
-            operand_cost[operand].append(
-                cmf.get_operand_level_energy_cost(operand, level, mem_scheme.mem_cost,
-                                                  input_settings.mac_array_info,
-                                                  schedule_info, loop_fractional,
-                                                  mem_scheme.mem_fifo, mem_scheme, input_settings.precision,
-                                                  utilization, ii))
-            # TODO
-            # loop.array_wire_distance[operand].append(
-            #     cmf.get_operand_level_wire_distance(operand, level,
-            #                                         schedule_info,
-            #                                         input_settings.mac_array_info, loop,
-            #                                         msc.mem_fifo))
-        total_cost_layer += np.sum(operand_cost[operand])
-
-    total_cost_layer += active_mac_cost + idle_mac_cost
-    return total_cost_layer
-
-
-def get_utilization(layer_rounded, temporal_loop, spatial_loop_comb, loop, input_settings, mem_scheme):
-    return cls.Utilization.get_utilization(
-        layer_rounded,
-        temporal_loop,
-        spatial_loop_comb,
-        loop,
-        input_settings.mac_array_info,
-        mem_scheme.mem_size,
-        mem_scheme.mem_share,
-        mem_scheme.mem_type,
-        input_settings.mac_array_stall,
-        input_settings.precision,
-        mem_scheme.mem_bw,
-    )
-
-
-def compare_total_results(allocated_order, utilization, total_cost_layer, min_en, min_en_ut, min_en_order, max_ut,
-                          max_ut_en, max_ut_order):
-    en = total_cost_layer
-    ut = utilization.mac_utilize_no_load
-
-    if (en < min_en) or (en == min_en and ut > min_en_ut):
-        min_en = en
-        min_en_ut = ut
-        min_en_order = allocated_order
-    if (ut > max_ut) or (ut == max_ut and en < max_ut_en):
-        max_ut = ut
-        max_ut_en = en
-        max_ut_order = allocated_order
-
-    return min_en, min_en_ut, min_en_order, max_ut, max_ut_en, max_ut_order
-
-
-def collect_memory(utilization, total_cost_layer, save_all_tm, energy_collect, utilization_collect, latency_collect):
-    if save_all_tm:
-        energy_collect.append(int(total_cost_layer))
-        utilization_collect.append(utilization.mac_utilize_no_load)
-        latency_collect.append(utilization.latency_no_load)
-    return energy_collect, utilization_collect, latency_collect
-
-
 def tl_worker_new(temporal_loop_list, merged_count_dict, loop_type_order, total_merged_count, input_settings,
                   spatial_loop_comb, mem_scheme, precision, layer, mac_costs, ):
     """
@@ -672,9 +760,6 @@ def tl_worker_new(temporal_loop_list, merged_count_dict, loop_type_order, total_
     """
     # Get the active and idle MAC cost
     [active_mac_cost, idle_mac_cost] = mac_costs
-    # Get the different MemoryNodes we need to allocate
-    nodes = mem_scheme.nodes
-    n_mem_levels = len(nodes)
     # Layer
     [layer_origin, layer_rounded] = layer
     # Spatial unrolling
@@ -685,7 +770,7 @@ def tl_worker_new(temporal_loop_list, merged_count_dict, loop_type_order, total_
     all_tl_to_orderings = fulfill_temporal_loop_dict(temporal_loop_list)
     temporal_loop_list = list(all_tl_to_orderings.values())
     # Get the smallest prime factor for each loop type (required for loop merging)
-    smallest_pfs = generate_the_smallest_pfs_list(all_tl_to_orderings)
+    smallest_pfs = generate_the_smallest_pfs_dict(all_tl_to_orderings)
 
     # Init minimal energy and max utilization results
     min_en = float("inf")
@@ -714,7 +799,7 @@ def tl_worker_new(temporal_loop_list, merged_count_dict, loop_type_order, total_
             continue
         # memory allocation part
         allocated_order = allocate_memory_for_tl_order(merged_order, spatial_loop, layer_origin, input_settings,
-                                                       n_mem_levels, nodes)
+                                                       mem_scheme.nodes)
         temporal_loop, loop = create_loop_objects(layer_rounded, allocated_order, spatial_loop, input_settings)
         loop_fractional = perform_greedy_mapping(layer_origin, allocated_order, spatial_loop_fractional, loop,
                                                  input_settings)

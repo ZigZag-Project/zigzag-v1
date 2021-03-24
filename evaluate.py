@@ -534,8 +534,10 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
         LPF_TM = []
 
         # Extract the naive TM from the layer architecture contained in layer_post
+        index = 0
         for layer_parameter in ['B', 'K', 'C', 'OY', 'OX', 'FY', 'FX']:
-            naive_TM.append((layer_parameter, layer_post[layer_parameter]))
+            index += 1
+            naive_TM.append((index, layer_post[layer_parameter]))
 
         # Break it down to LPF (Loop Prime Factor)
         for inner_loop in naive_TM:

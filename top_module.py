@@ -24,7 +24,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     input_settings = input_funcs.get_input_settings(args.set, args.map, args.mempool, args.arch)
-
     '''
     Neural Network info can be defined by user (./NN_layer/XXNet.py) or be imported externally.
     By default, user-defined layer dimension is used (./NN_layer/XXNet.py).

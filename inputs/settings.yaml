@@ -38,7 +38,7 @@ temporal_mapping_multiprocessing: 8
 
 # TEMPORAL MAPPING GENERATOR SETTINGS
 # search_method : exhaustive / heuristic_v1 / heuristic_v2 / iterative / loma
-temporal_mapping_search_method : loma
+temporal_mapping_search_method : RL
 
 # SPATIAL MAPPING GENERATOR SETTINGS
 # search method : exhaustive / heuristic_v1 / heuristic_v2 / hint_driven / greedy_mapping_with_hint / greedy_mapping_without_hint
