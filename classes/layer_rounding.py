@@ -66,13 +66,15 @@ def unrolling_scheme_clean(unrolling_bundle, unrolling_scheme_list, layer_spec_r
     unrolling_scheme_list_new = []
     unrolling_bundle_save = deepcopy(unrolling_bundle)
 
-    # remove the size 1 dimension in every unrolling scheme.
+    # remove the size 1 dimension in every unrolling scheme except for user-define-dimensioned ones 
+    # (e.g. define in the SU hint list that FX_3, although FX=1 in the actual layer).
+    
     for idx1, unroll_scheme in enumerate(unrolling_scheme_list):
         for idx2, unroll in enumerate(unroll_scheme):
             if len(unroll) != 1:
                 unroll_save = deepcopy(unroll)
                 for idx3, elem in enumerate(unroll_save):
-                    if layer_spec_raw[ll[elem]] == 1:
+                    if layer_spec_raw[ll[elem]] == 1 and unrolling_bundle_save[idx1][idx2][idx3][1] is None:
                         unroll.remove(elem)
                         unrolling_bundle[idx1][idx2].remove(unrolling_bundle_save[idx1][idx2][idx3])
 
@@ -328,6 +330,7 @@ def mem_access_count_correct(loop_fractional, loop):
                 loop_fractional.mem_access_elem['O_partial'][level][0] = loop.mem_access_elem['O_partial'][level][0]
                 break
     return loop_fractional
+
 
 
 
