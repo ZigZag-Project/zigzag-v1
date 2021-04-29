@@ -219,7 +219,7 @@ class SpatialLoop(object):
         '''
         # Relevant loop type numbers for each operand
         relevant_loop_type_numbers = {'W': [1,2,5,6], 'I': [5,7], 'O': [3,4,6,7]}
-        irrelevant_loop_type_numbers = {'W': [3,4,7], 'I': [], 'O': [1,2,5]}
+        irrelevant_loop_type_numbers = {'W': [3,4,7], 'I': [6], 'O': [1,2,5]}
         
         ## Extract the relevant/irrelevant loop unrolling for each operand
         su_relevant_size_dict = {'W': [], 'I': [], 'O': []}
