@@ -67,7 +67,7 @@ def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_
             temporal_loop_fractional = cls.TemporalLoop.extract_loop_info(layer_origin, tl, spatial_loop_fractional)
             loop_fractional = cls.Loop.extract_loop_info(layer_origin, temporal_loop_fractional, spatial_loop_fractional,
                                                          input_settings.precision,
-                                                         input_settings.fixed_temporal_mapping)
+                                                         input_settings.fixed_temporal_mapping)                                       
             if mem_energy_saving_when_BW_under_utilized is False:
                 loop_fractional = mem_access_count_correct(loop_fractional, loop)
 
@@ -453,7 +453,7 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
                                           input_settings.mac_array_info['idle_mac_energy'],
                                           mem_scheme.spatial_unrolling)[ii_su]
         mac_costs = [active_mac_cost, idle_mac_cost]
-        fixed_args = [nonmerged_count_dict, loop_type_order, tl_combinations, input_settings, spatial_loop_comb, mem_scheme, precision, layer_comb, mac_costs]
+        fixed_args = [nonmerged_count_dict, loop_type_order, tl_combinations, input_settings, spatial_loop_comb, mem_scheme, precision, layer_comb, mac_costs, ii_su]
 
         ################################# CALL PARALLEL PROCESSES ##################################
         pool = Pool(processes=n_processes)

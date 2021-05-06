@@ -313,7 +313,7 @@ class LayerRound2(object):
 
 def mem_access_count_correct(loop_fractional, loop):
     """
-    This function penalize the memory which feed data into MAC array under greedy mapping
+    This function penalizes the memory that feeds data into MAC array under greedy mapping
     when there is no energy benefit from memory BW under-utilization.
     """
     for op in ['W', 'I', 'O']:

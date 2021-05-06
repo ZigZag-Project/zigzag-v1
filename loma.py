@@ -8,6 +8,7 @@ import numpy as np
 from classes.order import Order
 import operator
 import time
+from classes.layer_rounding import mem_access_count_correct
 
 
 """
@@ -119,14 +120,14 @@ def get_cost_model_output(allocated_order, input_settings, mem_scheme, layer_com
     # Fractional loop for greedy mapping
     if input_settings.spatial_unrolling_mode in [4, 5]:
         ############# Advanced User Configuration #############
-        # mem_energy_saving_when_BW_under_utilized = True
+        mem_energy_saving_when_BW_under_utilized = False
         #######################################################
         temporal_loop_fractional = cls.TemporalLoop.extract_loop_info(layer_origin, allocated_order, spatial_loop_fractional)
         loop_fractional = cls.Loop.extract_loop_info(layer_origin, temporal_loop_fractional, spatial_loop_fractional,
                                                         input_settings.precision,
                                                         input_settings.fixed_temporal_mapping)
-        # if mem_energy_saving_when_BW_under_utilized is False:
-        #     loop_fractional = mem_access_count_correct(loop_fractional, loop)
+        if mem_energy_saving_when_BW_under_utilized is False:
+            loop_fractional = mem_access_count_correct(loop_fractional, loop)
     else:
         loop_fractional = loop
     
@@ -462,6 +463,13 @@ def og(layer_spec, spatial_unrolling, lpf_limit):
         # Add all the found permutatios for this loop_type to tl_dict
         tl_dict[loop_type] = permutations_list
 
+    # Edge case: all loops were spatially unrolled. In this case we modify tl_dict, count_dict and loop_type_order
+    # to ensure correct execution of the next steps (cost model evaluation)
+    if tl_dict == {}:
+        tl_dict = {'B': []}
+        count_dict = {'B': 1}
+        loop_type_order = ['B']
+        
     return tl_dict, count_dict, loop_type_order, total_count
 
 
@@ -503,7 +511,7 @@ def get_smallest_pf(tl):
 
     return smallest_pf
 
-def tl_worker_new(tl_list, merged_count_dict, loop_type_order, total_merged_count, input_settings, spatial_loop_comb, mem_scheme, precision, layer, mac_costs):
+def tl_worker_new(tl_list, merged_count_dict, loop_type_order, total_merged_count, input_settings, spatial_loop_comb, mem_scheme, precision, layer, mac_costs, ii_su):
     """
     New tl_worker function to handle the multiset loop orderings.
 
@@ -529,6 +537,39 @@ def tl_worker_new(tl_list, merged_count_dict, loop_type_order, total_merged_coun
     # Adjust the merged_count_dict for the first loop_type, as this got chunked in caller function
     first_loop_type = loop_type_order[0]
     merged_count_dict[first_loop_type] = len(tl_list[first_loop_type])
+
+    # Check if tl_list is empty (means that all loops were spatially unrolled and we evaluate the cost model as such)
+    if tl_list == {'B': []}:
+        # Initialize empty allocated order
+        n_mem_levels_W = len(mem_scheme.mem_size['W'])
+        n_mem_levels_I = len(mem_scheme.mem_size['I'])
+        n_mem_levels_O = len(mem_scheme.mem_size['O'])
+        empty_allocated_order = {'W': [[] for _ in range(n_mem_levels_W)], 
+                                'I': [[] for _ in range(n_mem_levels_I)], 
+                                'O': [[] for _ in range(n_mem_levels_O)]}
+
+        # Get cost model output
+        cost_model_output = get_cost_model_output(empty_allocated_order, input_settings, mem_scheme, layer, spatial_loop_comb, ii_su)
+
+        # Extract return values
+        min_en = max_ut_en = cost_model_output.total_cost
+        min_en_ut = max_ut = cost_model_output.utilization.mac_utilize_no_load
+        min_en_order = max_ut_order = empty_allocated_order
+
+        # Init energy,latency,utilization collect
+        energy_collect = None
+        utilization_collect = None
+        latency_collect = None
+        save_all_tm = input_settings.tm_search_result_saving
+        if save_all_tm:
+            energy_collect = [int(min_en)]
+            utilization_collect = [min_en_ut]
+            latency_collect = [cost_model_output.utilization.latency_no_load]
+
+
+        return (min_en, min_en_ut, min_en_order, 
+                max_ut_en, max_ut, max_ut_order,
+                energy_collect, utilization_collect, latency_collect)
 
     # Get the orderings for all possible loop_types (some might be non-existent)
     tl_list_B = tl_list.get('B',[None])
@@ -629,14 +670,14 @@ def tl_worker_new(tl_list, merged_count_dict, loop_type_order, total_merged_coun
                                 # Greedy mapping: loop_fractional required
                                 if input_settings.spatial_unrolling_mode in [4, 5]:
                                     ############# Advanced User Configuration #############
-                                    # mem_energy_saving_when_BW_under_utilized = True
+                                    mem_energy_saving_when_BW_under_utilized = False
                                     #######################################################
                                     temporal_loop_fractional = cls.TemporalLoop.extract_loop_info(layer_origin, allocated_order, spatial_loop_fractional)
                                     loop_fractional = cls.Loop.extract_loop_info(layer_origin, temporal_loop_fractional, spatial_loop_fractional,
                                                                                 input_settings.precision,
                                                                                 input_settings.fixed_temporal_mapping)
-                                    # if mem_energy_saving_when_BW_under_utilized is False:
-                                    #     loop_fractional = mem_access_count_correct(loop_fractional, loop)
+                                    if mem_energy_saving_when_BW_under_utilized is False:
+                                        loop_fractional = mem_access_count_correct(loop_fractional, loop)
 
                                 else:
                                     loop_fractional = loop
