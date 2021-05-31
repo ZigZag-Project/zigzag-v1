@@ -59,6 +59,7 @@ class TemporalLoop(object):
             else:
                 not_finish = False
 
+        G = {}
         B = {}
         K = {}
         C = {}
@@ -78,31 +79,36 @@ class TemporalLoop(object):
             ''' 
             Initialize the list size to the number of memory levels. 
 
-            B/K/.../FX: temporal loop size for each index at different mem level in W/I/O mem system.
+            G/B/K/.../FX: temporal loop size for each index at different mem level in W/I/O mem system.
             '''
 
-            B[operand] = [1] * temporal_loop_st[operand].__len__()
-            K[operand] = [1] * temporal_loop_st[operand].__len__()
-            C[operand] = [1] * temporal_loop_st[operand].__len__()
-            OY[operand] = [1] * temporal_loop_st[operand].__len__()
-            OX[operand] = [1] * temporal_loop_st[operand].__len__()
-            FY[operand] = [1] * temporal_loop_st[operand].__len__()
-            FX[operand] = [1] * temporal_loop_st[operand].__len__()
+            nb_levels = len(temporal_loop_st[operand])
+
+            G[operand] = [1 for _ in range(nb_levels)]
+            B[operand] = [1 for _ in range(nb_levels)]
+            K[operand] = [1 for _ in range(nb_levels)]
+            C[operand] = [1 for _ in range(nb_levels)]
+            OY[operand] = [1 for _ in range(nb_levels)]
+            OX[operand] = [1 for _ in range(nb_levels)]
+            FY[operand] = [1 for _ in range(nb_levels)]
+            FX[operand] = [1 for _ in range(nb_levels)]
 
             '''
             each_level_cycles: the number of total iteration at each mem level in W/I/O mem system.
 
             loop_levels: the number of mem levels in W/I/O mem system.
             '''
-            loop_individual_level_cycles[operand] = [1] * temporal_loop_st[operand].__len__()
-            loop_cycles[operand] = [1] * temporal_loop_st[operand].__len__()
-            loop_levels[operand] = temporal_loop_st[operand].__len__()
-            irrelevant_loop[operand] = [1] * temporal_loop_st[operand].__len__()
-            available_update_cycles = [1] * temporal_loop_st[operand].__len__()
+            loop_individual_level_cycles[operand] = [1 for _ in range(nb_levels)]
+            loop_cycles[operand] = [1 for _ in range(nb_levels)]
+            loop_levels[operand] = nb_levels
+            irrelevant_loop[operand] = [1 for _ in range(nb_levels)]
+            available_update_cycles = [1 for _ in range(nb_levels)]
 
             for level, current_level_loops in enumerate(temporal_loop_st[operand]):
                 for loop in current_level_loops:
-                    if loop[0] == 7:
+                    if loop[0] == 8:
+                        G[operand][level] *= loop[1]
+                    elif loop[0] == 7:
                         B[operand][level] *= loop[1]
                     elif loop[0] == 6:
                         K[operand][level] *= loop[1]
@@ -117,7 +123,7 @@ class TemporalLoop(object):
                     elif loop[0] == 1:
                         FX[operand][level] *= loop[1]
                     else:
-                        raise IndexError('The loop index can only be values from "1" to "7".')
+                        raise IndexError('The loop index can only be values from "1" to "8".')
 
                     loop_individual_level_cycles[operand][level] *= loop[1]
 
@@ -136,7 +142,8 @@ class TemporalLoop(object):
 
         ''' Input '''
 
-        ifmap_size = {'B': [1] * loop_levels['I'],
+        ifmap_size = {'G': [1] * loop_levels['I'],
+                      'B': [1] * loop_levels['I'],
                       'C': [1] * loop_levels['I'],
                       'IY': [1] * loop_levels['I'],
                       'IX': [1] * loop_levels['I']}
@@ -147,6 +154,8 @@ class TemporalLoop(object):
         interleaved_storage_IX = [False] * loop_levels['I']
 
         for level in range(loop_levels['I']):
+
+            ifmap_size['G'][level] = (np.prod(G['I'][0:level + 1] + spatial_loop.Gu['I'][0:level + 2])).item()
             ifmap_size['B'][level] = (np.prod(B['I'][0:level + 1] + spatial_loop.Bu['I'][0:level + 2])).item()
             ifmap_size['C'][level] = (np.prod(C['I'][0:level + 1] + spatial_loop.Cu['I'][0:level + 2])).item()
 
@@ -179,7 +188,7 @@ class TemporalLoop(object):
         average_input_reuse_base = [spatial_loop.unit_duplicate['I'][0]]
         irrelevant_loop['I_base'] = [1] * temporal_loop_st['I'].__len__()
         for level in range(loop_levels['I']):
-            num_of_input_elem = ifmap_size['B'][level] * ifmap_size['C'][level] * \
+            num_of_input_elem = ifmap_size['G'][level] * ifmap_size['B'][level] * ifmap_size['C'][level] * \
                                 ifmap_size['IY'][level] * ifmap_size['IX'][level]
             average_input_reuse_base.append(num_of_MAC_Op[level] / num_of_input_elem)
 
@@ -247,7 +256,7 @@ class TemporalLoop(object):
                (innermost_relevant_loop[level + 1][0][l_type] == 4 and np.prod(FY['I'][0:level + 1]) == 1) or \
                (innermost_relevant_loop[level + 1][0][l_type] == 1 and np.prod(OX['I'][0:level + 1]) == 1) or \
                (innermost_relevant_loop[level + 1][0][l_type] == 3 and np.prod(FX['I'][0:level + 1]) == 1):
-                num_of_input_elem = ifmap_size['B'][level] * ifmap_size['C'][level] * \
+                num_of_input_elem = ifmap_size['G'][level] * ifmap_size['B'][level] * ifmap_size['C'][level] * \
                                     ifmap_size['IY'][level] * ifmap_size['IX'][level]
                 average_input_reuse.append(num_of_MAC_Op[level] / num_of_input_elem)
 
@@ -275,7 +284,7 @@ class TemporalLoop(object):
                 ifmap_size_merged['IY'][level] = IY
                 ifmap_size_merged['IX'][level] = IX
 
-                num_of_input_elem = ifmap_size['B'][level] * ifmap_size['C'][level] * \
+                num_of_input_elem = ifmap_size['G'][level] * ifmap_size['B'][level] * ifmap_size['C'][level] * \
                                     ifmap_size_merged['IY'][level] * ifmap_size_merged['IX'][level]
                 average_input_reuse.append(num_of_MAC_Op_merged[level] / num_of_input_elem)
 
@@ -297,7 +306,7 @@ class TemporalLoop(object):
         for loop in temporal_loop_st['W'][level0]:
             if not loop:
                 break
-            elif loop[l_type] == 3 or loop[l_type] == 4 or loop[l_type] == 7:
+            elif loop[l_type] == 3 or loop[l_type] == 4 or loop[l_type] == 7: # OX or OY or B
                 MAC_level_stationary['W'] *= loop[l_range]
             else:
                 break
@@ -305,7 +314,7 @@ class TemporalLoop(object):
         for loop in temporal_loop_st['I'][level0]:
             if not loop:
                 break
-            elif loop[l_type] == 6:
+            elif loop[l_type] == 6: # K
                 MAC_level_stationary['I'] *= loop[l_range]
             else:
                 break
@@ -313,7 +322,7 @@ class TemporalLoop(object):
         for loop in temporal_loop_st['O'][level0]:
             if not loop:
                 break
-            elif loop[l_type] == 1 or loop[l_type] == 2 or loop[l_type] == 5:
+            elif loop[l_type] == 1 or loop[l_type] == 2 or loop[l_type] == 5: # FX or FY or C
                 MAC_level_stationary['O'] *= loop[l_range]
             else:
                 break
@@ -328,6 +337,7 @@ class TemporalLoop(object):
 
         self.temporal_loop = temporal_loop_st
 
+        self.G = G
         self.B = B
         self.K = K
         self.C = C

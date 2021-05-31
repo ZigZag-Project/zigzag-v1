@@ -13,6 +13,7 @@ class SpatialLoop(object):
     def __init__(self, spatial_loop, layer_loop_info):
         self.spatial_loop = spatial_loop
 
+        Gu = {}
         Bu = {}
         Ku = {}
         Cu = {}
@@ -38,17 +39,20 @@ class SpatialLoop(object):
             ''' 
             Initialize the list size to the number of memory levels.
 
-            Bu/Ku/.../FXu: the spatial loop unrolling size for each index 
+            Gu/Bu/Ku/.../FXu: the spatial loop unrolling size for each index 
             at different mem level in W/I/O mem system.
             '''
 
-            Bu[operand] = [1] * spatial_loop[operand].__len__()
-            Ku[operand] = [1] * spatial_loop[operand].__len__()
-            Cu[operand] = [1] * spatial_loop[operand].__len__()
-            OYu[operand] = [1] * spatial_loop[operand].__len__()
-            OXu[operand] = [1] * spatial_loop[operand].__len__()
-            FYu[operand] = [1] * spatial_loop[operand].__len__()
-            FXu[operand] = [1] * spatial_loop[operand].__len__()
+            nb_levels = len(spatial_loop[operand])
+
+            Gu[operand] = [1 for _ in range(nb_levels)]
+            Bu[operand] = [1 for _ in range(nb_levels)]
+            Ku[operand] = [1 for _ in range(nb_levels)]
+            Cu[operand] = [1 for _ in range(nb_levels)]
+            OYu[operand] = [1 for _ in range(nb_levels)]
+            OXu[operand] = [1 for _ in range(nb_levels)]
+            FYu[operand] = [1 for _ in range(nb_levels)]
+            FXu[operand] = [1 for _ in range(nb_levels)]
 
             ''' 
             unroll_size: the individual spatial unrolling at each level.
@@ -65,11 +69,11 @@ class SpatialLoop(object):
             loop_levels: number of mem levels in W/I/O mem system + !!! the innermost MAC logic level !!! .
             '''
 
-            unroll_size[operand] = [1] * spatial_loop[operand].__len__()
-            unit_count[operand] = [1] * spatial_loop[operand].__len__()
-            unit_unique[operand] = [1] * spatial_loop[operand].__len__()
-            unit_duplicate[operand] = [1] * spatial_loop[operand].__len__()
-            loop_levels[operand] = spatial_loop[operand].__len__()
+            unroll_size[operand] = [1 for _ in range(nb_levels)]
+            unit_count[operand] = [1 for _ in range(nb_levels)]
+            unit_unique[operand] = [1 for _ in range(nb_levels)]
+            unit_duplicate[operand] = [1 for _ in range(nb_levels)]
+            loop_levels[operand] = nb_levels
 
             '''
             unit_serve_scope: one mem at current level serves how many unit at one level below.
@@ -80,15 +84,17 @@ class SpatialLoop(object):
             real_bw_boost: one mem at current level serves how many unit at one level below with different data.
             '''
 
-            unit_serve_scope[operand] = [1] * (spatial_loop[operand].__len__() - 1)
-            data_serve_scope[operand] = [1] * (spatial_loop[operand].__len__() - 1)
-            real_bw_boost[operand] = [1] * (spatial_loop[operand].__len__() - 1)
-            real_bw_boost_high[operand] = [1] * (spatial_loop[operand].__len__() - 1)
-            real_bw_boost_low[operand] = [1] * (spatial_loop[operand].__len__() - 1)
+            unit_serve_scope[operand] = [1 for _ in range(nb_levels - 1)]
+            data_serve_scope[operand] = [1 for _ in range(nb_levels - 1)]
+            real_bw_boost[operand] = [1 for _ in range(nb_levels - 1)]
+            real_bw_boost_high[operand] = [1 for _ in range(nb_levels - 1)]
+            real_bw_boost_low[operand] = [1 for _ in range(nb_levels - 1)]
 
             for level, current_level_loops in enumerate(spatial_loop[operand]):
                 for loop in current_level_loops:
-                    if loop[0] == 7:
+                    if loop[0] == 8:
+                        Bu[operand][level] *= loop[1]
+                    elif loop[0] == 7:
                         Bu[operand][level] *= loop[1]
                     elif loop[0] == 6:
                         Ku[operand][level] *= loop[1]
@@ -103,7 +109,7 @@ class SpatialLoop(object):
                     elif loop[0] == 1:
                         FXu[operand][level] *= loop[1]
                     else:
-                        raise IndexError('The loop index can only be values from "1" to "7".')
+                        raise IndexError('The loop index can only be values from "1" to "8".')
 
                     unroll_size[operand][level] *= loop[1]
 
@@ -127,14 +133,17 @@ class SpatialLoop(object):
         Using // (Floor Division) here to get an integer result out from division.
         '''
 
+        # WEIGHT
         for level in range(loop_levels['W']):
-            unit_unique['W'][level] = (np.prod(Ku['W'][level:loop_levels['W']] +
+            unit_unique['W'][level] = (np.prod(Gu['W'][level:loop_levels['W']] +
+                                               Ku['W'][level:loop_levels['W']] +
                                                Cu['W'][level:loop_levels['W']] +
                                                FXu['W'][level:loop_levels['W']] +
                                                FYu['W'][level:loop_levels['W']])).item()
 
             unit_duplicate['W'][level] = unit_count['W'][level] / unit_unique['W'][level]
 
+        # INPUT
         for level in range(loop_levels['I']):
             # only when both FY and OY are spatially unrolled, IYu should be calculated by the 'advanced' equation:
             # IY = SY * (OY - 1) + SFY * (FY - 1) + 1
@@ -162,14 +171,18 @@ class SpatialLoop(object):
             else:
                 IXu = (layer_loop_info['SX'] * (np.prod(OXu['I'][level:loop_levels['I']]) - 1) +
                        layer_loop_info['SFX'] * (np.prod(FXu['I'][level:loop_levels['I']]) - 1) + 1).item()
-            unit_unique['I'][level] = (np.prod(Bu['I'][level:loop_levels['I']] +
+
+            unit_unique['I'][level] = (np.prod(Gu['I'][level:loop_levels['I']] +
+                                               Bu['I'][level:loop_levels['I']] +
                                                Cu['I'][level:loop_levels['I']] +
                                                [IYu] + [IXu])).item()
 
             unit_duplicate['I'][level] = unit_count['I'][level] / unit_unique['I'][level]
 
+        # OUTPUT
         for level in range(loop_levels['O']):
-            unit_unique['O'][level] = (np.prod(Bu['O'][level:loop_levels['O']] +
+            unit_unique['O'][level] = (np.prod(Gu['O'][level:loop_levels['O']] +
+                                               Bu['O'][level:loop_levels['O']] +
                                                Ku['O'][level:loop_levels['O']] +
                                                OXu['O'][level:loop_levels['O']] +
                                                OYu['O'][level:loop_levels['O']])).item()
@@ -218,7 +231,7 @@ class SpatialLoop(object):
         Added for LOMA
         '''
         # Relevant loop type numbers for each operand
-        relevant_loop_type_numbers = {'W': [1,2,5,6], 'I': [5,7], 'O': [3,4,6,7]}
+        relevant_loop_type_numbers = {'W': [1,2,5,6,8], 'I': [5,7,8], 'O': [3,4,6,7,8]}
         irrelevant_loop_type_numbers = {'W': [3,4,7], 'I': [6], 'O': [1,2,5]}
         
         ## Extract the relevant/irrelevant loop unrolling for each operand
@@ -247,6 +260,7 @@ class SpatialLoop(object):
             for key in pr_loops:
                 su_pr_size_dict_input[key].append(su_pr_size[key])
 
+        self.Gu = Gu
         self.Bu = Bu
         self.Ku = Ku
         self.Cu = Cu

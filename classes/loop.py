@@ -84,8 +84,10 @@ class Loop(object):
             but the 1st level in spatial loops.
             '''
             req_mem_size['W'][level] = int((np.prod(
+                temporal_loop.G['W'][0:level + 1] +
                 temporal_loop.K['W'][0:level + 1] + temporal_loop.C['W'][0:level + 1] +
                 temporal_loop.FY['W'][0:level + 1] + temporal_loop.FX['W'][0:level + 1] +
+                spatial_loop.Gu['W'][0:level + 1] +
                 spatial_loop.Ku['W'][0:level + 1] + spatial_loop.Cu['W'][0:level + 1] +
                 spatial_loop.FYu['W'][0:level + 1] + spatial_loop.FXu['W'][0:level + 1])
                                            ).item())
@@ -113,15 +115,19 @@ class Loop(object):
                          layer.SFX * ((np.prod(temporal_loop.FX['I'][0:level + 1] + spatial_loop.FXu['I'][0:level + 1])).item() - 1) + 1)
 
             req_mem_size['I'][level] = int((np.prod(
+                temporal_loop.G['I'][0:level + 1] +
                 temporal_loop.B['I'][0:level + 1] + temporal_loop.C['I'][0:level + 1] + [IY] + [IX] +
+                spatial_loop.Gu['I'][0:level + 1] +
                 spatial_loop.Bu['I'][0:level + 1] + spatial_loop.Cu['I'][0:level + 1])).item())
 
             req_mem_count['I'][level] = spatial_loop.unit_count['I'][level + 1]
 
         for level in range(mem_level['O']):
             req_mem_size['O'][level] = int((np.prod(
+                temporal_loop.G['O'][0:level + 1] +
                 temporal_loop.B['O'][0:level + 1] + temporal_loop.K['O'][0:level + 1] +
                 temporal_loop.OX['O'][0:level + 1] + temporal_loop.OY['O'][0:level + 1] +
+                spatial_loop.Gu['O'][0:level + 1] +
                 spatial_loop.Bu['O'][0:level + 1] + spatial_loop.Ku['O'][0:level + 1] +
                 spatial_loop.OYu['O'][0:level + 1] + spatial_loop.OXu['O'][0:level + 1])
                                            ).item())
@@ -149,7 +155,7 @@ class Loop(object):
                 continue
             else:
                 for loop in reversed(loops):
-                    if loop[l_type] in [1, 2, 5, 6]:
+                    if loop[l_type] in [1, 2, 5, 6, 8]: # FX or FY or C or K or G
                         effective_mem_size['W'][level] = req_mem_size['W'][level] / loop[l_range]
 
                     else:
@@ -160,7 +166,7 @@ class Loop(object):
                 continue
             else:
                 for loop in reversed(loops):
-                    if loop[l_type] in [5, 7]:
+                    if loop[l_type] in [5, 7, 8]: # C or B or G
                         effective_mem_size['I'][level] = req_mem_size['I'][level] / loop[l_range]
                     else:
                         break
@@ -170,7 +176,7 @@ class Loop(object):
                 continue
             else:
                 for loop in reversed(loops):
-                    if loop[l_type] in [3, 4, 6, 7]:
+                    if loop[l_type] in [3, 4, 6, 7, 8]: # OX or OY or K or B or G
                         effective_mem_size['O'][level] = req_mem_size['O'][level] / loop[l_range]
                     else:
                         break
@@ -193,7 +199,7 @@ class Loop(object):
                 continue
             else:
                 for loop in reversed(loops):
-                    if loop[l_type] in [3, 4, 7]:
+                    if loop[l_type] in [3, 4, 7]: # OX or OY or B
                         top_ir['W'][level] *= loop[l_range]
                     else:
                         break
@@ -203,7 +209,7 @@ class Loop(object):
                 continue
             else:
                 for loop in reversed(loops):
-                    if loop[l_type] in [1, 2, 6]:
+                    if loop[l_type] in [1, 2, 6]: # FX or FY or K
                         top_ir['I'][level] *= loop[l_range]
                     else:
                         break
@@ -213,7 +219,7 @@ class Loop(object):
                 continue
             else:
                 for loop in reversed(loops):
-                    if loop[l_type] in [1, 2, 5]:
+                    if loop[l_type] in [1, 2, 5]: # FX or FY or C
                         top_ir['O'][level] *= loop[l_range]
                     else:
                         break
@@ -294,7 +300,7 @@ class Loop(object):
             else:
                 for loop in loops:
                     cycle_bloc *= loop[l_range]
-                    if loop[l_type] in [3, 4, 6, 7]:
+                    if loop[l_type] in [3, 4, 6, 7, 8]: # OX or OY or K or B or G
                         # relevant loops contribute to data block size.
                         data_bloc *= loop[l_range] * spatial_para[level]
                     dt_bloc['O'][level].append((data_bloc, cycle_bloc))
@@ -721,415 +727,6 @@ class Loop(object):
         self.dt_bloc_below = dt_bloc_below
 
         self.I_fifo = I_fifo
-
-    # def zig_zag_input_access(self, level, temp_loop, spat_loop):
-    #     '''
-    #     NN layer indexes
-    #     (7)B:   Batch size
-    #     (6)K:   Filter kernels / Output channels
-    #     (5)C:   Filter channels / Input channels
-    #     (4)OY:  Y dimension of output feature map
-    #     (3)OX:  X dimension of output feature map
-    #     (2)FY:  Y dimension of filters
-    #     (1)FX:  X dimension of filters
-    #     '''
-    #
-    #     '''
-    #     Very weird way to extract the necessary information for the input schedule
-    #     Makes sure that input_schedule[level - 1] contains both temporal and spatial loops
-    #     '''
-    #
-    #     temp = copy.deepcopy(temp_loop)
-    #     spat = copy.deepcopy(spat_loop)
-    #     input_schedule = copy.deepcopy(temp)
-    #
-    #     for lev in range(1, level + 1):
-    #         if temp[lev - 1]:
-    #             t_loop_type, t_loop_sizes = zip(*temp[lev - 1])
-    #         else:
-    #             t_loop_type = []
-    #         for i in range(0, len(spat[lev])):
-    #             if spat[lev][i][0] in t_loop_type:
-    #                 lst = list(temp[lev - 1][t_loop_type.index(spat[lev][i][0])])
-    #                 lst[1] *= spat[lev][i][1]
-    #                 tempp = [j for j in temp[lev - 1] if j[0] != spat[lev][i][0]]
-    #                 tempp.append(tuple(lst))
-    #                 input_schedule[lev - 1] = tempp
-    #             else:
-    #                 input_schedule[lev - 1].append(spat[lev][i])
-    #
-    #     delta = [0, 1]
-    #     delta_nfs0 = [0, 1]
-    #     delta_ns0 = [0, 1]
-    #
-    #     gamma = [0, 1]
-    #     gamma_nfs0 = [0, 1]
-    #     gamma_ns0 = [0, 1]
-    #
-    #     beta = [0, 1]
-    #     beta_s0 = [0, 1]
-    #     beta_fs1 = [0, 1]
-    #     beta_nfs0 = [0, 1]
-    #     beta_ns0 = [0, 1]
-    #
-    #     alpha = [0, 1]
-    #     alpha_s0 = [0, 1]
-    #     alpha_fs1 = [0, 1]
-    #     alpha_nfs0 = [0, 1]
-    #     alpha_ns0 = [0, 1]
-    #
-    #     fx0 = [1, 1]
-    #     fy0 = [2, 1]
-    #     x0 = [3, 1]
-    #     y0 = [4, 1]
-    #
-    #     split_multiplier = 1
-    #     split_index = len(input_schedule[level])
-    #     if any(i_l[0] == 5 or i_l[0] == 7 for i_l in input_schedule[level]):
-    #         split_index = input_schedule[level].index(next(x for x in input_schedule[level] if x[0] == 5 or x[0] == 7))
-    #     if not input_schedule[level]:
-    #         if level == 0:
-    #             return 1
-    #         else:
-    #             for j in range(1, level + 1):
-    #                 for i in range(0, len(input_schedule[j - 1])):
-    #                     if input_schedule[j - 1][i][0] == 1:
-    #                         fx0[1] *= input_schedule[j - 1][i][1]
-    #                     if input_schedule[j - 1][i][0] == 2:
-    #                         fy0[1] *= input_schedule[j - 1][i][1]
-    #                     if input_schedule[j - 1][i][0] == 3:
-    #                         x0[1] *= input_schedule[j - 1][i][1]
-    #                     if input_schedule[j - 1][i][0] == 4:
-    #                         y0[1] *= input_schedule[j - 1][i][1]
-    #         return (fx0[1] + x0[1] - 1) * (fy0[1] + y0[1] - 1)
-    #
-    #     split_multiplier = 1
-    #     split_index = len(input_schedule[level])
-    #     split_index2 = split_index
-    #     lps = [x[0] for x in input_schedule[level]]
-    #     if any(i_l[0] == 5 or i_l[0] == 7 for i_l in input_schedule[level]):
-    #         split_index = input_schedule[level].index(next(x for x in input_schedule[level] if x[0] == 5 or x[0] == 7))
-    #     if any(lps.count(x) > 1 for x in [1, 2, 3, 4]):
-    #         count_split = {1: 0, 2: 0, 3: 0, 4: 0}
-    #         for lp in range(0, len(input_schedule[level])):
-    #             if input_schedule[level][lp][0] in [1, 2, 3, 4]:
-    #                 count_split[input_schedule[level][lp][0]] += 1
-    #                 if count_split[input_schedule[level][lp][0]] > 1:
-    #                     split_index2 = lp
-    #                     break
-    #     split_index = min([split_index, split_index2])
-    #     tmp_input_schedule = copy.deepcopy(input_schedule)
-    #     for i in range(0, len(input_schedule[level])):
-    #         if i > split_index:
-    #             tmp_input_schedule[level].remove(input_schedule[level][i])
-    #     tmp_input_schedule = [i for i in tmp_input_schedule[level] if i[0] in [1, 2, 3, 4]]
-    #     tmp_input_schedule = [tmp_input_schedule]
-    #     split_index_aux = len(tmp_input_schedule[0])
-    #
-    #     X_loop_compressable = True
-    #     Y_loop_compressable = True
-    #     s0 = 1
-    #     fs1 = 1
-    #     for i in range(0, len(input_schedule[level - 1])):
-    #         if input_schedule[level - 1][i][0] == 3:
-    #             s0 *= input_schedule[level - 1][i][1]
-    #     for i in range(0, split_index - 1):
-    #         if input_schedule[level][i][0] == 1:
-    #             fs1 *= input_schedule[level][i][1]
-    #     if s0 - fs1 + 1 < 0:
-    #         X_loop_compressable = False
-    #     s0 = 1
-    #     fs1 = 1
-    #     for i in range(0, len(input_schedule[level - 1])):
-    #         if input_schedule[level - 1][i][0] == 4:
-    #             s0 *= input_schedule[level - 1][i][1]
-    #     for i in range(0, split_index - 1):
-    #         if input_schedule[level][i][0] == 2:
-    #             fs1 *= input_schedule[level][i][1]
-    #     if s0 - fs1 + 1 < 0:
-    #         Y_loop_compressable = False
-    #
-    #
-    #     for i in range(0, split_index - 1):
-    #         if input_schedule[level][i][0] == 1 and input_schedule[level][i + 1][0] == 3 and X_loop_compressable:
-    #             tmp_input_schedule[0].remove(tuple([3, input_schedule[level][i + 1][
-    #                 1]]))
-    #             tmp_input_schedule[0].remove(tuple([1, input_schedule[level][i][
-    #                 1]]))
-    #             tmp_input_schedule[0].append(
-    #                 tuple([1, input_schedule[level][i][1] + input_schedule[level][i + 1][1] - 1]))
-    #             split_index_aux -= 1
-    #         if input_schedule[level][i][0] == 3 and input_schedule[level][i + 1][0] == 1  and X_loop_compressable:
-    #             tmp_input_schedule[0].remove(tuple([3, input_schedule[level][i][
-    #                 1]]))
-    #             tmp_input_schedule[0].remove(tuple([1, input_schedule[level][i + 1][
-    #                 1]]))
-    #             tmp_input_schedule[0].append(
-    #                 tuple([1, input_schedule[level][i][1] + input_schedule[level][i + 1][1] - 1]))
-    #             split_index_aux -= 1
-    #         if input_schedule[level][i][0] == 2 and input_schedule[level][i + 1][0] == 4 and Y_loop_compressable:
-    #             tmp_input_schedule[0].remove(tuple([4, input_schedule[level][i + 1][
-    #                 1]]))
-    #             tmp_input_schedule[0].remove(tuple([2, input_schedule[level][i][
-    #                 1]]))
-    #             tmp_input_schedule[0].append(
-    #                 tuple([2, input_schedule[level][i][1] + input_schedule[level][i + 1][1] - 1]))
-    #             split_index_aux -= 1
-    #         if input_schedule[level][i][0] == 4 and input_schedule[level][i + 1][0] == 2 and Y_loop_compressable:
-    #             tmp_input_schedule[0].remove(tuple([2, input_schedule[level][i + 1][
-    #                 1]]))
-    #             tmp_input_schedule[0].remove(tuple([4, input_schedule[level][i][
-    #                 1]]))
-    #             tmp_input_schedule[0].append(
-    #                 tuple([2, input_schedule[level][i][1] + input_schedule[level][i + 1][1] - 1]))
-    #             split_index_aux -= 1
-    #
-    #
-    #
-    #
-    #     if not input_schedule[level]:
-    #         if level == 0:
-    #             return 1
-    #         else:
-    #             for j in range(1, level + 1):
-    #                 for i in range(0, len(input_schedule[j - 1])):
-    #                     if input_schedule[j - 1][i][0] == 1:
-    #                         fx0[1] *= input_schedule[j - 1][i][1]
-    #                     if input_schedule[j - 1][i][0] == 2:
-    #                         fy0[1] *= input_schedule[j - 1][i][1]
-    #                     if input_schedule[j - 1][i][0] == 3:
-    #                         x0[1] *= input_schedule[j - 1][i][1]
-    #                     if input_schedule[j - 1][i][0] == 4:
-    #                         y0[1] *= input_schedule[j - 1][i][1]
-    #         return (fx0[1] + x0[1] - 1) * (fy0[1] + y0[1] - 1)
-    #
-    #     if tmp_input_schedule[0]:
-    #         loop_type, loop_sizes = zip(*tmp_input_schedule[0])
-    #     else:
-    #         loop_type = []
-    #         loop_sizes = []
-    #
-    #     if all(elem in loop_type for elem in [1, 2]):
-    #         delta_assigned = 0
-    #         for i in range(0, split_index_aux):
-    #             if (delta_assigned == 0) and (tmp_input_schedule[0][i][0] == 1 or tmp_input_schedule[0][i][0] == 2):
-    #                 delta[0] = tmp_input_schedule[0][i][0]
-    #                 delta[1] = tmp_input_schedule[0][i][1]
-    #
-    #                 delta_assigned = 1
-    #                 continue
-    #             if (delta_assigned == 1) and (tmp_input_schedule[0][i][0] == 1 or tmp_input_schedule[0][i][0] == 2):
-    #                 gamma[0] = tmp_input_schedule[0][i][0]
-    #                 gamma[1] = tmp_input_schedule[0][i][1]
-    #                 break
-    #
-    #     if any(elem in loop_type for elem in [1, 2]) and not (all(elem in loop_type for elem in [1, 2])):
-    #         for i in range(0, split_index_aux):
-    #             if tmp_input_schedule[0][i][0] == 1 or tmp_input_schedule[0][i][0] == 2:
-    #                 gamma[0] = tmp_input_schedule[0][i][0]
-    #                 gamma[1] = tmp_input_schedule[0][i][1]
-    #                 delta.append(1)
-    #                 break
-    #
-    #     if all(elem in loop_type for elem in [3, 4]):
-    #         beta_assigned = 0
-    #         for i in range(0, split_index_aux):
-    #             if (beta_assigned == 0) and (tmp_input_schedule[0][i][0] == 3 or tmp_input_schedule[0][i][0] == 4):
-    #                 beta[0] = tmp_input_schedule[0][i][0]
-    #                 beta[1] = tmp_input_schedule[0][i][1]
-    #
-    #                 beta_assigned = 1
-    #                 continue
-    #             if (beta_assigned == 1) and (tmp_input_schedule[0][i][0] == 3 or tmp_input_schedule[0][i][0] == 4):
-    #                 alpha[0] = tmp_input_schedule[0][i][0]
-    #                 alpha[1] = tmp_input_schedule[0][i][1]
-    #                 break
-    #
-    #     if any(elem in loop_type for elem in [3, 4]) and not (all(elem in loop_type for elem in [3, 4])):
-    #         for i in range(0, split_index_aux):
-    #             if tmp_input_schedule[0][i][0] == 3 or tmp_input_schedule[0][i][0] == 4:
-    #                 alpha[0] = tmp_input_schedule[0][i][0]
-    #                 alpha[1] = tmp_input_schedule[0][i][1]
-    #
-    #                 beta.append(1)
-    #                 break
-    #
-    #     if level == 0:
-    #         if (alpha[0] == 3 and gamma[0] == 1) or (alpha[0] == 4 and gamma[0] == 2):
-    #             return (alpha[1] + gamma[1] - 1) * (beta[1] + delta[1] - 1)
-    #         else:
-    #             return (alpha[1] + delta[1] - 1) * (beta[1] + gamma[1] - 1)
-    #     else:
-    #         for j in range(1, level + 1):
-    #             for i in range(0, len(input_schedule[j - 1])):
-    #                 if input_schedule[j - 1][i][0] == 1:
-    #                     fx0[1] *= input_schedule[j - 1][i][1]
-    #                 if input_schedule[j - 1][i][0] == 2:
-    #                     fy0[1] *= input_schedule[j - 1][i][1]
-    #                 if input_schedule[j - 1][i][0] == 3:
-    #                     x0[1] *= input_schedule[j - 1][i][1]
-    #                 if input_schedule[j - 1][i][0] == 4:
-    #                     y0[1] *= input_schedule[j - 1][i][1]
-    #
-    #         if alpha[0] != 0:
-    #             if alpha[0] == 3:
-    #                 alpha_fs1[0] = 1
-    #                 for i in range(0, len(tmp_input_schedule[0])):
-    #                     if tmp_input_schedule[0][i][0] == 1:
-    #                         alpha_fs1[1] = tmp_input_schedule[0][i][1]
-    #                 alpha_nfs0[0] = 2
-    #                 for j in range(1, level + 1):
-    #                     for i in range(0, len(input_schedule[j - 1])):
-    #                         if input_schedule[j - 1][i][0] == 2:
-    #                             alpha_nfs0[1] *= input_schedule[j - 1][i][1]
-    #                 alpha_ns0[0] = 4
-    #                 for j in range(1, level + 1):
-    #                     for i in range(0, len(input_schedule[j - 1])):
-    #                         if input_schedule[j - 1][i][0] == 4:
-    #                             alpha_ns0[1] *= input_schedule[j - 1][i][1]
-    #                 alpha_s0[0] = 3
-    #                 for j in range(1, level + 1):
-    #                     for i in range(0, len(input_schedule[j - 1])):
-    #                         if input_schedule[j - 1][i][0] == 3:
-    #                             alpha_s0[1] *= input_schedule[j - 1][i][1]
-    #             if alpha[0] == 4:
-    #                 alpha_fs1[0] = 2
-    #                 for i in range(0, len(tmp_input_schedule[0])):
-    #                     if tmp_input_schedule[0][i][0] == 2:
-    #                         alpha_fs1[1] = tmp_input_schedule[0][i][1]
-    #                 alpha_nfs0[0] = 1
-    #                 for j in range(1, level + 1):
-    #                     for i in range(0, len(input_schedule[j - 1])):
-    #                         if input_schedule[j - 1][i][0] == 1:
-    #                             alpha_nfs0[1] *= input_schedule[j - 1][i][1]
-    #                 alpha_ns0[0] = 3
-    #                 for j in range(1, level + 1):
-    #                     for i in range(0, len(input_schedule[j - 1])):
-    #                         if input_schedule[j - 1][i][0] == 3:
-    #                             alpha_ns0[1] *= input_schedule[j - 1][i][1]
-    #                 alpha_s0[0] = 4
-    #                 for j in range(1, level + 1):
-    #                     for i in range(0, len(input_schedule[j - 1])):
-    #                         if input_schedule[j - 1][i][0] == 4:
-    #                             alpha_s0[1] *= input_schedule[j - 1][i][1]
-    #         if beta[0] != 0:
-    #             if beta[0] == 3:
-    #                 beta_fs1[0] = 1
-    #                 for i in range(0, len(tmp_input_schedule[0])):
-    #                     if tmp_input_schedule[0][i][0] == 1:
-    #                         beta_fs1[1] = tmp_input_schedule[0][i][1]
-    #                 beta_nfs0[0] = 2
-    #                 for j in range(1, level + 1):
-    #                     for i in range(0, len(input_schedule[j - 1])):
-    #                         if input_schedule[j - 1][i][0] == 2:
-    #                             beta_nfs0[1] = input_schedule[j - 1][i][1]
-    #                 beta_ns0[0] = 4
-    #                 for j in range(1, level + 1):
-    #                     for i in range(0, len(input_schedule[j - 1])):
-    #                         if input_schedule[j - 1][i][0] == 4:
-    #                             beta_ns0[1] = input_schedule[j - 1][i][1]
-    #                 beta_s0[0] = 3
-    #                 for j in range(1, level + 1):
-    #                     for i in range(0, len(input_schedule[j - 1])):
-    #                         if input_schedule[j - 1][i][0] == 3:
-    #                             beta_s0[1] = input_schedule[j - 1][i][1]
-    #             if beta[0] == 4:
-    #                 beta_fs1[0] = 2
-    #                 for i in range(0, len(tmp_input_schedule[0])):
-    #                     if tmp_input_schedule[0][i][0] == 2:
-    #                         beta_fs1[1] = tmp_input_schedule[0][i][1]
-    #                 beta_nfs0[0] = 1
-    #                 for j in range(1, level + 1):
-    #                     for i in range(0, len(input_schedule[j - 1])):
-    #                         if input_schedule[j - 1][i][0] == 1:
-    #                             beta_nfs0[1] = input_schedule[j - 1][i][1]
-    #                 beta_ns0[0] = 3
-    #                 for j in range(1, level + 1):
-    #                     for i in range(0, len(input_schedule[j - 1])):
-    #                         if input_schedule[j - 1][i][0] == 3:
-    #                             beta_ns0[1] = input_schedule[j - 1][i][1]
-    #                 beta_s0[0] = 4
-    #                 for j in range(1, level + 1):
-    #                     for i in range(0, len(input_schedule[j - 1])):
-    #                         if input_schedule[j - 1][i][0] == 4:
-    #                             beta_s0[1] = input_schedule[j - 1][i][1]
-    #         if gamma[0] != 0:
-    #             if gamma[0] == 1:
-    #                 gamma_nfs0[0] = 2
-    #                 for j in range(1, level + 1):
-    #                     for i in range(0, len(input_schedule[j - 1])):
-    #                         if input_schedule[j - 1][i][0] == 2:
-    #                             gamma_nfs0[1] = input_schedule[j - 1][i][1]
-    #                 gamma_ns0[0] = 4
-    #                 for j in range(1, level + 1):
-    #                     for i in range(0, len(input_schedule[j - 1])):
-    #                         if input_schedule[j - 1][i][0] == 4:
-    #                             gamma_ns0[1] = input_schedule[j - 1][i][1]
-    #             if gamma[0] == 2:
-    #                 gamma_nfs0[0] = 1
-    #                 for j in range(1, level + 1):
-    #                     for i in range(0, len(input_schedule[j - 1])):
-    #                         if input_schedule[j - 1][i][0] == 1:
-    #                             gamma_nfs0[1] = input_schedule[j - 1][i][1]
-    #                 gamma_ns0[0] = 3
-    #                 for j in range(1, level + 1):
-    #                     for i in range(0, len(input_schedule[j - 1])):
-    #                         if input_schedule[j - 1][i][0] == 3:
-    #                             gamma_ns0[1] = input_schedule[j - 1][i][1]
-    #         if delta[0] != 0:
-    #             if delta[0] == 1:
-    #                 delta_nfs0[0] = 2
-    #                 for j in range(1, level + 1):
-    #                     for i in range(0, len(input_schedule[j - 1])):
-    #                         if input_schedule[j - 1][i][0] == 2:
-    #                             delta_nfs0[1] = input_schedule[j - 1][i][1]
-    #                 delta_ns0[0] = 4
-    #                 for j in range(1, level + 1):
-    #                     for i in range(0, len(input_schedule[j - 1])):
-    #                         if input_schedule[j - 1][i][0] == 4:
-    #                             delta_ns0[1] = input_schedule[j - 1][i][1]
-    #             if delta[0] == 2:
-    #                 delta_nfs0[0] = 1
-    #                 for j in range(1, level + 1):
-    #                     for i in range(0, len(input_schedule[j - 1])):
-    #                         if input_schedule[j - 1][i][0] == 1:
-    #                             delta_nfs0[1] = input_schedule[j - 1][i][1]
-    #                 delta_ns0[0] = 3
-    #                 for j in range(1, level + 1):
-    #                     for i in range(0, len(input_schedule[j - 1])):
-    #                         if input_schedule[j - 1][i][0] == 3:
-    #                             delta_ns0[1] = input_schedule[j - 1][i][1]
-    #
-    #         a = 0
-    #         b = 0
-    #         c = 0
-    #         d = 0
-    #         tot = 1
-    #
-    #         if (alpha_s0[1] - alpha_fs1[1] + 1) < 0 and delta[1] == 1:
-    #             tot *= alpha[1] * (
-    #                     (fx0[1] + x0[1] - 1) * (fy0[1] + y0[1] - 1) + beta[1] * (gamma[1] - 1) * (fx0[1] + x0[1] - 1))
-    #         else:
-    #             a = (fx0[1] + x0[1] - 1) * (fy0[1] + y0[1] - 1)
-    #             b = (delta[1] - 1) * (delta_nfs0[1] + delta_ns0[1] - 1)
-    #             c = (gamma[1] - 1) * ((gamma_nfs0[1] + gamma_ns0[1] - 1) + b)
-    #             if (beta_s0[1] - beta_fs1[1] + 1) >= 0:
-    #                 d = (beta[1] - 1) * ((beta_s0[1] - beta_fs1[1] + 1) * (beta_nfs0[1] + beta_ns0[1] - 1) + b + c)
-    #             else:
-    #                 d = (beta[1] - 1) * (a + b + c)
-    #             if (alpha_s0[1] - alpha_fs1[1] + 1) >= 0 and (
-    #                     (beta[1] % 2) == 1 or (gamma[1] == 1 and delta[1] == 1) or (
-    #                     beta[1] != 1 and ((gamma[0] == 1 and beta[0] == 3) or (gamma[0] == 2 and beta[0] == 4)))):
-    #                 tot *= (alpha[1] - 1) * (
-    #                         (alpha_s0[1] - alpha_fs1[1] + 1) * (alpha_nfs0[1] + alpha_ns0[1] - 1) + b + c + d)
-    #             else:
-    #                 tot *= (alpha[1] - 1) * (a + b + c + d)
-    #
-    #         for j in range(split_index, len(input_schedule[level])):
-    #             if input_schedule[level][j][0] in [1, 2, 3, 4]:
-    #                 split_multiplier *= input_schedule[level][j][1]
-    #
-    #         return (tot + a + b + c + d) * split_multiplier
 
     @classmethod
     def extract_loop_info(cls, layer, temporal_loop, spatial_loop, precision, size_check):
