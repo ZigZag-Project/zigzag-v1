@@ -365,7 +365,7 @@ def get_prime_factors(layer_spec, lpf_limit):
     layer_spec_pf_count = {}
     layer_spec_pf_count_sum = {}
     for loop_type, loop_dimension in layer_spec.items():
-        if loop_dimension == 0 or loop_dimension == 1:
+        if loop_dimension == 0 or loop_dimension == 1 or loop_type == 'G':
             continue
         factors = factorint(loop_dimension)
         pfs = []
@@ -404,13 +404,13 @@ def og(layer_spec, spatial_unrolling, lpf_limit):
     }
     """
     # Corresponding number for each loop_type
-    lt_convert = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B'}
+    lt_convert = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B', 8: 'G'}
 
     layer_spec_temporal = {}
 
     # Add all non-trivial loop_types of layer_spec to layer_spec_temporal
     for loop_type, loop_factor in layer_spec.items():
-        if (loop_factor != 0 or loop_factor != 1) and (loop_type in ['B','K','C','OY','OX','FY','FX']):
+        if (loop_factor != 0 and loop_factor != 1) and (loop_type in ['B','K','C','OY','OX','FY','FX', 'G']):
             layer_spec_temporal[loop_type] = loop_factor
 
     # Update the temporal layer spec to remove the already spatially unrolled dimensions.
@@ -463,10 +463,17 @@ def og(layer_spec, spatial_unrolling, lpf_limit):
         # Add all the found permutatios for this loop_type to tl_dict
         tl_dict[loop_type] = permutations_list
 
+    # Grouped convolutions: Add the number of temporally remaining G loops to tl_dict (only exists if G > 1)
+    # This is later added as outer-most loop as there is no reason to permute G (relevant loop)
+    try:
+        tl_dict['G'] = layer_spec_temporal['G']
+    except:
+        continue
+
     # Edge case: all loops were spatially unrolled. In this case we modify tl_dict, count_dict and loop_type_order
     # to ensure correct execution of the next steps (cost model evaluation)
-    if tl_dict == {}:
-        tl_dict = {'B': []}
+    if list(tl_dict.keys()) == ['G']:
+        tl_dict['B'] = []}
         count_dict = {'B': 1}
         loop_type_order = ['B']
         
@@ -538,8 +545,8 @@ def tl_worker_new(tl_list, merged_count_dict, loop_type_order, total_merged_coun
     first_loop_type = loop_type_order[0]
     merged_count_dict[first_loop_type] = len(tl_list[first_loop_type])
 
-    # Check if tl_list is empty (means that all loops were spatially unrolled and we evaluate the cost model as such)
-    if tl_list == {'B': []}:
+    # Check if tl_list is empty for B (means that all loops were spatially unrolled and we evaluate the cost model as such)
+    if tl_list['B'] == []:
         # Initialize empty allocated order
         n_mem_levels_W = len(mem_scheme.mem_size['W'])
         n_mem_levels_I = len(mem_scheme.mem_size['I'])
@@ -547,6 +554,14 @@ def tl_worker_new(tl_list, merged_count_dict, loop_type_order, total_merged_coun
         empty_allocated_order = {'W': [[] for _ in range(n_mem_levels_W)], 
                                 'I': [[] for _ in range(n_mem_levels_I)], 
                                 'O': [[] for _ in range(n_mem_levels_O)]}
+        
+        # If G > 1, add it to the top level memory for each operand
+        try:
+            G_temporal = tl_list['G']
+            if G_temporal > 1:
+                empty_allocated_order['W'][-1].append((8, G_temporal))
+                empty_allocated_order['I'][-1].append((8, G_temporal))
+                empty_allocated_order['O'][-1].append((8, G_temporal))
 
         # Get cost model output
         cost_model_output = get_cost_model_output(empty_allocated_order, input_settings, mem_scheme, layer, spatial_loop_comb, ii_su)
@@ -579,6 +594,10 @@ def tl_worker_new(tl_list, merged_count_dict, loop_type_order, total_merged_coun
     tl_list_OX = tl_list.get('OX',[None])
     tl_list_FY = tl_list.get('FY',[None])
     tl_list_FX = tl_list.get('FX',[None])
+
+    # Grouped Convolutions: get the number of temporal G loops
+    G_temporal = tl_list.get('G', 1)
+
 
     # Get the smallest prime factor for each loop type (required for loop merging)
     smallest_pfs = {7: get_smallest_pf(tl_list_B[0]),
@@ -625,6 +644,10 @@ def tl_worker_new(tl_list, merged_count_dict, loop_type_order, total_merged_coun
 
                                 # Final order with all X's filled in 
                                 nonmerged_order = combine_orderings(order_B_K_C_OY_OX_FY, order_FX)
+
+                                # Grouped Convolutions: Add G_temporal as last loop in the order if its > 1
+                                if G_temporal > 1:
+                                    nonmerged_order.append((8, G_temporal))
 
                                 # Merge loops of same type
                                 merged_order = merge_loops(nonmerged_order, smallest_pfs)
