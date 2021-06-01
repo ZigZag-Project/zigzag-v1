@@ -22,135 +22,6 @@ from output_funcs import CommonSetting, print_xml, print_yaml
 import loma
 
 
-def tl_worker(tl_list, input_settings, mem_scheme, layer, spatial_loop, spatial_loop_fractional, spatial_loop_comb,
-              ii_su, active_mac_cost, idle_mac_cost, occupied_area, im2col_need_correct):
-
-    [layer_origin, layer_rounded] = layer
-    pickle_enable = input_settings.tm_search_result_saving
-    energy_collect = None
-    utilization_collect = None
-    latency_collect = None
-    if pickle_enable:
-        group_count = layer_origin.G
-        energy_collect = []
-        utilization_collect = []
-        latency_collect = []
-
-    min_energy = float('inf')
-    min_energy_utilization = 0
-    max_utilization = 0
-    max_utilization_energy = float('inf')
-    best_output_energy = None
-    best_output_utilization = None
-
-    try:
-        greedy_mapping_flag = mem_scheme.greedy_mapping_flag[ii_su]
-        footer_info = mem_scheme.footer_info[ii_su]
-    except:
-        greedy_mapping_flag = False
-        footer_info = None
-
-    for idx, tl in enumerate(tl_list):
-
-        temporal_loop = cls.TemporalLoop.extract_loop_info(layer_rounded, tl, spatial_loop)
-        loop = cls.Loop.extract_loop_info(layer_rounded, temporal_loop, spatial_loop, input_settings.precision,
-                                          input_settings.fixed_temporal_mapping)
-
-        # TODO
-        # if im2col_need_correct is True:
-        #     tl_col2im = tl_col2im_transfer(tl, layer_origin_7D)
-
-        if input_settings.spatial_unrolling_mode in [4, 5]:
-            ############# Advanced User Configuration #############
-            mem_energy_saving_when_BW_under_utilized = False
-            #######################################################
-            temporal_loop_fractional = cls.TemporalLoop.extract_loop_info(layer_origin, tl, spatial_loop_fractional)
-            loop_fractional = cls.Loop.extract_loop_info(layer_origin, temporal_loop_fractional, spatial_loop_fractional,
-                                                         input_settings.precision,
-                                                         input_settings.fixed_temporal_mapping)                                       
-            if mem_energy_saving_when_BW_under_utilized is False:
-                loop_fractional = mem_access_count_correct(loop_fractional, loop)
-
-        else:
-            loop_fractional = loop
-
-        msc = copy.deepcopy(mem_scheme)
-        ii = 0
-        utilization = cls.Utilization.get_utilization(layer_rounded, temporal_loop, spatial_loop_comb, loop,
-                                                      input_settings.mac_array_info, msc.mem_size,
-                                                      msc.mem_share, msc.mem_type,
-                                                      input_settings.mac_array_stall,
-                                                      input_settings.precision, msc.mem_bw)
-
-        total_cost_layer = 0
-        # loop.array_wire_distance = {'W': [], 'I': [], 'O': []}
-        operand_cost = {'W': [], 'I': [], 'O': []}
-        schedule_info = {
-            'temporal': tl,
-            'spatial': mem_scheme.spatial_unrolling[ii_su],
-            'flooring': mem_scheme.flooring[ii_su]
-        }
-
-        for operand in ['W', 'I', 'O']:
-            for level in range(0, len(tl[operand])):
-                operand_cost[operand].append(
-                    cmf.get_operand_level_energy_cost(operand, level, msc.mem_cost,
-                                                      input_settings.mac_array_info,
-                                                      schedule_info, loop_fractional,
-                                                      msc.mem_fifo, msc, input_settings.precision,
-                                                      utilization, ii))
-                # TODO
-                # loop.array_wire_distance[operand].append(
-                #     cmf.get_operand_level_wire_distance(operand, level,
-                #                                         schedule_info,
-                #                                         input_settings.mac_array_info, loop,
-                #                                         msc.mem_fifo))
-            total_cost_layer += np.sum(operand_cost[operand])
-        total_cost_layer += active_mac_cost + idle_mac_cost
-        ''' for pickle file (collecting all temporal mappings' energy and array utilization)'''
-        if pickle_enable:
-            print("Index: %d    Energy: %d      Utilization: %.3f" % (
-                idx, int(group_count * total_cost_layer), utilization.mac_utilize_no_load))
-            energy_collect.append(int(group_count * total_cost_layer))
-            utilization_collect.append(utilization.mac_utilize_no_load)
-            latency_collect.append(utilization.latency_no_load)
-
-        if (total_cost_layer < min_energy) or (
-                total_cost_layer == min_energy and utilization.mac_utilize_no_load > min_energy_utilization):
-            min_energy_utilization = utilization.mac_utilize_no_load
-            min_energy = total_cost_layer
-            output_result = of.CostModelOutput(total_cost_layer, deepcopy(operand_cost),
-                                               (active_mac_cost, idle_mac_cost),
-                                               deepcopy(temporal_loop.temporal_loop),
-                                               deepcopy(mem_scheme.spatial_unrolling[ii_su]),
-                                               deepcopy(mem_scheme.flooring[ii_su]),
-                                               deepcopy(loop_fractional), deepcopy(spatial_loop),
-                                               greedy_mapping_flag, footer_info,
-                                               deepcopy(temporal_loop), occupied_area,
-                                               utilization, ii)
-
-            best_output_energy = output_result
-
-        if (utilization.mac_utilize_no_load > max_utilization) or (
-                utilization.mac_utilize_no_load == max_utilization and total_cost_layer < max_utilization_energy):
-            max_utilization = utilization.mac_utilize_no_load
-            max_utilization_energy = total_cost_layer
-            output_result = of.CostModelOutput(total_cost_layer, deepcopy(operand_cost),
-                                               (active_mac_cost, idle_mac_cost),
-                                               deepcopy(temporal_loop.temporal_loop),
-                                               deepcopy(mem_scheme.spatial_unrolling[ii_su]),
-                                               deepcopy(mem_scheme.flooring[ii_su]),
-                                               deepcopy(loop_fractional), deepcopy(spatial_loop),
-                                               greedy_mapping_flag, footer_info,
-                                               deepcopy(temporal_loop), occupied_area,
-                                               utilization, ii)
-            best_output_utilization = output_result
-
-    return (min_energy, min_energy_utilization, best_output_energy, 
-        max_utilization_energy, max_utilization, best_output_utilization,
-        energy_collect, utilization_collect, latency_collect)
-
-
 def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, layer_info, mem_scheme, mem_scheme_index,
                            ii_su, spatial_unrolling, spatial_unrolling_count, im2col_need_correct, multi_manager):
     mem_scheme_count = multi_manager.mem_scheme_count
@@ -337,12 +208,12 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
         if input_settings.fixed_temporal_mapping:
             print(
                 ' | Elapsed time: {0:d} sec | (energy, mac_utilization, area): ({1:.3E}, {2:.3f}, {3:.3E})'.format(
-                    int(t_cm), int(round(group_count*best_energy)), best_energy_utilization, int(round(best_output_energy.area[0]))))
+                    int(t_cm), int(round(best_energy)), best_energy_utilization, int(round(best_output_energy.area[0]))))
         else:
             print(
                 ' | Elapsed time: {0:d} sec | [min en: ({1:.3E}, {2:.3f}, {3:.3E}) max ut: ({4:.3E}, {5:.3f}, {6:.3E})] in all TMs'.format(
-                    int(t_cm), int(round(group_count*best_energy)), best_energy_utilization, int(round(best_output_energy.area[0])),
-                    int(round(group_count*best_utilization_energy)), best_utilization, int(round(best_output_utilization.area[0]))))
+                    int(t_cm), int(round(best_energy)), best_energy_utilization, int(round(best_output_energy.area[0])),
+                    int(round(best_utilization_energy)), best_utilization, int(round(best_output_utilization.area[0]))))
 
         if input_settings.fixed_temporal_mapping or input_settings.tmg_search_method != 0:
             tm_count = tl_count
@@ -711,11 +582,11 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
             print(
                 '{0:s} {1:s} L {2:d},  M {3:d},  SU {4:s}  Min En: ({5:.3E}, {6:.3f}, {7:.3E}) in all SUs and TMs'.format(
                     current_time, str(input_settings.layer_filename.split('/')[-1]), layer_index, mem_scheme_index + 1,
-                    best_en_mem_su_str.split('_')[-1], int(group_count*best_en), best_en_ut, int(round(best_en_output.area[0]))))
+                    best_en_mem_su_str.split('_')[-1], int(best_en), best_en_ut, int(round(best_en_output.area[0]))))
             print(
                 '{0:s} {1:s} L {2:d},  M {3:d},  SU {4:s}  Max Ut: ({5:.3E}, {6:.3f}, {7:.3E}) in all SUs and TMs'.format(
                     current_time, str(input_settings.layer_filename.split('/')[-1]), layer_index, mem_scheme_index + 1,
-                    best_ut_mem_su_str.split('_')[-1], int(group_count*best_ut_en), best_ut, int(round(best_ut_output.area[0]))))
+                    best_ut_mem_su_str.split('_')[-1], int(best_ut_en), best_ut, int(round(best_ut_output.area[0]))))
 
 
 def mem_scheme_list_evaluate(input_settings, mem_scheme, mem_scheme_index, layers, multi_manager):
