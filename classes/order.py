@@ -11,7 +11,7 @@ class Order(object):
     def __init__(self, order, spatial_loop, layer, input_settings, n_mem_levels):
 
         # Relevant loop type numbers for each operand
-        relevant_loop_type_numbers = {'W': [1,2,5,6], 'I': [5,7], 'O': [3,4,6,7]}
+        relevant_loop_type_numbers = {'W': [1,2,5,6,8], 'I': [5,7,8], 'O': [3,4,6,7,8]}
         pr_loop_type_numbers_I = [1,2,3,4] # 1 = FX, 2 = FY, 3 = OX, 4 = OY
         self.pr_loop_type_numbers_I = pr_loop_type_numbers_I
         self.relevant_loop_type_numbers = relevant_loop_type_numbers

@@ -106,7 +106,7 @@ class LayerRound(object):
         array_size = array_size_extend(array_size, unrolling_scheme_list)
 
         # step 3: generate rounded layer info for each array scheme in each unrolling scheme.
-        ll = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B'}
+        ll = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B', 8: 'G'}
         round_layer_info = []
         footer_info = []
         fraction_spatial_unrolling = []
@@ -133,7 +133,7 @@ class LayerRound(object):
                 if flag:
                     aux_layer_to_su_hint_table.append(i)
                     round_layer_info.append(deepcopy(layer_spec_raw))
-                    footer_info.append({'B': 0, 'K': 0, 'C': 0, 'OY': 0, 'OX': 0, 'FY': 0, 'FX': 0})
+                    footer_info.append({'G': 0, 'B': 0, 'K': 0, 'C': 0, 'OY': 0, 'OX': 0, 'FY': 0, 'FX': 0})
                     fraction_spatial_unrolling.append([])
                     ideal_spatial_unrolling.append([])
                     for su_dim, su_type in enumerate(su_list_flatten):
@@ -161,7 +161,8 @@ class LayerRound(object):
         spatial_utilization_list = []
         greedy_mapping_flag = []
         for idx1, su in enumerate(ideal_spatial_unrolling):
-            spatial_utilization = (layer_spec_raw['B']/round_layer_info[idx1]['B']) * \
+            spatial_utilization = (layer_spec_raw['G']/round_layer_info[idx1]['G']) * \
+                                  (layer_spec_raw['B']/round_layer_info[idx1]['B']) * \
                                   (layer_spec_raw['K']/round_layer_info[idx1]['K']) * \
                                   (layer_spec_raw['C']/round_layer_info[idx1]['C']) * \
                                   (layer_spec_raw['OY']/round_layer_info[idx1]['OY']) * \

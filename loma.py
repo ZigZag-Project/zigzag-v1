@@ -546,7 +546,7 @@ def tl_worker_new(tl_list, merged_count_dict, loop_type_order, total_merged_coun
     merged_count_dict[first_loop_type] = len(tl_list[first_loop_type])
 
     # Check if tl_list is empty for B (means that all loops were spatially unrolled and we evaluate the cost model as such)
-    if tl_list['B'] == []:
+    if tl_list.get('B', None) == []:
         # Initialize empty allocated order
         n_mem_levels_W = len(mem_scheme.mem_size['W'])
         n_mem_levels_I = len(mem_scheme.mem_size['I'])

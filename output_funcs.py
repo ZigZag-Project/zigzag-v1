@@ -56,7 +56,7 @@ class PandasModel(QtCore.QAbstractTableModel):
 
 
 def t_loop_name_transfer(mapping):
-    loop_name = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B'}
+    loop_name = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B', 8: 'G'}
     post_mapping = []
     for outer_idx, outer_li in enumerate(mapping):
         post_mapping.append([])
@@ -67,7 +67,7 @@ def t_loop_name_transfer(mapping):
 
 
 def s_loop_name_transfer(mapping):
-    loop_name = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B'}
+    loop_name = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B', 8: 'G'}
     post_mapping = []
     for outer_idx, outer_li in enumerate(mapping):
         post_mapping.append([])
@@ -80,7 +80,7 @@ def s_loop_name_transfer(mapping):
 
 
 def flooring_name_transfer(flooring):
-    loop_name = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B'}
+    loop_name = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B', 8: 'G'}
     for operand in ['W', 'I', 'O']:
         for outer_idx, outer_li in enumerate(flooring[operand]):
             if outer_li is []:
@@ -299,7 +299,7 @@ def su_reformat_if_need(su):
 
 
 def print_good_tm_format(tm, mem_name, file_path_name):
-    lp_name = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B'}
+    lp_name = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B', 8: 'G'}
     tm_list = [tp for li in tm['W'] for tp in li]
 
     # get required interval between 'W', 'I', 'O', based on actual mem name length
@@ -346,7 +346,7 @@ def print_good_tm_format(tm, mem_name, file_path_name):
 def print_good_su_format(su, mem_name, file_path_name):
     # print(su, mem_name, file_path_name)
     try:
-        lp_name = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B'}
+        lp_name = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B', 8: 'G'}
         su_list = [sp for lv_li in su['W'] for xy_li in lv_li for sp in xy_li]
         mem_name = {'W': ['MAC'] + mem_name['W'], 'I': ['MAC'] + mem_name['I'], 'O': ['MAC'] + mem_name['O']}
         # get required interval between 'W', 'I', 'O', based on actual mem name length

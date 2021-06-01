@@ -1222,8 +1222,9 @@ def spatial_unrolling_generator_with_hint(mem_scheme, array_dimension, layer, un
     spatial_loop_list = []
     flooring_list = []
 
-    ll = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B'}
+    ll = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B', 8: 'G'}
     loops_pf = {
+        8: [],
         7: [],
         6: [],
         5: [],

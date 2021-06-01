@@ -45,13 +45,15 @@ class Layer(object):
         self.PX = PX
         self.G = G
 
+        # NOTE: In case of G > 1, K and C will be divided by G already at this point
+
         # Use individual group K and C (in case of G != 1)
-        self.total_MAC_op = B * K * C * OY * OX * FY * FX
+        self.total_MAC_op = G * B * K * C * OY * OX * FY * FX
 
         # Use provided (total) K and C in case of G != 1
-        self.total_data_size = {'W': K * C * FY * FX,
-                                'I': B * C * self.IY * self.IX,
-                                'O': B * K * OY * OX}
+        self.total_data_size = {'W': G * K * C * FY * FX,
+                                'I': G * B * C * self.IY * self.IX,
+                                'O': G * B * K * OY * OX}
 
         '''
         total_data_reuse: the total data reuse possibility for each element in W/I/O.
