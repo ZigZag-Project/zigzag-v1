@@ -468,12 +468,12 @@ def og(layer_spec, spatial_unrolling, lpf_limit):
     try:
         tl_dict['G'] = layer_spec_temporal['G']
     except:
-        continue
+        pass
 
     # Edge case: all loops were spatially unrolled. In this case we modify tl_dict, count_dict and loop_type_order
     # to ensure correct execution of the next steps (cost model evaluation)
     if list(tl_dict.keys()) == ['G']:
-        tl_dict['B'] = []}
+        tl_dict['B'] = []
         count_dict = {'B': 1}
         loop_type_order = ['B']
         
@@ -562,6 +562,8 @@ def tl_worker_new(tl_list, merged_count_dict, loop_type_order, total_merged_coun
                 empty_allocated_order['W'][-1].append((8, G_temporal))
                 empty_allocated_order['I'][-1].append((8, G_temporal))
                 empty_allocated_order['O'][-1].append((8, G_temporal))
+        except:
+            pass
 
         # Get cost model output
         cost_model_output = get_cost_model_output(empty_allocated_order, input_settings, mem_scheme, layer, spatial_loop_comb, ii_su)
