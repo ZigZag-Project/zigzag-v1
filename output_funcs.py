@@ -501,6 +501,9 @@ def handle_grouped_convolutions(
     """
     Corrects various values to account for the grouped convolutions.
 
+    UPDATE:
+    This is now handled natively within the cost model.
+
     Arguments
     =========
      - layer_specification: A description of the input layer that ZigZag has
@@ -531,7 +534,7 @@ def handle_grouped_convolutions(
     """
     # If layer has a number of groups > 1, transform relevant variables.
     # At this point, the results are those of one group, so multiply by number of groups.
-    group_count = layer_specification.G
+    group_count = 1
 
     # SPECIFICATION
     size_list_output_print = deepcopy(layer_specification.size_list_output_print)
