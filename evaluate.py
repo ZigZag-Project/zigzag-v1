@@ -204,7 +204,6 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
         t_cm = int(t3 - t2)
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
-        group_count = layer[0].G
         if input_settings.fixed_temporal_mapping:
             print(
                 ' | Elapsed time: {0:d} sec | (energy, mac_utilization, area): ({1:.3E}, {2:.3f}, {3:.3E})'.format(
@@ -578,7 +577,6 @@ def mem_scheme_evaluate(input_settings, layer_index, layer, im2col_layer, mem_sc
         if not input_settings.fixed_spatial_unrolling:
             now = datetime.now()
             current_time = now.strftime("%H:%M:%S")
-            group_count = layer.G
             print(
                 '{0:s} {1:s} L {2:d},  M {3:d},  SU {4:s}  Min En: ({5:.3E}, {6:.3f}, {7:.3E}) in all SUs and TMs'.format(
                     current_time, str(input_settings.layer_filename.split('/')[-1]), layer_index, mem_scheme_index + 1,
@@ -731,7 +729,6 @@ def optimal_su_evaluate(input_settings, layers, multi_manager):
             for i, layer_index in enumerate(input_settings.layer_number):
                 layer_str = 'L_%d' % layer_index
 
-                group_count = layers[i].G
 
                 # Energy part
                 su_dict_en = list_min_energy[mem_scheme_str][layer_str]['best_su_each_mem']
@@ -740,7 +737,7 @@ def optimal_su_evaluate(input_settings, layers, multi_manager):
                 min_en_output = list_min_en_output[mem_scheme_str][layer_str]['best_su_each_mem'][mem_scheme_su_str_en]
                 min_en_latency = min_en_output.utilization.latency_tot
 
-                tot_min_en_energy += group_count * min_en_en
+                tot_min_en_energy += min_en_en
                 tot_min_en_latency += min_en_latency
 
                 # Utilization (latency) part
@@ -750,7 +747,7 @@ def optimal_su_evaluate(input_settings, layers, multi_manager):
                 max_ut_output = list_max_ut_output[mem_scheme_str][layer_str]['best_su_each_mem'][mem_scheme_su_str_ut]
                 max_ut_latency = max_ut_output.utilization.latency_tot
 
-                tot_max_ut_energy += group_count * max_ut_en
+                tot_max_ut_energy += max_ut_en
                 tot_max_ut_latency += max_ut_latency
 
             # Check if total energy for this memory scheme is best so far
