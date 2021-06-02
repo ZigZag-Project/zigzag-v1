@@ -190,7 +190,7 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
     flooring_fixed = {'W': [], 'I': [], 'O': []}
     unrolling_scheme_list = []
     unrolling_size_list = []
-    i2a = {'B': 7, 'K': 6, 'C': 5, 'OY': 4, 'OX': 3, 'FY': 2, 'FX': 1}
+    i2a = {'G': 8, 'B': 7, 'K': 6, 'C': 5, 'OY': 4, 'OX': 3, 'FY': 2, 'FX': 1}
     unrolling_scheme_list_text = []
     if tm_fixed_flag:
         for op in fl['temporal_mapping_fixed']:
