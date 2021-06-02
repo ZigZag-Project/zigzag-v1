@@ -61,7 +61,7 @@ def array_size_extend(array_size, unrolling_scheme_list):
 
 
 def unrolling_scheme_clean(unrolling_bundle, unrolling_scheme_list, layer_spec_raw):
-    ll = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B'}
+    ll = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B', 8: 'G'}
     unrolling_bundle_new = []
     unrolling_scheme_list_new = []
     unrolling_bundle_save = deepcopy(unrolling_bundle)
