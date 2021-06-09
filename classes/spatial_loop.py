@@ -93,7 +93,7 @@ class SpatialLoop(object):
             for level, current_level_loops in enumerate(spatial_loop[operand]):
                 for loop in current_level_loops:
                     if loop[0] == 8:
-                        Bu[operand][level] *= loop[1]
+                        Gu[operand][level] *= loop[1]
                     elif loop[0] == 7:
                         Bu[operand][level] *= loop[1]
                     elif loop[0] == 6:
