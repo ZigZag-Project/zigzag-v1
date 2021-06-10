@@ -460,7 +460,6 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
         results = pool.starmap(loma.tl_worker_new, [[tl_chunk] + fixed_args for tl_chunk in tl_list_split])
         pool.close()
 
-
         #################################     POST PROCESSING     ##################################
         best_output_energy = None
         best_output_utilization = None
@@ -948,6 +947,7 @@ def mem_scheme_list_evaluate(input_settings, mem_scheme, mem_scheme_index, layer
             procs.append(Process(target=mem_scheme_evaluate,
                                  args=(input_settings, layer_number, layer, im2col_layer,
                                        mem_scheme, mem_scheme_index, multi_manager)))
+
         for p in procs: p.start()
         for p in procs: p.join()
 
