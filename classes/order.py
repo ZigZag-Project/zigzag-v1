@@ -638,7 +638,7 @@ class Order(object):
         idx_W, idx_I, idx_O = self.get_optimal_lpf_combination_triple(size_bit_W, access_en_W,
                                                                     size_bit_I, access_en_I,
                                                                     size_bit_O, access_en_O, node_size_bits)
-        
+
         # Update W attributes
         self.allocated_order_W.append(self.remaining_lpf_W[1:idx_W + 1]) # start at 1 to exclude 'None'
         self.remaining_lpf_W = [None] + self.remaining_lpf_W[idx_W + 1:]
@@ -876,6 +876,9 @@ class Order(object):
         i_min = None
         j_min = None
         k_min = None
+
+        if n_1 == 0 or n_2 == 0 or n_3 == 0:
+            raise ValueError("Memory hierarchy is not valid.")
         for i in range(n_1):
             for j in range(n_2):
                 for k in range(n_3):
