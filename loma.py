@@ -649,7 +649,11 @@ def tl_worker_new(tl_list, merged_count_dict, loop_type_order, total_merged_coun
                                         allocated_order = order.allocate_remaining()
                                         break
                                     for node in nodes[level]:
-                                        order.allocate_memory(node, level)
+                                        try:
+                                            order.allocate_memory(node, level)
+                                        except Exception as e:
+                                            print(f'{type(e).__name__}: {e}')
+                                            return e
                                 
                                 # print(merged_order)
                                 # print('W\t', allocated_order['W'])
@@ -682,13 +686,17 @@ def tl_worker_new(tl_list, merged_count_dict, loop_type_order, total_merged_coun
                                 else:
                                     loop_fractional = loop
 
-                                utilization = cls.Utilization.get_utilization(layer_rounded, temporal_loop,
-                                                                              spatial_loop_comb, loop,
-                                                                              input_settings.mac_array_info,
-                                                                              mem_scheme.mem_size,
-                                                                              mem_scheme.mem_share, mem_scheme.mem_type,
-                                                                              input_settings.mac_array_stall,
-                                                                              input_settings.precision, mem_scheme.mem_bw)
+                                try:
+                                    utilization = cls.Utilization.get_utilization(layer_rounded, temporal_loop,
+                                                                                  spatial_loop_comb, loop,
+                                                                                  input_settings.mac_array_info,
+                                                                                  mem_scheme.mem_size,
+                                                                                  mem_scheme.mem_share, mem_scheme.mem_type,
+                                                                                  input_settings.mac_array_stall,
+                                                                                  input_settings.precision, mem_scheme.mem_bw)
+                                except Exception as e:
+                                    print(f'{type(e).__name__}: {e}')
+                                    return e
                                 operand_cost = {'W':[], 'I':[], 'O':[]}
                                 total_cost_layer = 0
                                 for operand in ['W', 'I', 'O']:

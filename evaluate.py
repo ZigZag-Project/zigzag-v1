@@ -458,6 +458,7 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
         ################################# CALL PARALLEL PROCESSES ##################################
         pool = Pool(processes=n_processes)
         results = pool.starmap(loma.tl_worker_new, [[tl_chunk] + fixed_args for tl_chunk in tl_list_split])
+        pool.close()
 
         #################################     POST PROCESSING     ##################################
         best_output_energy = None
@@ -479,7 +480,10 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
             Path(parent_folder).mkdir(parents=True, exist_ok=True)
 
         # Loop through the best energy/ut found by the parallel processes to find the overall best one
-        for (min_en, min_en_ut, min_en_output, max_ut_en, max_ut, max_ut_output, en_collect, ut_collect, lat_collect) in results:
+        for result in results:
+            if isinstance(result, Exception):
+                continue
+            min_en, min_en_ut, min_en_output, max_ut_en, max_ut, max_ut_output, en_collect, ut_collect, lat_collect = result
             if (min_en < best_energy or (min_en == best_energy and min_en_ut > best_energy_utilization)):
                 best_energy = min_en
                 best_energy_utilization = min_en_ut
@@ -511,6 +515,8 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
                 #     f.close()
 
         # Convert output, which is just best allocated order at this point, to a CostModelOutput object
+        if best_output_utilization is None or best_output_energy is None:
+            return
         best_output_energy = loma.get_cost_model_output(best_output_energy, input_settings, mem_scheme, layer_comb, spatial_loop_comb, ii_su)
         best_output_utilization = loma.get_cost_model_output(best_output_utilization, input_settings, mem_scheme, layer_comb, spatial_loop_comb, ii_su)
 
