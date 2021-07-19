@@ -214,7 +214,7 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
     previous_best_en = [None, None]
     previous_best_ut = [None, None]
     loma_search_engine = input_settings.tmg_search_method == 2
-    while (redo_flag and iterate_time < mem_ut_iter_max and not loma_search_engine):
+    while (redo_flag and iterate_time < mem_ut_iter_max and not loma_search_engine) or (redo_flag and input_settings.fixed_temporal_mapping):
         # print('generated mem ut', mem_scheme.mem_utilization_rate)
         if not input_settings.utilization_optimizer_pruning:
             good_scheme = True
@@ -291,7 +291,7 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
             # if previous_TM_found is equal to current_TM_found, no need to activate CM.
             # if previous_TM_found > current_TM_found:
             #     raise ValueError('memory utilization updating process went wrong.')
-            if previous_TM_found < current_TM_found or iterate_time == mem_ut_iter_max-1:
+            if (previous_TM_found < current_TM_found or iterate_time == mem_ut_iter_max-1) or (input_settings.fixed_temporal_mapping):
                 now = datetime.now()
                 current_time = now.strftime("%H:%M:%S")
                 print(current_time, str(input_settings.layer_filename.split('/')[-1]), 'L', layer_index, ', M',

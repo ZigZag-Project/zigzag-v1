@@ -13,8 +13,8 @@ result_print_type : xml
 # SEARCH SETTINGS
 # 'False' for searching the corresponding space.
 fixed_architecture : True
-fixed_spatial_unrolling : False
-fixed_temporal_mapping : False
+fixed_spatial_unrolling : True
+fixed_temporal_mapping : True
 
 # RESULT SAVING SETTINGS
 # 'False' for only saving the best result.
@@ -26,7 +26,7 @@ save_all_temporal_mapping_result : False
 # WORKLOAD
 # layer_indices can be a single-element list or a multiple-element list or ALL.
 layer_filename : './NN_layers/AlexNet'
-layer_indices : [3,4,5]
+layer_indices : [4]
 # layer_indices : ALL
 
 # MULTIPROCESSING
