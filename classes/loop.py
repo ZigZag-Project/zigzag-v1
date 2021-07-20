@@ -555,8 +555,8 @@ class Loop(object):
                 mem_read_H.append(0)
                 mem_write_H.append(0)
             else:
-                mem_read_H.append(mem_write_L[level + 1])
-                mem_write_H.append(mem_read_L[level + 1])
+                mem_read_H.append(mem_write_L[level + 1] * spatial_loop.unit_duplicate['O'][level + 1])
+                mem_write_H.append(mem_read_L[level + 1] * spatial_loop.unit_duplicate['O'][level + 1])
 
             mem_access_per_element['O'].append(
                 ((mem_read_L[level], mem_write_L[level]), (mem_read_H[level], mem_write_H[level])))
