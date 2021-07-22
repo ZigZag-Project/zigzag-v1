@@ -545,7 +545,7 @@ class Loop(object):
                 spatial_loop.unit_duplicate['O'][level + 1:mem_level['O'] + 1]
             ).item())
 
-            mem_read_L.append(mem_write_L[level] - 1)
+            mem_read_L.append(mem_write_L[level] - spatial_loop.unit_duplicate['O'][level + 1])
 
         for level in range(mem_level['O']):
             if level == mem_level['O'] - 1:
