@@ -1247,18 +1247,17 @@ def spatial_unrolling_generator_with_hint(mem_scheme, array_dimension, layer, un
         #         break
         # if not good_scheme:
         #     continue
-
+        
         for ii_unroll_dim, unroll_dim in enumerate(unrolling_scheme):
             lpf_list = []
             for ud in unroll_dim:
                 for lpf in loops_pf[ud]:
-                    lpf_list.append([ud, lpf])
-
+                    lpf_list.append((ud, lpf))
             best_unroll_size = 1
             best_comb = None
             for k in range(1, len(lpf_list) + 1):
                 uf_comb = combinations(lpf_list, k)
-                uf_comb = list(uf_comb)
+                uf_comb = list(set(uf_comb))
                 for uc in uf_comb:
                     uc_size = np.prod([u[1] for u in uc])
                     if uc_size <= array_dimension[ii_unroll_dim] and uc_size / array_dimension[
@@ -1284,7 +1283,7 @@ def spatial_unrolling_generator_with_hint(mem_scheme, array_dimension, layer, un
                 break
         if not good_scheme:
             continue
-
+        
         if not memory_unroll_fully_flexible:
             operand_irrelevant = {'W': [7, 3, 4], 'I': [6], 'O': [1, 2, 5]}
             spatial_loop = {'W': [[]], 'I': [[]], 'O': [[]]}
