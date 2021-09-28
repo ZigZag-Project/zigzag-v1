@@ -9,6 +9,7 @@ from classes.order import Order
 import operator
 import time
 from classes.layer_rounding import mem_access_count_correct
+from classes.exceptions import OutputNodeOverfullException
 
 
 """
@@ -643,6 +644,7 @@ def tl_worker_new(tl_list, merged_count_dict, loop_type_order, total_merged_coun
                                 order = Order(merged_order, spatial_loop, layer_origin, input_settings, n_mem_levels)
 
                                 # Loop through all the nodes in each level to allocate the LPFs to the memories
+                                onoe_occured = False
                                 for level in range(n_mem_levels):
                                     if level == n_mem_levels - 1:
                                         # If the level is the last level in the hierarchy, allocate all remaning LPFs.
@@ -651,10 +653,18 @@ def tl_worker_new(tl_list, merged_count_dict, loop_type_order, total_merged_coun
                                     for node in nodes[level]:
                                         try:
                                             order.allocate_memory(node, level)
+                                        except OutputNodeOverfullException as onoe:
+                                            # print(f'{type(onoe).__name__}: {onoe} \t Skipping to next ordering')
+                                            onoe_occured = True
+                                            break
                                         except Exception as e:
                                             print(f'{type(e).__name__}: {e}')
                                             return e
-                                
+                                    if onoe_occured:
+                                        break
+                                if onoe_occured:
+                                    continue
+
                                 # print(merged_order)
                                 # print('W\t', allocated_order['W'])
                                 # print('I\t', allocated_order['I'])

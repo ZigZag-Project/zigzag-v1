@@ -1,5 +1,6 @@
 from copy import deepcopy
 from numpy import prod
+from classes.exceptions import OutputNodeOverfullException
 
 class Order(object):
     """
@@ -286,7 +287,9 @@ class Order(object):
         # Find the index of the last lpf that fits within this node
         lpf_index = len([x for x in self.size_O if x <= max_size])
 
-        assert lpf_index != 0, "O Node {} can't hold all loops from level below".format(node.memory_level['name'])
+        if lpf_index == 0:
+            raise OutputNodeOverfullException()
+        # assert lpf_index != 0, "O Node {} can't hold all loops from level below".format(node.memory_level['name'])
 
         # Take the correct LPFs (up until lpf_index) and allocate to memory
         # Update the remaining LPFs/size/access to exclude allocated ones
