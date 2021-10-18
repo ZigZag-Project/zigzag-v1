@@ -14,7 +14,7 @@ result_print_type : xml
 # 'False' for searching the corresponding space.
 fixed_architecture : True
 fixed_spatial_unrolling : True
-fixed_temporal_mapping : True
+fixed_temporal_mapping : False
 
 # RESULT SAVING SETTINGS
 # 'False' for only saving the best result.
@@ -39,6 +39,8 @@ temporal_mapping_multiprocessing: 8
 # TEMPORAL MAPPING GENERATOR SETTINGS
 # search_method : exhaustive / heuristic_v1 / heuristic_v2 / iterative / loma
 temporal_mapping_search_method : loma
+# memory allocation: even / uneven
+temporal_mapping_search_space: even
 
 # SPATIAL MAPPING GENERATOR SETTINGS
 # search method : exhaustive / heuristic_v1 / heuristic_v2 / hint_driven / greedy_mapping_with_hint / greedy_mapping_without_hint

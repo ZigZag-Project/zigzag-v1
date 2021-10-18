@@ -10,7 +10,7 @@ class InputSettings:
     def __init__(self, results_path, results_filename, layer_filename, layer_number, layer_parallel_processing, precision,
                  mac_array_info, mac_array_stall, mem_hierarchy_single_simulation, mem_scheme_parallel_processing,
                  mem_scheme_single, fixed_spatial_unrolling, spatial_unrolling_single, flooring_single,
-                 fixed_temporal_mapping, temporal_mapping_single, tmg_search_method, temporal_mapping_multiprocessing,
+                 fixed_temporal_mapping, temporal_mapping_single, tmg_search_method, tmg_search_space, temporal_mapping_multiprocessing,
                  drc_enabled, PE_RF_size_threshold, PE_RF_depth, CHIP_depth, max_area, utilization_rate_area,
                  memory_hierarchy_ratio, mem_pool, banking, L1_size, L2_size, unrolling_size_list, unrolling_scheme_list,
                  unrolling_scheme_list_text, memory_scheme_hint, mh_name, spatial_utilization_threshold, spatial_unrolling_mode,
@@ -36,6 +36,7 @@ class InputSettings:
         self.fixed_temporal_mapping = fixed_temporal_mapping
         self.temporal_mapping_single = temporal_mapping_single
         self.tmg_search_method = tmg_search_method
+        self.tmg_search_space = tmg_search_space
         self.temporal_mapping_multiprocessing = temporal_mapping_multiprocessing
         self.drc_enabled = drc_enabled
         self.prune_PE_RF = True
@@ -268,6 +269,21 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
     else:
         raise ValueError('temporal_mapping_search_method is not correctly set. Please check the setting file.')
 
+    # Temporal mapping search space: even or uneven
+    try:
+        if fl['temporal_mapping_search_space'] == 'even':
+            if tmg_search_method == 2: # Only allow even mapping when doing LOMA
+                tmg_search_space = 'even'
+            else:
+                raise ValueError('temporal_mapping_search_space = even is only allowed for LOMA search.')
+        elif fl['temporal_mapping_search_space'] == 'uneven':
+            tmg_search_space = 'uneven'
+        else:
+            raise ValueError('temporal_mapping_search_space is not correctly set. Please check the setting file.')
+    except:
+        print("Temporal mapping search space not defined, generating uneven mappings.")
+        tmg_search_space = 'uneven'
+
     sumode = ['exhaustive', 'heuristic_v1', 'heuristic_v2', 'hint_driven', 'greedy_mapping_with_hint', 'greedy_mapping_without_hint']
     if not fl['fixed_spatial_unrolling']:
         sumx = sumode.index(fl['spatial_unrolling_search_method'])
@@ -295,7 +311,7 @@ def get_input_settings(setting_path, mapping_path, memory_pool_path, architecure
                                    fl['architecture_search_multiprocessing'], memory_scheme_hint,
                                    fl['fixed_spatial_unrolling'], sm_fixed, flooring_fixed,
                                    fl['fixed_temporal_mapping'], tm_fixed, tmg_search_method,
-                                   fl['temporal_mapping_multiprocessing'],
+                                   tmg_search_space, fl['temporal_mapping_multiprocessing'],
                                    data_reuse_threshold, PE_RF_size_threshold, PE_depth,
                                    CHIP_depth, area_max_arch, area_utilization_arch,
                                    mem_ratio, memory_pool, banking, L1_size, L2_size, unrolling_size_list,

@@ -1,6 +1,7 @@
 from copy import deepcopy
 from numpy import prod
 from classes.exceptions import OutputNodeOverfullException
+from functools import reduce
 
 class Order(object):
     """
@@ -895,3 +896,162 @@ class Order(object):
                             j_min = j
                             k_min = k
         return i_min, j_min, k_min
+
+class OrderEven(object):
+    def __init__(self, order, spatial_loop, layer, input_settings, n_mem_levels):
+        self.order = order
+        self.spatial_loop = spatial_loop
+        self.layer = layer
+        self.sx = layer.SX
+        self.sy = layer.SY
+        self.sfx = layer.SFX
+        self.sfy = layer.SFY
+        self.precision = input_settings.precision
+        self.n_mem_levels = n_mem_levels
+        self.relevant_loop_type_numbers = {'W': [1, 2, 5, 6], 'I': [5, 7], 'O': [3, 4, 6, 7]}
+
+    def allocate_memory_nodes(self, nodes):
+        # For the even memory allocation, we take a top-down approach, so we start with the top memory and remove LPFs
+        # as required while making our way downward the memory stack.
+        lpfs = list(self.order)
+        first_iteration = True
+        allocated_lpfs = [[None for _ in range(len(nodes[level]))] for level in range(self.n_mem_levels)]
+        previous_level = None
+        previous_node_idx = None
+        previous_lpfs = lpfs # Variable to extract lpf difference between the previous node and current node
+
+        # Put nodes in the good order
+        w_node = nodes[0][0]
+        i_node = nodes[0][1]
+        o_node = nodes[0][2]
+
+        nodes[0][0] = o_node
+        nodes[0][1] = w_node
+        nodes[0][2] = i_node
+
+        for level in range(self.n_mem_levels - 1, -1, -1):
+            curr_nodes = nodes[level]
+            # Here the order of the nodes will start playing a role (recall that in Timeloop it is based on the definition order).
+            # For ZZ, I'm unsure in which order the nodes will be defined here. Simple workaround is just to define them in Timeloop
+            # so it matches here.
+            # Keep in mind that we are passing top-down here, so the first node in curr_nodes should be the bottom most memory in Timeloop.
+            for node_idx in range(len(curr_nodes) - 1, -1, -1):
+                node = curr_nodes[node_idx]
+                lpfs = self.even_allocate_node(node, lpfs, level)
+                lpfs_diff = OrderEven.difference(lpfs, previous_lpfs)
+                previous_lpfs = lpfs
+                if not first_iteration:
+                    allocated_lpfs[previous_level][previous_node_idx] = lpfs_diff
+                previous_level = level
+                previous_node_idx = node_idx
+                first_iteration = False
+
+        # For the absolute last memory node, we have to manually set the remaining LPFs
+        allocated_lpfs[previous_level][previous_node_idx] = lpfs
+
+        # At this point we have the allocated lpfs for each memory node in allocated_lpfs,
+        # but we still have to convert this back to ZZ's notation format.
+        # For this we will pass through the different levels from bottom to top and
+        # for the different operands construct the allocated order dict
+        allocated_order = {'W': [], 'I': [], 'O': []}
+        lpfs_so_far = {'W': [], 'I': [], 'O': [], 'all': []}
+        for level, curr_nodes in enumerate(nodes):
+            for node_idx, node in enumerate(curr_nodes):
+                node_lpfs = allocated_lpfs[level][node_idx]
+                lpfs_so_far['all'] += node_lpfs
+                for operand in node.operand:
+                    diff = OrderEven.difference(lpfs_so_far[operand], lpfs_so_far['all'])
+                    lpfs_so_far[operand] += diff
+                    allocated_order[operand].append(diff)
+
+        return allocated_order
+
+    @staticmethod
+    def difference(lpfsa, lpfsb):
+        """
+        Function that returns the difference between two lists of lpfs
+        Example:
+            lpfsa = [1, 2, 3, 4]
+            lpfsb = [1, 2, 3, 4, 5, 6]
+            diff = [5, 6]
+        """
+        if len(lpfsa) <= len(lpfsb):
+            la = lpfsa
+            lb = lpfsb
+        else:
+            la = lpfsb
+            lb = lpfsa
+        assert la == lb[:len(la)], f"Common part of two lists should be equal {la} {lb[:len(la)]}"
+        return lb[len(la):]
+
+    def even_allocate_node(self, node, lpfs, level):
+        node_size_bits = node.memory_level["size_bit"]
+        operands = node.operand
+        # Take into account the spatial unrolling up until 'level'
+        spatial_loops = self.spatial_loop.cumulative_spatial_loops[level]
+        temporal_loops = list(lpfs)
+        for i in range(len(lpfs) + 1): # As i increases, we start removing lpfs because they don't fit in this node
+            temporal_loops = list(lpfs[:len(lpfs) - i])
+            all_loops = spatial_loops + temporal_loops
+            req_size_bits = 0
+            for operand in operands:
+                req_size_bits += self.calc_operand_size_bits(operand, all_loops)
+            if req_size_bits <= node_size_bits:
+                break
+
+        return temporal_loops
+
+    def calc_operand_size_bits(self, operand, lpfs):
+        """
+        operand = 'W', 'I' or 'O'
+        lpfs = list of lpfs (should include the correct spatial loops for total size)
+        """
+        operand_size_elem = 1
+        for (loop_type_number, loop_size) in lpfs:
+            if loop_type_number in self.relevant_loop_type_numbers[operand]:
+                operand_size_elem *= loop_size
+
+        # If operand == 'I', we only have the relevant B and C loop, so pr loops are handled here
+        if operand == 'I':
+            fx = reduce(lambda a, b: a * b, [loop_size for (lt_number, loop_size) in lpfs if lt_number == 1], 1)
+            fy = reduce(lambda a, b: a * b, [loop_size for (lt_number, loop_size) in lpfs if lt_number == 2], 1)
+            ox = reduce(lambda a, b: a * b, [loop_size for (lt_number, loop_size) in lpfs if lt_number == 3], 1)
+            oy = reduce(lambda a, b: a * b, [loop_size for (lt_number, loop_size) in lpfs if lt_number == 4], 1)
+            operand_size_elem = self.calc_input_data_size(fx, fy, ox, oy, operand_size_elem, fifo=False)
+
+        # Convert operand size in elements to operand size in bits through precision
+        # TODO: Implement the difference between O and O_partial
+        operand_size_bits = operand_size_elem * self.precision[operand]
+
+        return operand_size_bits
+
+    def calc_input_data_size(self, fx, fy, ox, oy, cb, fifo=False):
+        '''
+        Function to calculate the total input data size given the loop dimensions
+        Arguments
+        =========
+        - bc: The product of the B and C loop type dimensions
+        - fifo: boolean to cope with different handling of stride when fifo effect occurs.
+                TemporalLoop always uses stride for both IX and IY if fifo effect occured.
+                This is probably wrong, and should be changed, but done here to stay consistent with TemporalLoop
+        '''
+        if fifo:
+            ix = self.sx * (ox - 1) + self.sfx * (fx - 1) + 1
+            iy = self.sy * (oy - 1) + self.sfy * (fy - 1) + 1
+        else:
+            if ox == 1 or fx == 1:
+                ix = ox + fx - 1
+                interleaved_storage_ix = True
+            else:
+                ix = self.sx * (ox - 1) + self.sfx * (fx - 1) + 1
+                interleaved_storage_ix = False
+            if oy == 1 or fy == 1:
+                iy = oy + fy - 1
+                interleaved_storage_iy = True
+            else:
+                iy = self.sy * (oy - 1) + self.sfy * (fy - 1) + 1
+                interleaved_storage_iy = False
+
+        input_data_size = ix * iy * cb
+
+        return input_data_size
