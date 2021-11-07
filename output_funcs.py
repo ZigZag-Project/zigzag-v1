@@ -214,9 +214,9 @@ def mem_unroll_format(unit_count):
 def mem_share_reformat(mem_share, mem_name):
     new_mem_share = {}
     for i, shared_list in mem_share.items():
-        new_mem_share[i + 1] = []
+        new_mem_share[i] = []
         for li in shared_list:
-            new_mem_share[i + 1].append((li[0], mem_name[li[0]][li[1]]))
+            new_mem_share[i].append((li[0], mem_name[li[0]][li[1]]))
     return new_mem_share
 
 
@@ -297,6 +297,44 @@ def su_reformat_if_need(su):
 
     return new_su
 
+
+##++ Count memory access in # of words (originally we count memory access in # of data elements)
+def mem_access_word_transfer(mem_access_elem, mem_bw, precision):
+    mem_access_word = {'W':[], 'I':[], 'O':[], 'O_final':[], 'O_partial':[]}
+
+    read_bw = 0
+    write_bw = 1
+    for op in ['W', 'I']:
+        for level, acc in enumerate(mem_access_elem[op]):
+            mem_access_word[op].append([round(acc[0]*precision[op]/mem_bw[op][level][read_bw]),
+                                        round(acc[1]*precision[op]/mem_bw[op][level][write_bw])])
+
+    for op in ['O_final', 'O_partial']:
+        for level, acc_list in enumerate(mem_access_elem[op]):
+            mem_access_word[op].append([])
+            mem_access_word[op][-1] = ([round(acc_list[0][0]*precision[op]/mem_bw['O'][level][read_bw]),
+                                        round(acc_list[0][1]*precision[op]/mem_bw['O'][level][write_bw])],
+                                       [round(acc_list[1][0]*precision[op]/mem_bw['O'][level][read_bw]),
+                                        round(acc_list[1][1]*precision[op]/mem_bw['O'][level][write_bw])])
+
+
+    mem_access_word['O'] = deepcopy(mem_access_word['O_final'])
+    for level, _ in enumerate(mem_access_elem['O_partial']):
+        mem_access_word['O'][level] = [(mem_access_word['O_final'][level][0][0]+mem_access_word['O_partial'][level][0][0],
+                                        mem_access_word['O_final'][level][0][1]+mem_access_word['O_partial'][level][0][1]),
+                                       (mem_access_word['O_final'][level][1][0]+mem_access_word['O_partial'][level][1][0],
+                                        mem_access_word['O_final'][level][1][1]+mem_access_word['O_partial'][level][1][1])]
+    return mem_access_word
+##--
+
+##++ get total data size at each level
+def get_data_size_each_level_total (unit_unique, req_mem_size_bit):
+    data_size_each_level_total = {'W': [], 'I': [], 'O': []}
+    for operand in ['W', 'I', 'O']:
+        for idx, req_mem_size in enumerate(req_mem_size_bit[operand]):
+            data_size_each_level_total[operand].append(req_mem_size*unit_unique[operand][idx+1])
+    return data_size_each_level_total
+##--
 
 def print_good_tm_format(tm, mem_name, file_path_name):
     lp_name = {1: 'FX', 2: 'FY', 3: 'OX', 4: 'OY', 5: 'C', 6: 'K', 7: 'B'}
@@ -496,7 +534,7 @@ def print_good_su_format(su, mem_name, file_path_name):
 
 
 def handle_grouped_convolutions(
-    layer_specification: Layer, cost_model_output: "CostModelOutput", 
+    layer_specification: Layer, cost_model_output: "CostModelOutput",
     ) -> Any:
     """
     Corrects various values to account for the grouped convolutions.
@@ -551,9 +589,9 @@ def handle_grouped_convolutions(
     mem_access_elem = digit_truncate(deepcopy(cost_model_output.loop.mem_access_elem), 0)
     mem_access_elem['W'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['W']]
     mem_access_elem['I'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['I']]
-    mem_access_elem['O'] = [[tuple([group_count * elem for elem in subtuple]) for subtuple in sublist] for sublist in mem_access_elem['O']]
-    mem_access_elem['O_partial'] = [[tuple([group_count * elem for elem in subtuple]) for subtuple in sublist] for sublist in mem_access_elem['O_partial']]
-    mem_access_elem['O_final'] = [[tuple([group_count * elem for elem in subtuple]) for subtuple in sublist] for sublist in mem_access_elem['O_final']]
+    mem_access_elem['O'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['O']]
+    mem_access_elem['O_partial'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['O_partial']]
+    mem_access_elem['O_final'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['O_final']]
 
     # ENERGY
     total_cost = round(group_count * cost_model_output.total_cost, 1)
@@ -671,15 +709,12 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
             # layer_index = ET.SubElement(layer, 'layer_index')
             # layer_index.tail = str(common_settings.layer_index)
             layer_spec = ET.SubElement(layer, 'layer_spec')
-            # layer_spec.tail = str(layer_specification.size_list_output_print)
             layer_spec.tail = str(layer_specification.size_list_output_print)
             im2col_enable = ET.SubElement(layer, 'im2col_enable')
             im2col_enable.tail = str(common_settings.im2col_enable)
             total_MAC_op = ET.SubElement(layer, 'total_MAC_operation')
-            # total_MAC_op.tail = str(layer_specification.total_MAC_op)
             total_MAC_op.tail = str(total_MAC_op_number)
             total_data_size = ET.SubElement(layer, 'total_data_size_element')
-            # total_data_size.tail = str(layer_specification.total_data_size)
             total_data_size.tail = str(total_data_size_number)
             total_data_reuse = ET.SubElement(layer, 'total_data_reuse')
             total_data_reuse.tail = str(layer_specification.total_data_reuse)
@@ -736,7 +771,7 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
             PE_array = ET.SubElement(hw_spec, 'PE_array')
             precision = ET.SubElement(PE_array, 'precision_bit')
             precision.tail = str(common_settings.precision)
-            array_size = ET.SubElement(PE_array, 'array_size')
+            array_size = ET.SubElement(PE_array, 'MAC_array_size')
             array_size.tail = str(common_settings.array_size)
 
             memory_hierarchy = ET.SubElement(hw_spec, 'memory_hierarchy')
@@ -802,6 +837,8 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
             temporal_mapping_I.tail = str(t_loop_name_transfer(cost_model_output.temporal_scheme['I']))
             temporal_mapping_O = ET.SubElement(temporal_mapping, 'O')
             temporal_mapping_O.tail = str(t_loop_name_transfer(cost_model_output.temporal_scheme['O']))
+            fully_PE_level_output_stationary = ET.SubElement(temporal_mapping, 'fully_PE_level_output_stationary')
+            fully_PE_level_output_stationary.tail = str(cost_model_output.utilization.fully_PE_level_output_stationary)
 
             data_reuse = ET.SubElement(basic_info, 'data_reuse')
             try:
@@ -813,7 +850,8 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
             i_fifo = ET.SubElement(basic_info, 'I_pr_diagonally_broadcast_or_fifo_effect')
             i_fifo.tail = "'I': " + str(cost_model_output.loop.I_fifo)
             req_mem_size = ET.SubElement(basic_info, 'used_mem_size_bit')
-            req_mem_size.tail = str(elem2bit(cost_model_output.loop.req_mem_size, common_settings.precision))
+            req_mem_size_bit = elem2bit(cost_model_output.loop.req_mem_size, common_settings.precision)
+            req_mem_size.tail = str(req_mem_size_bit)
             mem_utilize = ET.SubElement(basic_info, 'actual_mem_utilization_individual')
             mem_utilize.tail = str(digit_truncate(cost_model_output.utilization.mem_utilize, 2))
             mem_utilize_shared = ET.SubElement(basic_info, 'actual_mem_utilization_shared')
@@ -835,44 +873,56 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
             except:
                 pass
             access_count = ET.SubElement(basic_info, 'mem_access_count_elem')
-            cost_model_output.loop.mem_access_elem = digit_truncate(cost_model_output.loop.mem_access_elem, 0)
             access_count_W = ET.SubElement(access_count, 'W')
-            # access_count_W.tail = str(cost_model_output.loop.mem_access_elem['W'])
             access_count_W.tail = str(mem_access_elem['W'])
             access_count_I = ET.SubElement(access_count, 'I')
-            # access_count_I.tail = str(cost_model_output.loop.mem_access_elem['I'])
             access_count_I.tail = str(mem_access_elem['I'])
             access_count_O = ET.SubElement(access_count, 'O')
-            # access_count_O.tail = str(cost_model_output.loop.mem_access_elem['O'])
             access_count_O.tail = str(mem_access_elem['O'])
             access_count_O_partial = ET.SubElement(access_count, 'O_partial')
-            # access_count_O_partial.tail = str(cost_model_output.loop.mem_access_elem['O_partial'])
             access_count_O_partial.tail = str(mem_access_elem['O_partial'])
             access_count_O_final = ET.SubElement(access_count, 'O_final')
-            # access_count_O_final.tail = str(cost_model_output.loop.mem_access_elem['O_final'])
             access_count_O_final.tail = str(mem_access_elem['O_final'])
-            # array_element_distance = ET.SubElement(basic_info, 'array_element_distance')
-            # array_element_distance.tail = str(cost_model_output.loop.array_wire_distance)
+
+            word_access_count = ET.SubElement(basic_info, 'mem_access_count_word')
+            mem_access_word = mem_access_word_transfer(mem_access_elem,
+                                                       mem_scheme.mem_bw, common_settings.precision)
+            word_access_count_W = ET.SubElement(word_access_count, 'W')
+            word_access_count_W.tail = str(mem_access_word['W'])
+            word_access_count_I = ET.SubElement(word_access_count, 'I')
+            word_access_count_I.tail = str(mem_access_word['I'])
+            word_access_count_O = ET.SubElement(word_access_count, 'O')
+            word_access_count_O.tail = str(mem_access_word['O'])
+            word_access_count_O_partial = ET.SubElement(word_access_count, 'O_partial')
+            word_access_count_O_partial.tail = str(mem_access_word['O_partial'])
+            word_access_count_O_final = ET.SubElement(word_access_count, 'O_final')
+            word_access_count_O_final.tail = str(mem_access_word['O_final'])
+
+            mac_count = ET.SubElement(basic_info, 'mac_count')
+            active_mac_count = ET.SubElement(mac_count, 'active')
+            active_mac_count.tail = str(round(mac_cost_active/common_settings.single_mac_energy))
+            idle_mac_count = ET.SubElement(mac_count, 'idle')
+            idle_mac_count.tail = str(round(mac_cost_idle/common_settings.idle_mac_energy))
 
             energy = ET.SubElement(results, 'energy')
             minimum_cost = ET.SubElement(energy, 'total_energy')
-            # minimum_cost.tail = str(round(cost_model_output.total_cost, 1))
             minimum_cost.tail = str(total_cost)
             energy_breakdown = ET.SubElement(energy, 'mem_energy_breakdown')
             cost_model_output.operand_cost = energy_clean(cost_model_output.operand_cost)
             energy_breakdown_W = ET.SubElement(energy_breakdown, 'W')
-            # energy_breakdown_W.tail = str(cost_model_output.operand_cost['W'])
             energy_breakdown_W.tail = str(operand_cost['W'])
             energy_breakdown_I = ET.SubElement(energy_breakdown, 'I')
-            # energy_breakdown_I.tail = str(cost_model_output.operand_cost['I'])
             energy_breakdown_I.tail = str(operand_cost['I'])
             energy_breakdown_O = ET.SubElement(energy_breakdown, 'O')
-            # energy_breakdown_O.tail = str(cost_model_output.operand_cost['O'])
             energy_breakdown_O.tail = str(operand_cost['O'])
 
-            mac_cost = ET.SubElement(energy, 'mac_energy')
-            mac_cost.tail = 'active: ' + str(mac_cost_active) + \
-                            ', idle: ' + str(mac_cost_idle)
+            mac_cost = ET.SubElement(energy, 'MAC_energy')
+            active_MAC = ET.SubElement(mac_cost, 'active_MAC')
+            active_MAC.tail = str(mac_cost_active)
+            idle_MAC = ET.SubElement(mac_cost, 'idle_MAC')
+            idle_MAC.tail = str(mac_cost_idle)
+            total_MAC_cost = ET.SubElement(mac_cost, 'total')
+            total_MAC_cost.tail = str(mac_cost_active + mac_cost_idle)
 
             performance = ET.SubElement(results, 'performance')
             utilization = ET.SubElement(performance, 'mac_array_utilization')
@@ -891,53 +941,89 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
 
             latency = ET.SubElement(performance, 'latency')
             latency_tot = ET.SubElement(latency, 'latency_cycle_with_data_loading')
-            # latency_tot.tail = str(cost_model_output.utilization.latency_tot)
             latency_tot.tail = str(latency_tot_number)
             latency_no_load = ET.SubElement(latency, 'latency_cycle_without_data_loading')
-            # latency_no_load.tail = str(cost_model_output.utilization.latency_no_load)
             latency_no_load.tail = str(latency_no_load_number)
             total_cycles = ET.SubElement(latency, 'ideal_computing_cycle')
-            # total_cycles.tail = str(cost_model_output.temporal_loop.total_cycles)
             total_cycles.tail = str(total_cycles_number)
 
             data_loading = ET.SubElement(latency, 'data_loading')
             cc_load_tot = ET.SubElement(data_loading, 'load_cycle_total')
-            # cc_load_tot.tail = str(cost_model_output.utilization.cc_load_tot)
             cc_load_tot.tail = str(cc_load_tot_number)
             cc_load = ET.SubElement(data_loading, 'load_cycle_individual')
-            # cc_load.tail = str(cost_model_output.utilization.cc_load)
             cc_load.tail = str(cc_load_number)
             cc_load_comb = ET.SubElement(data_loading, 'load_cycle_combined')
-            # cc_load_comb.tail = str(cost_model_output.utilization.cc_load_comb)
             cc_load_comb.tail = str(cc_load_comb_number)
 
             mem_stalling = ET.SubElement(latency, 'mem_stalling')
             cc_mem_stall_tot = ET.SubElement(mem_stalling, 'mem_stall_cycle_total')
-            # cc_mem_stall_tot.tail = str(cost_model_output.utilization.cc_mem_stall_tot)
             cc_mem_stall_tot.tail = str(cc_mem_stall_tot_number)
             stall_cc = ET.SubElement(mem_stalling, 'mem_stall_cycle_individual')
-            # stall_cc.tail = str(cost_model_output.utilization.stall_cc)
             stall_cc.tail = str(stall_cc_number)
             stall_cc_mem_share = ET.SubElement(mem_stalling, 'mem_stall_cycle_shared')
-            # stall_cc_mem_share.tail = str(cost_model_output.utilization.stall_cc_mem_share)
             stall_cc_mem_share.tail = str(stall_cc_mem_share_number)
 
-            req_mem_bw_bit = ET.SubElement(mem_stalling, 'req_mem_bw_bit_per_cycle_individual')
+            ##++ for latency deep analysis
+            latency_deep_analysis = ET.SubElement(mem_stalling, 'latency_deep_analysis')
+
+            data_size_each_level = ET.SubElement(latency_deep_analysis, 'data_size_each_level_unrolled')
+            data_size_each_level.tail = str(req_mem_size_bit)
+
+            data_size_each_level_total = get_data_size_each_level_total(cost_model_output.spatial_loop.unit_unique,
+                                                                        req_mem_size_bit)
+
+            data_size_each_level = ET.SubElement(latency_deep_analysis, 'data_size_each_level_total')
+            data_size_each_level.tail = str(data_size_each_level_total)
+
+            loop_cycles_each_level = ET.SubElement(latency_deep_analysis, 'loop_cycles_each_level')
+            loop_cycles_each_level.tail = str(cost_model_output.temporal_loop.loop_cycles)
+
+            top_ir_loop_size = ET.SubElement(latency_deep_analysis, 'top_ir_loop_size')
+            top_ir_loop_size.tail = str(cost_model_output.loop.top_ir)
+
+            req_aver_mem_bw_bit = ET.SubElement(latency_deep_analysis, 'req_aver_mem_bw')
+            req_aver_mem_bw_bit.tail = str(digit_truncate(cost_model_output.utilization.req_aver_bw_bit,1))
+
+            req_inst_mem_bw_bit = ET.SubElement(latency_deep_analysis, 'req_inst_mem_bw')
+            req_inst_mem_bw_bit.tail = str(digit_truncate(cost_model_output.utilization.req_inst_bw_bit,1))
+
+            req_mem_bw_bit = ET.SubElement(latency_deep_analysis, 'req_mem_bw_bit_per_cycle_individual')
             req_mem_bw_bit.tail = str(digit_truncate(cost_model_output.utilization.req_mem_bw_bit, 1))
-            req_sh_mem_bw_bit = ET.SubElement(mem_stalling, 'req_mem_bw_bit_per_cycle_shared')
+            req_sh_mem_bw_bit = ET.SubElement(latency_deep_analysis, 'req_mem_bw_bit_per_cycle_shared')
             req_sh_mem_bw_bit.tail = str(digit_truncate(cost_model_output.utilization.req_sh_mem_bw_bit, 1))
+            output_distinguish = ET.SubElement(latency_deep_analysis, 'output_distinguish')
+            output_distinguish.tail = str(cost_model_output.loop.output_distinguish)
             mem_bw_req_meet_list = mem_bw_req_meet_check(cost_model_output.utilization.req_sh_mem_bw_bit,
                                                          mem_scheme.mem_bw)
-            mem_bw_req_meet = ET.SubElement(mem_stalling, 'mem_bw_requirement_meet')
+            mem_bw_req_meet = ET.SubElement(latency_deep_analysis, 'mem_bw_requirement_meet')
             mem_bw_req_meet.tail = str(mem_bw_req_meet_list)
+
+            trans_time_ideal = ET.SubElement(latency_deep_analysis, 'trans_time_ideal')
+            trans_time_ideal.tail = str(cost_model_output.utilization.trans_time_ideal)
+
+            trans_time_real = ET.SubElement(latency_deep_analysis, 'trans_time_real')
+            trans_time_real.tail = str(cost_model_output.utilization.trans_time_real)
+
+            single_stall_cycle = ET.SubElement(latency_deep_analysis, 'single_stall_cycle')
+            single_stall_cycle.tail = str(cost_model_output.utilization.single_time_stall_cc)
+
+            single_stall_count = ET.SubElement(latency_deep_analysis, 'single_stall_count')
+            single_stall_count.tail = str(cost_model_output.utilization.single_time_stall_count)
+
+            mem_compute_overlap_cc = ET.SubElement(latency_deep_analysis, 'mem_compute_overlap_cc_for_shared_mem')
+            mem_compute_overlap_cc.tail = str(cost_model_output.utilization.mem_compute_overlap_cc)
+
+            mem_compute_overlap_stall = ET.SubElement(latency_deep_analysis, 'mem_compute_overlap_stall_for_shared_mem_LH')
+            mem_compute_overlap_stall.tail = str(cost_model_output.utilization.mem_compute_overlap_stall)
+            ##--
 
             area = ET.SubElement(results, 'area')
             total_area = ET.SubElement(area, 'total_area')
             total_area.tail = str(round(cost_model_output.area[0],1))
-            active_area = ET.SubElement(area, 'active_area')
-            active_area.tail = str(round(cost_model_output.area[1],1))
-            dark_silicon = ET.SubElement(area, 'dark_silicon_percentage')
-            dark_silicon.tail = str(100-round(cost_model_output.area[1]/cost_model_output.area[0]*100, 1)) + ' %'
+            mem_area_tot = ET.SubElement(area, 'mem_area')
+            mem_area_tot.tail = str(round(cost_model_output.area[1],1))
+            mem_area_percentage = ET.SubElement(area, 'mem_area_percentage')
+            mem_area_percentage.tail = str(round(cost_model_output.area[1]/cost_model_output.area[0]*100, 1)) + ' %'
         else:
             layer = ET.SubElement(sim, 'layer')
             # layer_index = ET.SubElement(layer, 'layer_index')
@@ -1941,7 +2027,7 @@ def print_helper(input_settings, layers, layers_saved, multi_manager):
             else:
                 print_yaml(rf_en, layer, msc_en, best_output_energy, common_settings_en, tm_count_en, sim_time_en, input_settings.result_print_mode)
                 print_yaml(rf_ut, layer, msc_ut, best_output_utilization, common_settings_ut, tm_count_ut, sim_time_ut, input_settings.result_print_mode)
-    
+
         if (len(input_settings.layer_number) > 1) and (multi_manager.mem_scheme_count > 1):
             # Save the best memory hierarchy for all layers in separate folder
 
@@ -2084,6 +2170,8 @@ class CommonSetting:
             mem_access_cost = deepcopy(mem_scheme.mem_cost)
         self.mem_access_cost = mem_access_cost
         self.layer_index = ii_layer_index
+        self.idle_mac_energy = input_settings.mac_array_info['idle_mac_energy']
+        self.single_mac_energy = input_settings.mac_array_info['single_mac_energy']
 
 
 def xml_info_extraction():
