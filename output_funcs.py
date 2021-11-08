@@ -589,9 +589,9 @@ def handle_grouped_convolutions(
     mem_access_elem = digit_truncate(deepcopy(cost_model_output.loop.mem_access_elem), 0)
     mem_access_elem['W'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['W']]
     mem_access_elem['I'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['I']]
-    mem_access_elem['O'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['O']]
-    mem_access_elem['O_partial'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['O_partial']]
-    mem_access_elem['O_final'] = [[group_count * elem for elem in sublist] for sublist in mem_access_elem['O_final']]
+    mem_access_elem['O'] = [[tuple([group_count * elem for elem in subsublist]) for subsublist in sublist] for sublist in mem_access_elem['O']]
+    mem_access_elem['O_partial'] = [[tuple([group_count * elem for elem in subsublist]) for subsublist in sublist] for sublist in mem_access_elem['O_partial']]
+    mem_access_elem['O_final'] = [[tuple([group_count * elem for elem in subsublist]) for subsublist in sublist] for sublist in mem_access_elem['O_final']]
 
     # ENERGY
     total_cost = round(group_count * cost_model_output.total_cost, 1)
