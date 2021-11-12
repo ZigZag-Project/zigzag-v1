@@ -916,16 +916,6 @@ class Utilization(object):
 
         fully_PE_level_output_stationary = (output_dis[1] == ('fsum', 'fsum'))
 
-        # ''' compute trans_time_real_comb: combined trans_time_real at each data transfer link (take the worst case) '''
-        # trans_time_real_comb = {'W': [trans_time_real['W'][0]], 'I': [trans_time_real['W'][0]], 'O': [trans_time_real['W'][0]]}
-        # for operand in ['W', 'I', 'O']:
-        #     for lv in range(1, mem_level[operand]):
-        #         trans_time_real_comb[operand].append([max(trans_time_real[operand][lv][0][0], trans_time_real[operand][lv][1][0]),
-        #                                               trans_time_real[operand][lv][0][1], trans_time_real[operand][lv][0][2]])
-        #
-        # ''' Compute single_stall_periodic_list: every how many computation cycle, which memory data transfer edge will introduce how many cycle stall '''
-
-
         ''' 
         After computation finishes, # of clock cycle for offloading output data to the top level 'O' memory. 
         
