@@ -916,6 +916,16 @@ class Utilization(object):
 
         fully_PE_level_output_stationary = (output_dis[1] == ('fsum', 'fsum'))
 
+        # ''' compute trans_time_real_comb: combined trans_time_real at each data transfer link (take the worst case) '''
+        # trans_time_real_comb = {'W': [trans_time_real['W'][0]], 'I': [trans_time_real['W'][0]], 'O': [trans_time_real['W'][0]]}
+        # for operand in ['W', 'I', 'O']:
+        #     for lv in range(1, mem_level[operand]):
+        #         trans_time_real_comb[operand].append([max(trans_time_real[operand][lv][0][0], trans_time_real[operand][lv][1][0]),
+        #                                               trans_time_real[operand][lv][0][1], trans_time_real[operand][lv][0][2]])
+        #
+        # ''' Compute single_stall_periodic_list: every how many computation cycle, which memory data transfer edge will introduce how many cycle stall '''
+
+
         ''' 
         After computation finishes, # of clock cycle for offloading output data to the top level 'O' memory. 
         
@@ -1145,7 +1155,6 @@ class Utilization(object):
         # for latency debug and pipe chart plot
         self.trans_time_ideal = trans_time
         self.trans_time_real = trans_time_real
-        self.trans_time_real_comb = trans_time_real_comb
         self.single_time_stall_cc = single_time_stall_cc
         self.single_time_stall_count = single_time_stall_count
         self.mem_compute_overlap_cc = mem_compute_overlap_cc
