@@ -798,15 +798,21 @@ class Utilization(object):
                 for operand, lv in shared_mem_list:
                     stall_cc_single[operand] = stall_cc_vertex[operand][lv]
                     # to handle +/- stall/slack summation correctly, split stall and mem-compute overlapped part.
-                    trans_time_duration = min(trans_time[operand][lv][duration],
-                                              max(trans_time_real[operand][lv][0][duration], trans_time_real[operand][lv][1][duration]))
+                    try:
+                        trans_time_duration = min(trans_time[operand][lv][duration],
+                                                  max(trans_time_real[operand][lv][0][duration], trans_time_real[operand][lv][1][duration]))
+                    except:
+                        trans_time_duration = min(trans_time[operand][lv][duration], trans_time_real[operand][lv][duration])
                     if operand in ['W', 'I']:
                         mem_compute_overlap_cc[idx][operand][to_low] = trans_time_duration * (trans_time[operand][lv][count] - 1)
                     else:
                         mem_compute_overlap_cc[idx][operand][to_low] = trans_time_duration * trans_time[operand][lv][count]
                     if lv != mem_level[operand] - 1:
-                        trans_time_duration = min(trans_time[operand][lv + 1][duration],
-                                                  max(trans_time_real[operand][lv + 1][0][duration], trans_time_real[operand][lv + 1][1][duration]))
+                        try:
+                            trans_time_duration = min(trans_time[operand][lv + 1][duration],
+                                                      max(trans_time_real[operand][lv + 1][0][duration], trans_time_real[operand][lv + 1][1][duration]))
+                        except:
+                            trans_time_duration = min(trans_time[operand][lv + 1][duration], trans_time_real[operand][lv + 1][duration])
                         if operand in ['W', 'I']:
                             mem_compute_overlap_cc[idx][operand][to_high] = trans_time_duration * (trans_time[operand][lv + 1][count] - 1)
                         else:
