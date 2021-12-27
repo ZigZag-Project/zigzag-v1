@@ -223,10 +223,10 @@ def combine_orderings(ordering_1, ordering_2):
     """
 
     if ordering_1 == None:
-        return ordering_2
+        return list(ordering_2)
 
     if ordering_2 == None:
-        return ordering_1
+        return list(ordering_1)
 
     idx_2 = 0
     combined_ordering = []
