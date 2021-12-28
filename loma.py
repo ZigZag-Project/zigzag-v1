@@ -223,10 +223,10 @@ def combine_orderings(ordering_1, ordering_2):
     """
 
     if ordering_1 == None:
-        return list(ordering_2)
+        return ordering_2
 
     if ordering_2 == None:
-        return list(ordering_1)
+        return ordering_1
 
     idx_2 = 0
     combined_ordering = []
@@ -645,7 +645,7 @@ def tl_worker_new(tl_list, merged_count_dict, loop_type_order, total_merged_coun
                                 ctr += 1
 
                                 # Final order with all X's filled in 
-                                nonmerged_order = combine_orderings(order_B_K_C_OY_OX_FY, order_FX)
+                                nonmerged_order = list(combine_orderings(order_B_K_C_OY_OX_FY, order_FX))
 
                                 # Grouped Convolutions: Add G_temporal as last loop in the order if its > 1
                                 if G_temporal > 1:
