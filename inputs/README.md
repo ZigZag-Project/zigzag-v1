@@ -82,7 +82,7 @@ A level in the hierarchy which does not hold any loop blocking is left empty (``
 
 If the fixed spatial mapping is not set, the ```spatial_unrolling_list``` may/may not be defined depending on the search mode selected.
 
-The spatial unrolling list contain a list of spatial mappings to be evaluated separately. Each spatial mapping is defined as two lists: one for the loop types (FX,FY,OX,...) unrolled along array column dimension and another for the loop types unrolled across array column dimension.
+The spatial unrolling list contain a list of spatial mappings to be evaluated separately. Each spatial mapping is defined as two lists: one for the loop types (FX,FY,OX,...) unrolled along array column dimension and another for the loop types unrolled across array column dimension. Some spatial unrolling/mapping examples and frequently asked questions can be found [**here**](https://github.com/ZigZag-Project/zigzag/issues/13).
 
 
 
