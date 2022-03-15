@@ -10,7 +10,7 @@ import operator
 import time
 from classes.layer_rounding import mem_access_count_correct
 from classes.exceptions import OutputNodeOverfullException
-
+import math
 
 """
 # multipermute - permutations of a multiset
@@ -422,8 +422,9 @@ def og(layer_spec, spatial_unrolling, lpf_limit):
                 pf = layer_spec_temporal[loop_type]
             except:
                 continue
-            q, rem = divmod(pf, su_factor)
-            assert rem == 0 # pf/su_factor should have remainder 0
+            # q, rem = divmod(pf, su_factor)
+            # assert rem == 0 # pf/su_factor should have remainder 0
+            q = math.ceil(pf/su_factor)
             layer_spec_temporal[loop_type] = q
 
     # Get all prime factorizations for the loop_types in loop_spec_temporal
