@@ -1560,8 +1560,9 @@ def unroll_scheme_list_generator(mem_scheme, array_dimension, layer, precision, 
                         comb2.sort()
                         if array_dimension[1] >= np.prod([x[1] for x in comb2]):# > array_dimension[1] * SU_threshold:
                             combaux = [[x for x in comb2], [x2 for x2 in comb]]
-                            if np.prod(array_dimension) * SU_threshold <= np.prod([j[1] for i in combaux for j in i]) and combaux not in unrolling_scheme_list:
-                                    unrolling_scheme_list.append([[x for x in comb], [x2 for x2 in comb2]])
+                            if np.prod(array_dimension) * SU_threshold <= np.prod([j[1] for i in combaux for j in i]) and \
+                                    combaux not in unrolling_scheme_list:
+                                unrolling_scheme_list.append([[x for x in comb], [x2 for x2 in comb2]])
 
     '''spatial data reuse list'''
     sdr_list = []
