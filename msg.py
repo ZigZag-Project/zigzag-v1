@@ -825,7 +825,7 @@ def mem_scheme_fit_check(mem_idx, mem_scheme, precision, layer, layer_number):
                             mem_scheme_fit = False
                             print('Memory Scheme %d cannot hold all the data in NN Layer %d.' % (mem_idx, layer_idx),
                                   end=' | ')
-                            print('Required memory size:', operand_size[operand], '<-> Available memory size:',
+                            print('Required memory size:', total_size, '<-> Available memory size:',
                                   mem_scheme.mem_size[operand][-1], '(unit: bit)')
                             return mem_scheme_fit
                 if total_size == 0:

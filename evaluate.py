@@ -923,12 +923,12 @@ def mem_scheme_list_evaluate(input_settings, mem_scheme, mem_scheme_index, layer
     mem_scheme_count = multi_manager.mem_scheme_count
 
     print('MEM HIERARCHY ', mem_scheme_index + 1, '/', mem_scheme_count)
-    # print('memory size:', mem_scheme.mem_size)
-    # if input_settings.memory_unroll_fully_flexible:
-    #     print('memory unroll: unfixed')
-    # else:
-    #     print('memory unroll:', mem_scheme.mem_unroll)
-    # print('memory share:', mem_scheme.mem_share)
+    print('memory size:', mem_scheme.mem_size)
+    if input_settings.memory_unroll_fully_flexible:
+        print('memory unroll: unfixed')
+    else:
+        print('memory unroll:', mem_scheme.mem_unroll)
+    print('memory share:', mem_scheme.mem_share)
 
     layer_chunk_list = [layers[i:i + input_settings.layer_parallel_processing] for i in
                         range(0, len(layers), input_settings.layer_parallel_processing)]
