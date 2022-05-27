@@ -79,10 +79,6 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
                                                                               spatial_loop.unit_unique)
     # Removed all TM engines except for LOMA and fixed mapping
     loma_search_engine = input_settings.tmg_search_method == 2
-<<<<<<< HEAD
-    if not loma_search_engine:
-        raise EnvironmentError("All TM methods other than LOMA and Fixed TM are archived.")
-=======
     while (redo_flag and iterate_time < mem_ut_iter_max and not loma_search_engine) or (redo_flag and input_settings.fixed_temporal_mapping):
         # print('generated mem ut', mem_scheme.mem_utilization_rate)
         if not input_settings.utilization_optimizer_pruning:
@@ -273,7 +269,6 @@ def mem_scheme_su_evaluate(input_settings, layer_, im2col_layer, layer_index, la
             previous_TM_found = current_TM_found
             previous_best_en = current_best_en
             previous_best_ut = current_best_ut
->>>>>>> master
 
     if loma_search_engine and not input_settings.fixed_temporal_mapping:
         lpf_limit = input_settings.max_nb_lpf_layer
