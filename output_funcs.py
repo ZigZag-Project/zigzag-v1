@@ -904,10 +904,16 @@ def print_xml(results_filename, layer_specification, mem_scheme, cost_model_outp
 
             mac_count = ET.SubElement(basic_info, 'mac_count')
             active_mac_count = ET.SubElement(mac_count, 'active')
-            active_mac_count.tail = str(round(mac_cost_active/common_settings.single_mac_energy))
+            try:
+                active_mac_count.tail = str(round(mac_cost_active/common_settings.single_mac_energy))
+            except:
+                active_mac_count.tail = str(0)
             idle_mac_count = ET.SubElement(mac_count, 'idle')
-            idle_mac_count.tail = str(round(mac_cost_idle/common_settings.idle_mac_energy))
-
+            try:
+                idle_mac_count.tail = str(round(mac_cost_idle/common_settings.idle_mac_energy))
+            except:
+                idle_mac_count.tail = str(0)
+            
             energy = ET.SubElement(results, 'energy')
             minimum_cost = ET.SubElement(energy, 'total_energy')
             minimum_cost.tail = str(total_cost)
