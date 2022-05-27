@@ -348,6 +348,13 @@ def get_layer_spec(input_settings, model=None):
     if input_settings:
         layer_filename = input_settings.layer_filename
         layer_spec = importlib.machinery.SourceFileLoader('%s' % (layer_filename), '%s.py' % (layer_filename)).load_module()
+
+        ''' For Windows compatibility
+        Cannot pickle a module object so have to change it to a class object '''
+        layer_spec_info = layer_spec.layer_info
+        layer_spec = layer_spec1()
+        layer_spec.layer_info = layer_spec_info
+
         layer_numbers = input_settings.layer_number
     else:
         layer_spec = layer_spec1()
