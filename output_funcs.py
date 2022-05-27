@@ -265,6 +265,7 @@ def print_printing_block(file_path_name, printing_block, mode):
 
 def su_reformat_if_need(su):
     new_su = {'W': [], 'I': [], 'O': []}
+    ok = False
     # extract unrolled dimension on row and on column
     for op in ['W', 'I', 'O']:
         for level_list in su[op]:
