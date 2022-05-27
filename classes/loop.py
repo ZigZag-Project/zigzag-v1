@@ -551,7 +551,7 @@ class Loop(object):
                 spatial_loop.unit_duplicate['O'][level + 1:mem_level['O'] + 1]
             ).item())
 
-            mem_read_L.append(mem_write_L[level] - 1)
+            mem_read_L.append(mem_write_L[level] - spatial_loop.unit_duplicate['O'][level + 1])
 
         for level in range(mem_level['O']):
             if level == mem_level['O'] - 1:
@@ -561,8 +561,8 @@ class Loop(object):
                 mem_read_H.append(0)
                 mem_write_H.append(0)
             else:
-                mem_read_H.append(mem_write_L[level + 1])
-                mem_write_H.append(mem_read_L[level + 1])
+                mem_read_H.append(mem_write_L[level + 1] * spatial_loop.unit_duplicate['O'][level + 1])
+                mem_write_H.append(mem_read_L[level + 1] * spatial_loop.unit_duplicate['O'][level + 1])
 
             mem_access_per_element['O'].append(
                 ((mem_read_L[level], mem_write_L[level]), (mem_read_H[level], mem_write_H[level])))

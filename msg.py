@@ -825,7 +825,7 @@ def mem_scheme_fit_check(mem_idx, mem_scheme, precision, layer, layer_number):
                             mem_scheme_fit = False
                             print('Memory Scheme %d cannot hold all the data in NN Layer %d.' % (mem_idx, layer_idx),
                                   end=' | ')
-                            print('Required memory size:', operand_size[operand], '<-> Available memory size:',
+                            print('Required memory size:', total_size, '<-> Available memory size:',
                                   mem_scheme.mem_size[operand][-1], '(unit: bit)')
                             return mem_scheme_fit
                 if total_size == 0:
@@ -1548,7 +1548,7 @@ def unroll_scheme_list_generator(mem_scheme, array_dimension, layer, precision, 
         for comb in uf_comb:
             comb = list(comb)
             comb.sort()
-            if array_dimension[0] >= np.prod([x[1] for x in comb]) > array_dimension[0] * SU_threshold:
+            if array_dimension[0] >= np.prod([x[1] for x in comb]):# > array_dimension[0] * SU_threshold:
                 lpf2_list = deepcopy(lpf_list)
                 for pf in comb:
                     lpf2_list.remove(pf)
@@ -1559,9 +1559,10 @@ def unroll_scheme_list_generator(mem_scheme, array_dimension, layer, precision, 
                     for comb2 in uf2_comb:
                         comb2 = list(comb2)
                         comb2.sort()
-                        if array_dimension[1] >= np.prod([x[1] for x in comb2]) > array_dimension[1] * SU_threshold:
+                        if array_dimension[1] >= np.prod([x[1] for x in comb2]):# > array_dimension[1] * SU_threshold:
                             combaux = [[x for x in comb2], [x2 for x2 in comb]]
-                            if combaux not in unrolling_scheme_list:
+                            if np.prod(array_dimension) * SU_threshold <= np.prod([j[1] for i in combaux for j in i]) and \
+                                    combaux not in unrolling_scheme_list:
                                 unrolling_scheme_list.append([[x for x in comb], [x2 for x2 in comb2]])
 
     '''spatial data reuse list'''

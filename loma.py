@@ -5,11 +5,12 @@ import cost_model_funcs as cmf
 import output_funcs as of
 from copy import deepcopy
 import numpy as np
-from classes.order import Order
+from classes.order import Order, OrderEven
 import operator
 import time
 from classes.layer_rounding import mem_access_count_correct
-
+from classes.exceptions import OutputNodeOverfullException
+import math
 
 """
 # multipermute - permutations of a multiset
@@ -421,8 +422,9 @@ def og(layer_spec, spatial_unrolling, lpf_limit):
                 pf = layer_spec_temporal[loop_type]
             except:
                 continue
-            q, rem = divmod(pf, su_factor)
-            assert rem == 0 # pf/su_factor should have remainder 0
+            # q, rem = divmod(pf, su_factor)
+            # assert rem == 0 # pf/su_factor should have remainder 0
+            q = math.ceil(pf/su_factor)
             layer_spec_temporal[loop_type] = q
 
     # Get all prime factorizations for the loop_types in loop_spec_temporal
@@ -664,25 +666,22 @@ def tl_worker_new(tl_list, merged_count_dict, loop_type_order, total_merged_coun
 
                                 ################################## MEMORY ALLOCATION ##################################
 
-                                # Initialize Order object
-                                order = Order(merged_order, spatial_loop, layer_origin, input_settings, n_mem_levels)
+                                even_memory_allocation = input_settings.tmg_search_space == 'even'
+                                if even_memory_allocation:
+                                    order = OrderEven(merged_order, spatial_loop, layer_origin, input_settings, n_mem_levels)
+                                    allocated_order = order.allocate_memory_nodes(nodes)
+                                else:
+                                    # Initialize Order object
+                                    order = Order(merged_order, spatial_loop, layer_origin, input_settings, n_mem_levels)
 
-                                # Loop through all the nodes in each level to allocate the LPFs to the memories
-                                for level in range(n_mem_levels):
-                                    if level == n_mem_levels - 1:
-                                        # If the level is the last level in the hierarchy, allocate all remaning LPFs.
-                                        allocated_order = order.allocate_remaining()
-                                        break
-                                    for node in nodes[level]:
-                                        order.allocate_memory(node, level)
-                                
-                                # print(merged_order)
-                                # print('W\t', allocated_order['W'])
-                                # print('I\t', allocated_order['I'])
-                                # print('O\t', allocated_order['O'])
-
-                                # if merged_order == ((5, 2), (5, 288), (4, 7), (6, 6)):
-                                #     print(allocated_order['I'])
+                                    # Loop through all the nodes in each level to allocate the LPFs to the memories
+                                    for level in range(n_mem_levels):
+                                        if level == n_mem_levels - 1:
+                                            # If the level is the last level in the hierarchy, allocate all remaning LPFs.
+                                            allocated_order = order.allocate_remaining()
+                                            break
+                                        for node in nodes[level]:
+                                            order.allocate_memory(node, level)
 
                                 ################################## COST MODEL EVALUATION ##################################
                                 # temporal_loop = TemporalLoopLight(layer_rounded, allocated_order, spatial_loop, order.loop_cycles, order.irrelevant_loop)
@@ -707,13 +706,17 @@ def tl_worker_new(tl_list, merged_count_dict, loop_type_order, total_merged_coun
                                 else:
                                     loop_fractional = loop
 
-                                utilization = cls.Utilization.get_utilization(layer_rounded, temporal_loop,
-                                                                              spatial_loop_comb, loop,
-                                                                              input_settings.mac_array_info,
-                                                                              mem_scheme.mem_size,
-                                                                              mem_scheme.mem_share, mem_scheme.mem_type,
-                                                                              input_settings.mac_array_stall,
-                                                                              input_settings.precision, mem_scheme.mem_bw)
+                                try:
+                                    utilization = cls.Utilization.get_utilization(layer_rounded, temporal_loop,
+                                                                                  spatial_loop_comb, loop,
+                                                                                  input_settings.mac_array_info,
+                                                                                  mem_scheme.mem_size,
+                                                                                  mem_scheme.mem_share, mem_scheme.mem_type,
+                                                                                  input_settings.mac_array_stall,
+                                                                                  input_settings.precision, mem_scheme.mem_bw)
+                                except Exception as e:
+                                    print(f'{type(e).__name__}: {e}')
+                                    return e
                                 operand_cost = {'W':[], 'I':[], 'O':[]}
                                 total_cost_layer = 0
                                 for operand in ['W', 'I', 'O']:

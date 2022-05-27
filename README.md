@@ -42,7 +42,7 @@ The cost estimation can be run with:
 ### Temporal mapping exploration
 A temporal mapping exploration can be carried out on the same architecture with the same workload by setting ``fixed_temporal_mapping`` to ``False`` in the settings file.
 
-If the temporal mapping exploration is enabled, a search method must be specified. The search method (``exhaustive``, ``heuristic_v1``, ``heuristic_v2``, or ``iterative``) can be set in the settings file.
+If the temporal mapping exploration is enabled, a search method must be specified. The search method (``exhaustive``, ``heuristic_v1``, ``heuristic_v2``, ``iterative``, or ``loma``) can be set in the settings file.
 
 The temporal mapping exploration can be then run with:
 ```python3 top_module.py --arch ./inputs/architecture.yaml --map ./inputs/mapping.yaml --set ./inputs/settings.yaml --mempool ./inputs/memory_pool.yaml```

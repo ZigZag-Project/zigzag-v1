@@ -16,12 +16,14 @@ def flatten(L):
         except TypeError:
             yield item
 
+
 def iterative_data_format_clean(original_dict):
-    new_dict = {'W':[], 'I':[], 'O':[]}
+    new_dict = {'W': [], 'I': [], 'O': []}
     for operand in ['W', 'I', 'O']:
         for li in original_dict[operand]:
             new_dict[operand].append(li[0])
     return new_dict
+
 
 class Utilization(object):
 
@@ -31,7 +33,6 @@ class Utilization(object):
         # spatial_loop is a list, in which spatial_loop[0] is the rounded one and spatial_loop[1] is the fractional one.
         if type(spatial_loop) != type([1]):
             spatial_loop = [spatial_loop, spatial_loop]
-
 
         mem_level = temporal_loop.loop_levels
         output_pre = loop.output_precision
@@ -95,7 +96,7 @@ class Utilization(object):
         for operand in ['W', 'I', 'O']:
             for le, mem_utilize_shared_single in enumerate(mem_utilize_shared[operand]):
                 if mem_utilize_shared_single > 1:
-                    raise ValueError('%s memory level %d is too small to hold assigned loops.'%(operand, le))
+                    raise ValueError('%s memory level %d is too small to hold assigned loops.' % (operand, le))
 
         '''
         mac_utilize_spatial: MAC array utilization is spatially dropped in two cases:
@@ -165,7 +166,7 @@ class Utilization(object):
             ''' row-by-row (1) or column-by-column (2) '''
             mac_utilize_temporal1 = temporal_loop.total_cycles / \
                                     (temporal_loop.total_cycles +
-                                     mac_array_info['array_size'][mac_array_stall['systolic']-1])
+                                     mac_array_info['array_size'][mac_array_stall['systolic'] - 1])
 
         elif mac_array_stall['systolic'] == 3:
             ''' diagonally (3) '''
@@ -196,12 +197,12 @@ class Utilization(object):
         for operand in ['W', 'I']:
             for level in range(mem_level[operand]):
                 if level == mem_level[operand] - 1:
-                    '''Don't count the loading cc for the top level mem.'''
-                    # cc_load[operand].append(0)
+                    '''Don't count the loading cc for the top level mem. We assume the weight and input data are already stored in the top level memory.'''
+                    cc_load[operand].append(0)
                     '''Count the loading cc for the top level mem.'''
                     # for top-level memory loading, the loading cycle only depends on its writing bw.
-                    cc_load[operand].append(ceil(loop.req_mem_size[operand][level] * precision[operand] /
-                                                 mem_bw_bit[operand][level][wr_bw]))
+                    # cc_load[operand].append(ceil(loop.req_mem_size[operand][level] * precision[operand] /
+                    #                              mem_bw_bit[operand][level][wr_bw]))
 
                 else:
                     # for non-top-level memory loading, the loading cycle depends on the current level
@@ -245,8 +246,8 @@ class Utilization(object):
                 for mem in shared_mem:
                     mem_share_collect.extend(mem)
                 if 'I' in mem_share_collect and 'W' in mem_share_collect:
-                    cc_load_tot += min(cc_load['W'][mem_share_collect[mem_share_collect.index('W') + 1]],
-                                       cc_load['I'][mem_share_collect[mem_share_collect.index('I') + 1]])
+                    cc_load_tot += min(cc_load['W'][mem_share_collect[mem_share_collect.index('W') + 1] - 1],
+                                       cc_load['I'][mem_share_collect[mem_share_collect.index('I') + 1] - 1])
 
         ''' 
         During computation, # of stalled clock cycle for the whole nested loop.
@@ -262,33 +263,46 @@ class Utilization(object):
                     'I': [],
                     'O': []}
 
+        single_time_stall_cc = {'W': [],
+                                'I': [],
+                                'O': []}
+        single_time_stall_count = {'W': [],
+                                   'I': [],
+                                   'O': []}
+
         '''
         trans_time: Data transmitting time for req_inst_mem_bw, assuming independent memory system for W/I/O.
-        (ideal duration, ideal period)
+        (ideal duration, ideal period, period count)
         Input/Weight: duration is, at each continuous data transfer time block, 
         the # of cc for current level of memory to write to the level below.
         
         E.g. [1,3] means every 3 cycles, the current level of memory writes to below level 1 cycle.
         NOTE: Output need to be treat differently since psum can cause bidirectional data movement. 
-        Use output_dis as flag to distinguish.
+        Use output_dis as flag to distinguish psum and final output.
         (not using output_pre to distinguish because something people put the same precision to psum and fsum)
         
         trans_time describes the edge event (between two levels) !!!
         '''
         # initializing trans_time with [1, 1] indicates that the lowest level of memory talk to MAC all the time (every clock cycle).
 
-        trans_time = {'W': [[1, 1]],
-                      'I': [[1, 1]],
-                      'O': [[1, 1]]}
+        trans_time = {'W': [[1, 1, temporal_loop.total_cycles]],
+                      'I': [[1, 1, temporal_loop.total_cycles]],
+                      'O': [[1, 1, temporal_loop.total_cycles]]}
+        trans_time_real = {'W': [[1, 1, temporal_loop.total_cycles]],
+                           'I': [[1, 1, temporal_loop.total_cycles]],
+                           'O': [[1, 1, temporal_loop.total_cycles]]}
 
         for operand in ['W', 'I', 'O']:
-            for level in range(mem_level[operand]):
-                if mem_type[operand][level] == 2:
-                    duration = temporal_loop.loop_cycles[operand][level] / loop.top_ir[operand][level]
+            for level in range(mem_level[operand] - 1):
+                # without double-buffering, the time window left for dual-port memory data transferring is smaller ('top_ir' times smaller).
+                if mem_type[operand][level] == 2 and mem_utilize[operand][level] > 0.5:
+                    duration = round(temporal_loop.loop_cycles[operand][level] / loop.top_ir[operand][level])
                 else:
                     duration = temporal_loop.loop_cycles[operand][level]
                 period = temporal_loop.loop_cycles[operand][level]
-                trans_time[operand].append([duration, period])
+                operate_count = round(temporal_loop.total_cycles / period)
+                trans_time[operand].append([duration, period, operate_count])
+                trans_time_real[operand].append([[None, period, operate_count], [None, period, operate_count]])
 
         req_aver_bw = {}
         req_aver_bw_bit = {}
@@ -355,6 +369,7 @@ class Utilization(object):
 
         duration = 0
         period = 1
+        count = 2
         rd = 0
         wr = 1
         for operand in ['W', 'I']:
@@ -369,57 +384,22 @@ class Utilization(object):
                     req_mem_bw_rd_bit = req_aver_bw_bit[operand][level][rd]
                     req_mem_bw_bit[operand].append([req_mem_bw_rd_bit, 0])
 
-                    data_block_bit = req_mem_bw_rd_bit * trans_time[operand][level][duration]
-                    stall_cc[operand].append([(data_block_bit / mem_bw_bit[operand][level][rd] -
-                                               trans_time[operand][level][duration]) *
-                                              temporal_loop.total_cycles / trans_time[operand][level][period]])
-                elif level == mem_level[operand] - 1:
-                    ''' consider the top level of memory talking to the below level of memory '''
-                    if mem_type[operand][level - 1] == 2:
-                        req_mem_bw_wr = req_inst_bw[operand][level - 1][wr]
-                        req_mem_bw[operand][-1].append(req_mem_bw_wr)
-                        req_mem_bw_wr_bit = req_inst_bw_bit[operand][level - 1][wr]
-                        req_mem_bw_bit[operand][-1].append(req_mem_bw_wr_bit)
-
-                        req_mem_bw_rd = req_inst_bw[operand][level][rd]
-                        req_mem_bw[operand].append([req_mem_bw_rd, 0])
-                        req_mem_bw_rd_bit = req_inst_bw_bit[operand][level][rd]
-                        req_mem_bw_bit[operand].append([req_mem_bw_rd_bit, 0])
-
-                    else:
-                        req_mem_bw_wr = req_aver_bw[operand][level - 1][wr]
-                        req_mem_bw[operand][-1].append(req_mem_bw_wr)
-                        req_mem_bw_wr_bit = req_aver_bw_bit[operand][level - 1][wr]
-                        req_mem_bw_bit[operand][-1].append(req_mem_bw_wr_bit)
-
-                        req_mem_bw_rd = req_aver_bw[operand][level][rd]
-                        req_mem_bw[operand].append([req_mem_bw_rd, 0])
-                        req_mem_bw_rd_bit = req_aver_bw_bit[operand][level][rd]
-                        req_mem_bw_bit[operand].append([req_mem_bw_rd_bit, 0])
-
-                    '''
-                    write to the below level memory (the object is the below level memory).
-                    data_block_wr: data block being written.
-                    stall_cc_wr: stalled clock cycle come from writing.
-                    '''
-
-                    data_block_wr_bit = req_mem_bw_wr_bit * trans_time[operand][level][duration]
-                    stall_cc_wr = (data_block_wr_bit / mem_bw_bit[operand][level - 1][wr] -
-                                   trans_time[operand][level][duration]) * \
-                                  temporal_loop.total_cycles / trans_time[operand][level][period]
-
-                    '''
-                    read from the current level memory (the object is the current level memory).
-                    data_block_re: data block being read.
-                    stall_cc_re: stalled clock cycle come from reading.
-                    '''
-
                     data_block_rd_bit = req_mem_bw_rd_bit * trans_time[operand][level][duration]
-                    stall_cc_rd = (data_block_rd_bit / mem_bw_bit[operand][level][rd] -
-                                   trans_time[operand][level][duration]) * \
-                                  temporal_loop.total_cycles / trans_time[operand][level][period]
+                    stall_cc_rd_single_time = round(data_block_rd_bit / mem_bw_bit[operand][level][rd] - \
+                                                    trans_time[operand][level][duration])
 
-                    stall_cc[operand].append([stall_cc_wr, stall_cc_rd])
+                    if trans_time[operand][level][count] == 1:
+                        ''' if it is a one-time data transfer, there is not stall since the stall (if do have) is 
+                        already included in the initial data loading stage, and the whole trans_time duration can 
+                        be used for other operand data transferring (later when consider memory sharing) '''
+                        stall_cc_rd = - trans_time[operand][level][period]
+                    else:
+                        ''' count the stalling part '''
+                        stall_cc_rd = stall_cc_rd_single_time * (trans_time[operand][level][count] - 1)
+
+                    trans_time_real[operand][level][duration] = round(data_block_rd_bit / mem_bw_bit[operand][level][rd])
+                    single_time_stall_count[operand].append(trans_time[operand][level][count] - 1)
+                    stall_cc[operand].append([stall_cc_rd, 0])
 
                 elif level == 0:
                     ''' consider the lowest level of memory talking to MAC '''
@@ -429,13 +409,84 @@ class Utilization(object):
                     req_mem_bw_rd_bit = req_aver_bw_bit[operand][level][rd]
                     req_mem_bw_bit[operand].append([req_mem_bw_rd_bit])
 
-                    data_block_bit = req_mem_bw_rd_bit * trans_time[operand][level][duration]
-                    stall_cc[operand].append([(data_block_bit / mem_bw_bit[operand][level][rd] -
-                                               trans_time[operand][level][duration]) *
-                                              temporal_loop.total_cycles / trans_time[operand][level][period]])
+                    data_block_rd_bit = req_mem_bw_rd_bit * trans_time[operand][level][duration]
+                    stall_cc_rd_single_time = round(data_block_rd_bit / mem_bw_bit[operand][level][rd] - \
+                                                    trans_time[operand][level][duration])
+
+                    if trans_time[operand][level][count] == 1:
+                        stall_cc_rd = - trans_time[operand][level][period]
+                    else:
+                        stall_cc_rd = stall_cc_rd_single_time * (trans_time[operand][level][count] - 1)
+
+                    trans_time_real[operand][level][duration] = round(data_block_rd_bit / mem_bw_bit[operand][level][rd])
+                    single_time_stall_cc[operand].append([stall_cc_rd_single_time])
+                    single_time_stall_count[operand].append(trans_time[operand][level][count] - 1)
+                    stall_cc[operand].append([stall_cc_rd])
+
+                elif level == mem_level[operand] - 1:
+                    ''' consider the top level of memory talking to the below level of memory '''
+                    if mem_type[operand][level - 1] == 2 and mem_utilize[operand][level - 1] > 0.5:
+                        req_mem_bw_wr = req_inst_bw[operand][level - 1][wr]
+                        req_mem_bw[operand][-1].append(req_mem_bw_wr)
+                        req_mem_bw_wr_bit = req_inst_bw_bit[operand][level - 1][wr]
+                        req_mem_bw_bit[operand][-1].append(req_mem_bw_wr_bit)
+
+                        req_mem_bw_rd = req_inst_bw[operand][level][rd]
+                        req_mem_bw[operand].append([req_mem_bw_rd, 0])
+                        req_mem_bw_rd_bit = req_inst_bw_bit[operand][level][rd]
+                        req_mem_bw_bit[operand].append([req_mem_bw_rd_bit, 0])
+
+                    else:
+                        req_mem_bw_wr = req_aver_bw[operand][level - 1][wr]
+                        req_mem_bw[operand][-1].append(req_mem_bw_wr)
+                        req_mem_bw_wr_bit = req_aver_bw_bit[operand][level - 1][wr]
+                        req_mem_bw_bit[operand][-1].append(req_mem_bw_wr_bit)
+
+                        req_mem_bw_rd = req_aver_bw[operand][level][rd]
+                        req_mem_bw[operand].append([req_mem_bw_rd, 0])
+                        req_mem_bw_rd_bit = req_aver_bw_bit[operand][level][rd]
+                        req_mem_bw_bit[operand].append([req_mem_bw_rd_bit, 0])
+
+                    '''
+                    write to the below level memory (the object is the below level memory).
+                    data_block_wr: data block being written.
+                    stall_cc_wr: stalled clock cycle come from writing.
+                    '''
+
+                    data_block_wr_bit = req_mem_bw_wr_bit * trans_time[operand][level][duration]
+                    stall_cc_wr_single_time = round(data_block_wr_bit / mem_bw_bit[operand][level - 1][wr] - \
+                                                    trans_time[operand][level][duration])
+
+                    if trans_time[operand][level][count] == 1:
+                        stall_cc_wr = - trans_time[operand][level][period]
+                    else:
+                        stall_cc_wr = stall_cc_wr_single_time * (trans_time[operand][level][count] - 1)
+
+                    trans_time_real[operand][level][0][duration] = round(data_block_wr_bit / mem_bw_bit[operand][level - 1][wr])
+
+                    '''
+                    read from the current level memory (the object is the current level memory).
+                    data_block_re: data block being read.
+                    stall_cc_re: stalled clock cycle come from reading.
+                    '''
+
+                    data_block_rd_bit = req_mem_bw_rd_bit * trans_time[operand][level][duration]
+                    stall_cc_rd_single_time = round(data_block_rd_bit / mem_bw_bit[operand][level][rd] - \
+                                                    trans_time[operand][level][duration])
+
+                    if trans_time[operand][level][count] == 1:
+                        stall_cc_rd = - trans_time[operand][level][period]
+                    else:
+                        stall_cc_rd = stall_cc_rd_single_time * (trans_time[operand][level][count] - 1)
+
+                    trans_time_real[operand][level][1][duration] = round(data_block_rd_bit / mem_bw_bit[operand][level][rd])
+                    single_time_stall_cc[operand].append([stall_cc_wr_single_time, stall_cc_rd_single_time])
+                    single_time_stall_count[operand].append(trans_time[operand][level][count] - 1)
+                    stall_cc[operand].append([stall_cc_wr, stall_cc_rd])
+
                 else:
                     ''' consider the current level of memory talking to the below level of memory '''
-                    if mem_type[operand][level - 1] == 2:
+                    if mem_type[operand][level - 1] == 2 and mem_utilize[operand][level - 1] > 0.5:
                         req_mem_bw_wr = req_inst_bw[operand][level - 1][wr]
                         req_mem_bw[operand][-1].append(req_mem_bw_wr)
                         req_mem_bw_wr_bit = req_inst_bw_bit[operand][level - 1][wr]
@@ -464,9 +515,15 @@ class Utilization(object):
                     '''
 
                     data_block_wr_bit = req_mem_bw_wr_bit * trans_time[operand][level][duration]
-                    stall_cc_wr = (data_block_wr_bit / mem_bw_bit[operand][level - 1][wr] -
-                                   trans_time[operand][level][duration]) * \
-                                  temporal_loop.total_cycles / trans_time[operand][level][period]
+                    stall_cc_wr_single_time = round(data_block_wr_bit / mem_bw_bit[operand][level - 1][wr] - \
+                                                    trans_time[operand][level][duration])
+
+                    if trans_time[operand][level][count] == 1:
+                        stall_cc_wr = - trans_time[operand][level][duration]
+                    else:
+                        stall_cc_wr = stall_cc_wr_single_time * (trans_time[operand][level][count] - 1)
+
+                    trans_time_real[operand][level][0][duration] = round(data_block_wr_bit / mem_bw_bit[operand][level - 1][wr])
 
                     '''
                     read from the current level memory (the object is the current level memory).
@@ -475,10 +532,17 @@ class Utilization(object):
                     '''
 
                     data_block_rd_bit = req_mem_bw_rd_bit * trans_time[operand][level][duration]
-                    stall_cc_rd = (data_block_rd_bit / mem_bw_bit[operand][level][rd] -
-                                   trans_time[operand][level][duration]) * \
-                                  temporal_loop.total_cycles / trans_time[operand][level][period]
+                    stall_cc_rd_single_time = round(data_block_rd_bit / mem_bw_bit[operand][level][rd] - \
+                                                    trans_time[operand][level][duration])
 
+                    if trans_time[operand][level][count] == 1:
+                        stall_cc_rd = - trans_time[operand][level][period]
+                    else:
+                        stall_cc_rd = stall_cc_rd_single_time * (trans_time[operand][level][count] - 1)
+
+                    trans_time_real[operand][level][1][duration] = round(data_block_rd_bit / mem_bw_bit[operand][level][rd])
+                    single_time_stall_cc[operand].append([stall_cc_wr_single_time, stall_cc_rd_single_time])
+                    single_time_stall_count[operand].append(trans_time[operand][level][count] - 1)
                     stall_cc[operand].append([stall_cc_wr, stall_cc_rd])
 
         to_high = 1
@@ -489,7 +553,7 @@ class Utilization(object):
             for level in range(mem_level['O']):
                 if level == mem_level['O'] - 1:
                     ''' consider the top level of memory talking to the below level of memory '''
-                    if (mem_type['O'][level - 1] == 2 and mem_type['O'][level] == 1) \
+                    if (mem_type['O'][level - 1] == 2 and mem_utilize['O'][level - 1] > 0.5 and mem_type['O'][level] == 1) \
                             and output_dis[level][to_low] == 'psum':
 
                         # When need to transmit partial sum for output
@@ -525,7 +589,7 @@ class Utilization(object):
                         req_mem_bw_L_bit = 2 * req_aver_bw_bit['O'][level][to_low]
                         req_mem_bw_bit[operand].append([req_mem_bw_L_bit, 0])
 
-                    elif mem_type['O'][level - 1] == 2:
+                    elif mem_type['O'][level - 1] == 2 and mem_utilize['O'][level - 1] > 0.5:
                         # Object: (level-1) memory
                         req_mem_bw_H = req_inst_bw['O'][level - 1][to_high]
                         req_mem_bw[operand][-1].append(req_mem_bw_H)
@@ -571,7 +635,7 @@ class Utilization(object):
 
                 else:
                     ''' consider the current level of memory talking to the below level of memory '''
-                    if (mem_type['O'][level - 1] == 2 and mem_type['O'][level] == 1) \
+                    if (mem_type['O'][level - 1] == 2 and mem_utilize['O'][level - 1] > 0.5 and mem_type['O'][level] == 1) \
                             and output_dis[level][to_low] == 'psum':
 
                         # When need to transmit partial sum for output
@@ -607,7 +671,7 @@ class Utilization(object):
                         req_mem_bw_L_bit = 2 * req_aver_bw_bit['O'][level][to_low]
                         req_mem_bw_bit[operand].append([req_mem_bw_L_bit])
 
-                    elif mem_type['O'][level - 1] == 2:
+                    elif mem_type['O'][level - 1] == 2 and mem_utilize['O'][level - 1] > 0.5:
                         # Object: (level-1) memory
                         req_mem_bw_H = req_inst_bw['O'][level - 1][to_high]
                         req_mem_bw[operand][-1].append(req_mem_bw_H)
@@ -640,77 +704,56 @@ class Utilization(object):
             if lv == 0:
                 # psum at level 0 for sure.
                 data_block_bl_bit = bw_list[0] * trans_time['O'][lv][duration]
-                stall_cc_bl = (data_block_bl_bit / mem_bw_bit['O'][lv][to_low] -
-                               trans_time['O'][lv][duration]) * \
-                              temporal_loop.total_cycles / trans_time['O'][lv][period]
+                stall_cc_bl_single_time = round(data_block_bl_bit / mem_bw_bit['O'][lv][to_low] -
+                                                trans_time['O'][lv][duration])
+                stall_cc_bl = stall_cc_bl_single_time * trans_time['O'][lv][count]
+                trans_time_real['O'][lv][duration] = round(data_block_bl_bit / mem_bw_bit['O'][lv][to_low])
+                single_time_stall_cc['O'].append([stall_cc_bl_single_time])
+                single_time_stall_count['O'].append(trans_time['O'][lv][count])
                 stall_cc['O'].append([stall_cc_bl])
 
                 data_block_al_bit = bw_list[1] * trans_time['O'][lv + 1][duration]
-                if mem_size_bit['O'][lv] <= precision['O'] or mem_type['O'][lv] == 3:
-                    # only can store one psum / dual-port double buffering, no need to use residual BW.
-                    stall_cc_al = (data_block_al_bit / mem_bw_bit['O'][lv][to_high] -
-                                   trans_time['O'][lv + 1][duration]) * \
-                                  temporal_loop.total_cycles / trans_time['O'][lv + 1][period]
-                    stall_cc['O'].append([stall_cc_al])
+                stall_cc_al_single_time = round(data_block_al_bit / mem_bw_bit['O'][lv][to_high] -
+                                                trans_time['O'][lv + 1][duration])
+                stall_cc_al = stall_cc_al_single_time * trans_time['O'][lv + 1][count]
+                trans_time_real['O'][lv + 1][0][duration] = round(data_block_al_bit / mem_bw_bit['O'][lv][to_high])
+                single_time_stall_cc['O'].append([stall_cc_al_single_time])
+                # single_time_stall_count['O'].append(int(trans_time['O'][lv + 1][count]))
+                stall_cc['O'].append([stall_cc_al])
 
-                else:
-                    # if data need to be transferred bidirectionally, use residual BW.
-                    if mem_bw_bit['O'][lv][to_high] - req_mem_bw_bit['O_raw'][lv][to_low] > 0:
+            elif lv == mem_level['O'] - 1:
+                data_block_bl_bit = bw_list[0] * trans_time['O'][lv][duration]
+                stall_cc_bl_single = round(data_block_bl_bit / mem_bw_bit['O'][lv][to_low] - \
+                                           trans_time['O'][lv][duration])
+                stall_cc_bl = stall_cc_bl_single * trans_time['O'][lv][count]
+                single_time_stall_cc['O'][-1].append(stall_cc_bl_single)
+                single_time_stall_count['O'].append(trans_time['O'][lv][count])
+                stall_cc['O'][-1].append(stall_cc_bl)
+                trans_time_real['O'][lv][1][duration] = round(data_block_bl_bit / mem_bw_bit['O'][lv][to_low])
 
-                        # While talking to low level, current mem still has spare bw to talk to high level.
-                        stall_cc_al_1 = (data_block_al_bit / (
-                                mem_bw_bit['O'][lv][to_high] - req_mem_bw_bit['O_raw'][lv][to_low]) -
-                                         trans_time['O'][lv + 1][duration]) * \
-                                        temporal_loop.total_cycles / trans_time['O'][lv + 1][period]
-
-                        # While talking to low level, current mem doesn't have spare bw to talk to high level.
-                        # Thus computation stalls when it needs to talk to high level.
-                        stall_cc_al_2 = trans_time['O'][lv + 1][duration] * temporal_loop.total_cycles / \
-                                        trans_time['O'][lv + 1][period]
-                        stall_cc['O'].append([min(stall_cc_al_1, stall_cc_al_2)])
-                    else:
-                        stall_cc_al_2 = trans_time['O'][lv + 1][duration] * temporal_loop.total_cycles / \
-                                        trans_time['O'][lv + 1][period]
-                        stall_cc['O'].append([stall_cc_al_2])
+                # ends here (when all the output are written to the top memory)
+                # because we don't care how the top memory talk to the outside world.
+                break
 
             else:
-                # Not level 0
+                # Middle levels
                 data_block_bl_bit = bw_list[0] * trans_time['O'][lv][duration]
-                stall_cc_bl = (data_block_bl_bit / mem_bw_bit['O'][lv][to_low] -
-                               trans_time['O'][lv][duration]) * \
-                              temporal_loop.total_cycles / trans_time['O'][lv][period]
+                stall_cc_bl_single_time = round(data_block_bl_bit / mem_bw_bit['O'][lv][to_low] -
+                                                trans_time['O'][lv][duration])
+                stall_cc_bl = stall_cc_bl_single_time * trans_time['O'][lv][count]
+                single_time_stall_cc['O'][-1].append(stall_cc_bl_single_time)
+                single_time_stall_count['O'].append(trans_time['O'][lv][count])
                 stall_cc['O'][-1].append(stall_cc_bl)
-
-                if lv == mem_level['O'] - 1:
-                    # ends here (when all the output are written to the top memory)
-                    # because for now, we don't care how the top memory talk to the outside world.
-                    break
+                trans_time_real['O'][lv][1][duration] = round(data_block_bl_bit / mem_bw_bit['O'][lv][to_low])
 
                 data_block_al_bit = bw_list[1] * trans_time['O'][lv + 1][duration]
-                if output_dis[lv] == ('fsum', 'fsum') or mem_type['O'][lv] == 3:
-                    # only final sum exists at current level, meaning data flows uni-directionally, same as W and I.
-                    stall_cc_al = (data_block_al_bit / mem_bw_bit['O'][lv][to_high] -
-                                   trans_time['O'][lv + 1][duration]) * \
-                                  temporal_loop.total_cycles / trans_time['O'][lv + 1][period]
-                    stall_cc['O'].append([stall_cc_al])
-                else:
-                    # if data need to be transferred bidirectionally, use residual BW.
-                    if mem_bw_bit['O'][lv][to_high] - req_mem_bw_bit['O_raw'][lv][to_low] > 0:
-                        # While talking to low level, current mem still has spare bw to talk to high level.
-                        stall_cc_al_1 = (data_block_al_bit / (
-                                mem_bw_bit['O'][lv][to_high] - req_mem_bw_bit['O_raw'][lv][to_low]) -
-                                         trans_time['O'][lv + 1][duration]) * \
-                                        temporal_loop.total_cycles / trans_time['O'][lv + 1][period]
-
-                        # While talking to low level, current mem doesn't have spare bw to talk to high level.
-                        # Thus computation stalls when it needs to talk to high level.
-                        stall_cc_al_2 = (data_block_al_bit / mem_bw_bit['O'][lv][
-                            to_high]) * temporal_loop.total_cycles / trans_time['O'][lv + 1][period]
-                        stall_cc['O'].append([min(stall_cc_al_1, stall_cc_al_2)])
-                    else:
-                        stall_cc_al_2 = (data_block_al_bit / mem_bw_bit['O'][lv][
-                            to_high]) * temporal_loop.total_cycles / trans_time['O'][lv + 1][period]
-                        stall_cc['O'].append([stall_cc_al_2])
+                stall_cc_al_single_time = round(data_block_al_bit / mem_bw_bit['O'][lv][to_high] -
+                                                trans_time['O'][lv + 1][duration])
+                stall_cc_al = stall_cc_al_single_time * trans_time['O'][lv + 1][count]
+                single_time_stall_cc['O'].append([stall_cc_al_single_time])
+                # single_time_stall_count['O'].append(int(trans_time['O'][lv + 1][count]))
+                stall_cc['O'].append([stall_cc_al])
+                trans_time_real['O'][lv + 1][0][duration] = round(data_block_al_bit / mem_bw_bit['O'][lv][to_high])
 
         ''' Take the memory sharing into account '''
         # Preparation step: edge event -> vertex event (so as to handle individual memory unit easily)
@@ -730,6 +773,10 @@ class Utilization(object):
 
         # Formal step:
         stall_cc_vertex_share = copy.deepcopy(stall_cc_vertex)
+        mem_compute_overlap_cc = {}
+        mem_compute_overlap_stall = {}
+        downward = 0
+        upward = 1
         if mem_share:
             for idx, shared_mem_list in mem_share.items():
                 mem_share_collect = []
@@ -738,24 +785,56 @@ class Utilization(object):
 
                 stall_cc_update_L = 0
                 stall_cc_update_H = 0
-                # Initialize all to the (- total # of cycle in ideal case).
-                stall_cc_single = {'W': [-temporal_loop.total_cycles, -temporal_loop.total_cycles],
-                                   'I': [-temporal_loop.total_cycles, -temporal_loop.total_cycles],
-                                   'O': [-temporal_loop.total_cycles, -temporal_loop.total_cycles]}
+                # stall_cc_single, mem_compute_overlap_cc, mem_compute_overlap_stall are all vertex variable,
+                # i.e. target on each memory level talk to its low/high neighbour memory level.
+                stall_cc_single = {'W': [0, 0],
+                                   'I': [0, 0],
+                                   'O': [0, 0]}
+                mem_compute_overlap_cc[idx] = {'W': [0, 0],
+                                               'I': [0, 0],
+                                               'O': [0, 0]}
+                ''' mem_compute_overlap_stall[idx] = [(downward to low, downward from high), (upward from low, upward to high)] '''
+                mem_compute_overlap_stall[idx] = [[-temporal_loop.total_cycles, -temporal_loop.total_cycles], [-temporal_loop.total_cycles, -temporal_loop.total_cycles]]
                 for operand, lv in shared_mem_list:
                     stall_cc_single[operand] = stall_cc_vertex[operand][lv]
+                    # to handle +/- stall/slack summation correctly, split stall and mem-compute overlapped part.
+                    try:
+                        trans_time_duration = min(trans_time[operand][lv][duration],
+                                                  max(trans_time_real[operand][lv][0][duration], trans_time_real[operand][lv][1][duration]))
+                    except:
+                        trans_time_duration = min(trans_time[operand][lv][duration], trans_time_real[operand][lv][duration])
+                    if operand in ['W', 'I']:
+                        mem_compute_overlap_cc[idx][operand][to_low] = trans_time_duration * (trans_time[operand][lv][count] - 1)
+                    else:
+                        mem_compute_overlap_cc[idx][operand][to_low] = trans_time_duration * trans_time[operand][lv][count]
+                    if lv != mem_level[operand] - 1:
+                        try:
+                            trans_time_duration = min(trans_time[operand][lv + 1][duration],
+                                                      max(trans_time_real[operand][lv + 1][0][duration], trans_time_real[operand][lv + 1][1][duration]))
+                        except:
+                            trans_time_duration = min(trans_time[operand][lv + 1][duration], trans_time_real[operand][lv + 1][duration])
+                        if operand in ['W', 'I']:
+                            mem_compute_overlap_cc[idx][operand][to_high] = trans_time_duration * (trans_time[operand][lv + 1][count] - 1)
+                        else:
+                            mem_compute_overlap_cc[idx][operand][to_high] = trans_time_duration * trans_time[operand][lv + 1][count]
 
                 if 'O' in mem_share_collect:
                     shared_output_lv = mem_share_collect[mem_share_collect.index('O') + 1]
+                    mem_compute_overlap_stall[idx][upward][to_low] += mem_compute_overlap_cc[idx]['O'][to_low]
+                    mem_compute_overlap_stall[idx][upward][to_high] += mem_compute_overlap_cc[idx]['O'][to_high]
                     if output_dis[shared_output_lv] == ('psum', 'psum'):
                         # (psum, psum)
                         for operand in ['W', 'I', 'O']:
-                            stall_cc_update_L += temporal_loop.total_cycles + stall_cc_single[operand][to_low]
-                            stall_cc_update_H += temporal_loop.total_cycles + stall_cc_single[operand][to_high]
+                            if stall_cc_single[operand][to_low] > 0:
+                                stall_cc_update_L += stall_cc_single[operand][to_low]
+                            if stall_cc_single[operand][to_high] > 0:
+                                stall_cc_update_H += stall_cc_single[operand][to_high]
+                            mem_compute_overlap_stall[idx][downward][to_low] += mem_compute_overlap_cc[idx][operand][to_low]
+                            mem_compute_overlap_stall[idx][downward][to_high] += mem_compute_overlap_cc[idx][operand][to_high]
 
-                        stall_cc_update_L -= temporal_loop.total_cycles
-                        stall_cc_update_H -= temporal_loop.total_cycles
-                        stall_cc_vertex_share['O'][shared_output_lv] = [stall_cc_update_L, stall_cc_update_H]
+                        stall_cc_update_L += max(mem_compute_overlap_stall[idx][downward][to_low], 0)
+                        stall_cc_update_H += max(mem_compute_overlap_stall[idx][downward][to_high], 0)
+
                         if 'I' in mem_share_collect:
                             shared_input_lv = mem_share_collect[mem_share_collect.index('I') + 1]
                             stall_cc_vertex_share['I'][shared_input_lv] = [stall_cc_update_L, stall_cc_update_H]
@@ -766,14 +845,20 @@ class Utilization(object):
                     elif output_dis[shared_output_lv] == ('psum', 'fsum'):
                         # (psum, fsum)
                         for operand in ['W', 'I']:
-                            stall_cc_update_L += temporal_loop.total_cycles + stall_cc_single[operand][to_low]
-                            stall_cc_update_H += temporal_loop.total_cycles + stall_cc_single[operand][to_high]
+                            if stall_cc_single[operand][to_low] > 0:
+                                stall_cc_update_L += stall_cc_single[operand][to_low]
+                            if stall_cc_single[operand][to_high] > 0:
+                                stall_cc_update_H += stall_cc_single[operand][to_high]
+                            mem_compute_overlap_stall[idx][downward][to_low] += mem_compute_overlap_cc[idx][operand][to_low]
+                            mem_compute_overlap_stall[idx][downward][to_high] += mem_compute_overlap_cc[idx][operand][to_high]
                         for operand in ['O']:
-                            stall_cc_update_L += temporal_loop.total_cycles + stall_cc_single[operand][to_low]
+                            if stall_cc_single[operand][to_low] > 0:
+                                stall_cc_update_L += stall_cc_single[operand][to_low]
+                            mem_compute_overlap_stall[idx][downward][to_low] += mem_compute_overlap_cc[idx][operand][to_low]
 
-                        stall_cc_update_L -= temporal_loop.total_cycles
-                        stall_cc_update_H -= temporal_loop.total_cycles
-                        stall_cc_vertex_share['O'][shared_output_lv][to_low] = stall_cc_update_L
+                        stall_cc_update_L += max(mem_compute_overlap_stall[idx][downward][to_low], 0)
+                        stall_cc_update_H += max(mem_compute_overlap_stall[idx][downward][to_high], 0)
+
                         if 'I' in mem_share_collect:
                             shared_input_lv = mem_share_collect[mem_share_collect.index('I') + 1]
                             stall_cc_vertex_share['I'][shared_input_lv] = [stall_cc_update_L, stall_cc_update_H]
@@ -784,11 +869,16 @@ class Utilization(object):
                     else:
                         # (fsum, fsum)
                         for operand in ['W', 'I']:
-                            stall_cc_update_L += temporal_loop.total_cycles + stall_cc_single[operand][to_low]
-                            stall_cc_update_H += temporal_loop.total_cycles + stall_cc_single[operand][to_high]
+                            if stall_cc_single[operand][to_low] > 0:
+                                stall_cc_update_L += stall_cc_single[operand][to_low]
+                            if stall_cc_single[operand][to_high] > 0:
+                                stall_cc_update_H += stall_cc_single[operand][to_high]
+                            mem_compute_overlap_stall[idx][downward][to_low] += mem_compute_overlap_cc[idx][operand][to_low]
+                            mem_compute_overlap_stall[idx][downward][to_high] += mem_compute_overlap_cc[idx][operand][to_high]
 
-                        stall_cc_update_L -= temporal_loop.total_cycles
-                        stall_cc_update_H -= temporal_loop.total_cycles
+                        stall_cc_update_L += max(mem_compute_overlap_stall[idx][downward][to_low], 0)
+                        stall_cc_update_H += max(mem_compute_overlap_stall[idx][downward][to_high], 0)
+
                         if 'I' in mem_share_collect:
                             shared_input_lv = mem_share_collect[mem_share_collect.index('I') + 1]
                             stall_cc_vertex_share['I'][shared_input_lv] = [stall_cc_update_L, stall_cc_update_H]
@@ -799,12 +889,15 @@ class Utilization(object):
                 else:
                     # 'O' NOT in mem_share_collect
                     for operand in ['W', 'I']:
-                        stall_cc_update_L += temporal_loop.total_cycles + stall_cc_single[operand][to_low]
-                        stall_cc_update_H += temporal_loop.total_cycles + stall_cc_single[operand][to_high]
+                        if stall_cc_single[operand][to_low] > 0:
+                            stall_cc_update_L += stall_cc_single[operand][to_low]
+                        if stall_cc_single[operand][to_high] > 0:
+                            stall_cc_update_H += stall_cc_single[operand][to_high]
+                        mem_compute_overlap_stall[idx][downward][to_low] += mem_compute_overlap_cc[idx][operand][to_low]
+                        mem_compute_overlap_stall[idx][downward][to_high] += mem_compute_overlap_cc[idx][operand][to_high]
 
-                    stall_cc_update_L -= temporal_loop.total_cycles
-                    stall_cc_update_H -= temporal_loop.total_cycles
-
+                    stall_cc_update_L += max(mem_compute_overlap_stall[idx][downward][to_low], 0)
+                    stall_cc_update_H += max(mem_compute_overlap_stall[idx][downward][to_high], 0)
                     if 'I' in mem_share_collect:
                         shared_input_lv = mem_share_collect[mem_share_collect.index('I') + 1]
                         stall_cc_vertex_share['I'][shared_input_lv] = [stall_cc_update_L, stall_cc_update_H]
@@ -812,7 +905,7 @@ class Utilization(object):
                         shared_weight_lv = mem_share_collect[mem_share_collect.index('W') + 1]
                         stall_cc_vertex_share['W'][shared_weight_lv] = [stall_cc_update_L, stall_cc_update_H]
 
-        stall_cc_mem_share = {'W': [], 'I': [], 'O': []} #, 'output_direction': []}
+        stall_cc_mem_share = {'W': [], 'I': [], 'O': []}
         cc_mem_stall_list = {'W': [], 'I': [], 'O': []}
         for operand in ['W', 'I', 'O']:
             for idx, li in enumerate(stall_cc_vertex_share[operand]):
@@ -822,19 +915,12 @@ class Utilization(object):
                 else:
                     stall_cc_mem_share[operand].append([stall_cc_vertex_share[operand][idx - 1][1], li[0]])
                     cc_mem_stall_list[operand].extend([stall_cc_vertex_share[operand][idx - 1][1], li[0]])
-        if clk_domain == {}:
-            cc_mem_stall_tot = max(
-                [ceil(max(cc_mem_stall_list['W'] + cc_mem_stall_list['I'] + cc_mem_stall_list['O'])), 0])
-        else:
-            # when W and I, O stall cannot be overlapped (AiMC cases).
-            cc_mem_stall_tot = max([ceil(max(cc_mem_stall_list['W'][1:])), 0]) + max(
-                [ceil(max(cc_mem_stall_list['I'] + cc_mem_stall_list['O'])), 0])
 
-        # for j in output_dis:
-        #     if j == ('psum', 'psum') or j == ('psum', 'fsum'):
-        #         stall_cc_mem_share['output_direction'].append(['psum'])
-        #     else:
-        #         stall_cc_mem_share['output_direction'].append(['fsum'])
+        # concatenate all operands' cc_mem_stall_list
+        max_mem_stall = max(cc_mem_stall_list['W'] + cc_mem_stall_list['I'] + cc_mem_stall_list['O'])
+        cc_mem_stall_tot = max(ceil(max_mem_stall), 0)
+
+        fully_PE_level_output_stationary = (output_dis[1] == ('fsum', 'fsum'))
 
         ''' 
         After computation finishes, # of clock cycle for offloading output data to the top level 'O' memory. 
@@ -931,18 +1017,17 @@ class Utilization(object):
 
         ''' Integrate required memory bandwidth '''
         # combine to_high & to_low Output memory (read and write) BW
-        req_mem_bw_bit['O'] = []
-        for lv, bw_list in enumerate(req_mem_bw_bit['O_raw']):
-            if mem_size_bit['O'][lv] <= precision['O'] or mem_type['O'][lv] == 3:
-                # only can store one psum OR dual-port double buffering
-                req_mem_bw_bit['O'].append([max(bw_list), max(bw_list)])
-            elif output_dis[lv] == ('psum', 'psum'):
-                # append [total read bw, total write bw]
-                req_mem_bw_bit['O'].append([bw_list[to_low] + bw_list[to_high], bw_list[to_low] + bw_list[to_high]])
-            elif output_dis[lv] == ('psum', 'fsum'):
-                req_mem_bw_bit['O'].append([bw_list[to_low] + bw_list[to_high], bw_list[to_low]])
-            else:
-                req_mem_bw_bit['O'].append([bw_list[to_high], bw_list[to_low]])
+        # req_mem_bw_bit['O'] = []
+        # for lv, bw_list in enumerate(req_mem_bw_bit['O_raw']):
+        #     if output_dis[lv] == ('psum', 'psum'):
+        #         # append [total read bw, total write bw]
+        #         req_mem_bw_bit['O'].append([min(bw_list[to_low] + bw_list[to_high], mem_size_bit['O'][lv]),
+        #                                     min(bw_list[to_low] + bw_list[to_high], mem_size_bit['O'][lv])])
+        #     elif output_dis[lv] == ('psum', 'fsum'):
+        #         req_mem_bw_bit['O'].append([min(bw_list[to_low] + bw_list[to_high], mem_size_bit['O'][lv]), bw_list[to_low]])
+        #     else:
+        #         req_mem_bw_bit['O'].append([bw_list[to_high], bw_list[to_low]])
+        req_mem_bw_bit['O'] = copy.deepcopy(req_mem_bw_bit['O_raw'])
 
         req_sh_mem_bw_bit = copy.deepcopy(req_mem_bw_bit)
         if mem_share:
@@ -950,8 +1035,16 @@ class Utilization(object):
                 rd_bw_bit = 0
                 wr_bw_bit = 0
                 for operand, lv in shared_mem_list:
-                    rd_bw_bit += req_mem_bw_bit[operand][lv][0]
-                    wr_bw_bit += req_mem_bw_bit[operand][lv][1]
+                    if operand in ['W', 'I']:
+                        rd_bw_bit += req_mem_bw_bit[operand][lv][0]
+                        wr_bw_bit += req_mem_bw_bit[operand][lv][1]
+                    else:
+                        wr_bw_bit += req_mem_bw_bit[operand][lv][0]
+                        rd_bw_bit += req_mem_bw_bit[operand][lv][1]
+                        if output_dis[lv][0] == 'psum':
+                            rd_bw_bit += req_mem_bw_bit[operand][lv][0]
+                        if output_dis[lv][1] == 'psum':
+                            wr_bw_bit += req_mem_bw_bit[operand][lv][1]
                 for operand, lv in shared_mem_list:
                     req_sh_mem_bw_bit[operand][lv][0] = rd_bw_bit
                     req_sh_mem_bw_bit[operand][lv][1] = wr_bw_bit
@@ -967,54 +1060,66 @@ class Utilization(object):
         It is multiple times of max_req_mem_bw, based on the actual memory bw, which is larger than max_req_mem_bw.
         '''
 
-        # max_req_bw_bit starting from MAC level !!!
-        max_req_bw_bit = {}
-        for operand in ['I', 'W', 'O']:
-            max_req_bw_bit[operand] = []
-            for level, li in enumerate(req_mem_bw_bit[operand]):
-                if level == 0:
-                    max_req_bw_bit[operand].append(req_mem_bw_bit[operand][level][0])
-                else:
-                    max_req_bw_bit[operand].append(mem_bw_bit[operand][level - 1][1])
-            max_req_bw_bit[operand].append(mem_bw_bit[operand][level][1])
+        # # max_req_bw_bit starting from MAC level !!!
+        # max_req_bw_bit = {}
+        # for operand in ['I', 'W', 'O']:
+        #     max_req_bw_bit[operand] = []
+        #     for level, li in enumerate(req_mem_bw_bit[operand]):
+        #         if level == 0:
+        #             max_req_bw_bit[operand].append(req_mem_bw_bit[operand][level][0])
+        #         else:
+        #             max_req_bw_bit[operand].append(mem_bw_bit[operand][level - 1][1])
+        #     max_req_bw_bit[operand].append(mem_bw_bit[operand][level][1])
 
-        '''
-        pun_factor: 
-        punishment factor to punish underutilized data fetching bandwidth, which will create energy overhead. 
-        It happens when actural BW > aftpac_req_mem_bw.
-        '''
+        # '''
+        # pun_factor:
+        # punishment factor to punish underutilized data fetching bandwidth, which will create energy overhead.
+        # It happens when actural BW > aftpac_req_mem_bw.
+        # '''
+        # pun_factor = {}
+        # for operand in ['W', 'I', 'O']:
+        #     pun_factor[operand] = []
+        #     for level, li in enumerate(req_mem_bw_bit[operand]):
+        #         if max_req_bw_bit[operand][level] * spatial_loop[0].real_bw_boost[operand][level] >= \
+        #                 mem_bw_bit[operand][level][0]:
+        #             pun_factor[operand].append(1)
+        #         else:
+        #             aftpac_mem_bw_bit = mem_bw_bit[operand][level][0] - mem_bw_bit[operand][level][0] % (
+        #                     max_req_bw_bit[operand][level] * spatial_loop[0].real_bw_boost[operand][level])
+        #             pun_factor[operand].append(mem_bw_bit[operand][level][0] / aftpac_mem_bw_bit)
+
+        # '''
+        # pun_factor_sh: punishment factor for shared memory.
+        # '''
+        # pun_factor_sh = []
+        # if mem_share:
+        #     max_req_sh_bw_bit = 0
+        #     for idx, shared_mem_list in mem_share.items():
+        #         for mem in shared_mem_list:
+        #             operand = mem[0]
+        #             level = mem[1]
+        #             max_req_sh_bw_bit += max_req_bw_bit[operand][level] * spatial_loop[0].real_bw_boost[operand][level]
+        #         if max_req_sh_bw_bit >= mem_bw_bit[operand][level][0]:
+        #             pun_factor_sh.append(1)
+        #         else:
+        #             aftpac_mem_bw_bit = mem_bw_bit[operand][level][0] - \
+        #                                 mem_bw_bit[operand][level][0] % max_req_sh_bw_bit
+        #             pun_factor_sh.append(mem_bw_bit[operand][level][0] / aftpac_mem_bw_bit)
+
+        #  To enable pun_factor again, just comment the below code block and uncomment the above block.
         pun_factor = {}
         for operand in ['W', 'I', 'O']:
             pun_factor[operand] = []
             for level, li in enumerate(req_mem_bw_bit[operand]):
-                if max_req_bw_bit[operand][level] * spatial_loop[0].real_bw_boost[operand][level] >= \
-                        mem_bw_bit[operand][level][0]:
-                    pun_factor[operand].append(1)
-                else:
-                    aftpac_mem_bw_bit = mem_bw_bit[operand][level][0] - mem_bw_bit[operand][level][0] % (
-                            max_req_bw_bit[operand][level] * spatial_loop[0].real_bw_boost[operand][level])
-                    pun_factor[operand].append(mem_bw_bit[operand][level][0] / aftpac_mem_bw_bit)
+                pun_factor[operand].append(1)
 
-        '''
-        pun_factor_sh: punishment factor for shared memory.
-        '''
         pun_factor_sh = []
         if mem_share:
-            max_req_sh_bw_bit = 0
             for idx, shared_mem_list in mem_share.items():
-                for mem in shared_mem_list:
-                    operand = mem[0]
-                    level = mem[1]
-                    max_req_sh_bw_bit += max_req_bw_bit[operand][level] * spatial_loop[0].real_bw_boost[operand][level]
-                if max_req_sh_bw_bit >= mem_bw_bit[operand][level][0]:
-                    pun_factor_sh.append(1)
-                else:
-                    aftpac_mem_bw_bit = mem_bw_bit[operand][level][0] - \
-                                        mem_bw_bit[operand][level][0] % max_req_sh_bw_bit
-                    pun_factor_sh.append(mem_bw_bit[operand][level][0] / aftpac_mem_bw_bit)
+                pun_factor_sh.append(1)
 
         ideal_total_cycles = temporal_loop.total_cycles
-        '''clock domian transfer'''
+        '''clock domain transfer'''
         if clk_domain != {}:
             ideal_total_cycles = temporal_loop.total_cycles * clk_domain['W'][0]
 
@@ -1043,17 +1148,25 @@ class Utilization(object):
         self.stall_cc_mem_share = stall_cc_mem_share
         self.stall_cc = stall_cc
 
+        # for latency debug and pipe chart plot
+        self.trans_time_ideal = trans_time
+        self.trans_time_real = trans_time_real
+        self.single_time_stall_cc = single_time_stall_cc
+        self.single_time_stall_count = single_time_stall_count
+        self.mem_compute_overlap_cc = mem_compute_overlap_cc
+        self.mem_compute_overlap_stall = mem_compute_overlap_stall
+
         self.pun_factor = pun_factor
         self.pun_factor_sh = pun_factor_sh
-        self.req_aver_bw = req_aver_bw
-        self.req_aver_bw_bit = req_aver_bw_bit
 
-        self.req_inst_bw = req_inst_bw
+        del req_aver_bw_bit['O_partial']
+        del req_aver_bw_bit['O_final']
+        self.req_aver_bw_bit = req_aver_bw_bit
+        del req_inst_bw_bit['O_partial']
+        del req_inst_bw_bit['O_final']
         self.req_inst_bw_bit = req_inst_bw_bit
 
-        # self.req_mem_bw = req_mem_bw
         self.req_mem_bw_bit = req_mem_bw_bit
-        # self.req_sh_mem_bw = req_sh_mem_bw
         self.req_sh_mem_bw_bit = req_sh_mem_bw_bit
 
         self.mem_utilize = mem_utilize
@@ -1065,6 +1178,8 @@ class Utilization(object):
 
         self.mac_utilize_temporal_no_load = mac_utilize_temporal_no_load
         self.mac_utilize_no_load = mac_utilize_no_load
+
+        self.fully_PE_level_output_stationary = fully_PE_level_output_stationary
 
     @classmethod
     def get_utilization(cls, layer, temporal_loop, spatial_loop, loop, mac_array_info, mem_size_bit, mem_share,
