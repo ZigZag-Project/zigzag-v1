@@ -1,3 +1,5 @@
+# WARNING: This repository has been ARCHIVED and moved to a different repo URL. You can find the new version of our ZigZag framework at https://www.github.com/ZigZag-Project/zigzag
+
 # ZigZag: A Joint Architecture-Mapping Design Space Exploration Framework for DNN Accelerators
 
 ## Paper
